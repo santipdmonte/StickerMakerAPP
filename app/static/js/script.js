@@ -592,34 +592,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Store the current sticker filename for adding to template
+                    // Update the current sticker reference
                     currentGeneratedSticker = data.filename;
                     
-                    // Update the image and download link
-                    stickerImage.src = `data:image/png;base64,${data.image}`;
-                    downloadBtn.href = `/static/imgs/${data.filename}`;
-                    
-                    // Hide loading spinner and show result
+                    // Display the result
                     loadingSpinner.classList.add('hidden');
                     stickerResult.style.display = 'flex';
+                    stickerResult.classList.add('pulse');
                     
-                    // Add a subtle animation to the sticker image
-                    stickerImage.style.opacity = '0';
-                    stickerImage.style.transform = 'scale(0.9)';
+                    // Set the image source
+                    stickerImage.src = `/static/imgs/${data.filename}`;
                     
-                    // Force reflow
-                    stickerImage.offsetHeight;
+                    // Enable download button
+                    downloadBtn.href = `/static/imgs/${data.filename}`;
+                    downloadBtn.download = data.filename;
                     
-                    // Apply animation
-                    stickerImage.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-                    stickerImage.style.opacity = '1';
-                    stickerImage.style.transform = 'scale(1)';
-                    
-                    // Add pulse animation to download button
+                    // Remove animation class after animation completes
                     setTimeout(() => {
-                        downloadBtn.classList.add('pulse');
-                        setTimeout(() => downloadBtn.classList.remove('pulse'), 1000);
-                    }, 1000);
+                        stickerResult.classList.remove('pulse');
+                    }, 600);
+                    
+                    // Scroll to results section
+                    resultsSection.scrollIntoView({behavior: 'smooth'});
                 } else {
                     throw new Error(data.error || 'Failed to generate sticker');
                 }
