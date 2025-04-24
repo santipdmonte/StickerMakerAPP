@@ -10,6 +10,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const stickerResult = document.querySelector('.sticker-result');
     const container = document.querySelector('.container');
     
+    // Template elements
+    const addToTemplateBtn = document.getElementById('add-to-template-btn');
+    const templateSection = document.getElementById('template-section');
+    const templateGrid = document.getElementById('template-grid');
+    const downloadTemplateBtn = document.getElementById('download-template-btn');
+    const clearTemplateBtn = document.getElementById('clear-template-btn');
+    const emptyTemplateMessage = document.querySelector('.empty-template-message');
+    
     // Quality selectors
     const qualityRadios = document.querySelectorAll('input[name="quality"]');
     const qualityRefRadios = document.querySelectorAll('input[name="quality-ref"]');
@@ -27,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Image data storage
     let referenceImageData = null;
     let currentMode = 'simple';
+    let currentGeneratedSticker = null;
+    let templateStickers = [];
     
     // Initially hide the sticker result
     stickerResult.style.display = 'none';
@@ -35,12 +45,295 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         container.style.opacity = '1';
         container.style.transform = 'translateY(0)';
+        
+        // Make template section visible
+        templateSection.classList.add('active');
     }, 100);
 
     // Initial focus on the prompt input with delay for better UX
     setTimeout(() => {
         promptInput.focus();
     }, 500);
+    
+    // Load template stickers on page load
+    loadTemplate();
+    
+    // Template Functions
+    function loadTemplate() {
+        fetch('/get-template')
+            .then(response => response.json())
+            .then(data => {
+                templateStickers = data.template_stickers;
+                updateTemplateDisplay();
+            })
+            .catch(error => {
+                console.error('Error loading template:', error);
+            });
+    }
+    
+    function updateTemplateDisplay() {
+        console.log("Current template stickers:", templateStickers);
+        
+        // Clear existing stickers
+        while (templateGrid.firstChild) {
+            templateGrid.removeChild(templateGrid.firstChild);
+        }
+        
+        // Show empty message if no stickers
+        if (templateStickers.length === 0) {
+            templateGrid.appendChild(emptyTemplateMessage);
+            templateGrid.classList.add('empty');
+            return;
+        }
+        
+        // Remove empty message and class
+        templateGrid.classList.remove('empty');
+        if (emptyTemplateMessage.parentNode === templateGrid) {
+            templateGrid.removeChild(emptyTemplateMessage);
+        }
+        
+        // Add stickers to template
+        templateStickers.forEach(stickerData => {
+            // Create the sticker item container
+            const stickerItem = document.createElement('div');
+            stickerItem.className = 'template-item';
+            
+            // Get filename and quantity from sticker data
+            const filename = typeof stickerData === 'string' ? stickerData : stickerData.filename;
+            const quantity = typeof stickerData === 'string' ? 1 : (stickerData.quantity || 1);
+            
+            console.log(`Sticker: ${filename}, Quantity: ${quantity}`);
+            
+            // Create the image element
+            const img = document.createElement('img');
+            img.src = `/static/imgs/${filename}`;
+            img.alt = 'Template sticker';
+            
+            // Create quantity controls
+            const quantityControl = document.createElement('div');
+            quantityControl.className = 'quantity-control';
+            
+            const decreaseBtn = document.createElement('button');
+            decreaseBtn.className = 'quantity-btn decrease';
+            decreaseBtn.innerHTML = '<i class="ri-subtract-fill"></i>';
+            decreaseBtn.disabled = quantity <= 1;
+            decreaseBtn.type = 'button'; // Prevent form submission
+            
+            const quantityValue = document.createElement('span');
+            quantityValue.className = 'quantity-value';
+            quantityValue.textContent = quantity;
+            
+            const increaseBtn = document.createElement('button');
+            increaseBtn.className = 'quantity-btn increase';
+            increaseBtn.innerHTML = '<i class="ri-add-fill"></i>';
+            increaseBtn.type = 'button'; // Prevent form submission
+            
+            // Add event listeners to quantity buttons
+            decreaseBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (quantity > 1) {
+                    updateStickerQuantity(filename, quantity - 1);
+                }
+            });
+            
+            increaseBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                updateStickerQuantity(filename, quantity + 1);
+            });
+            
+            // Add quantity controls to the UI
+            quantityControl.appendChild(decreaseBtn);
+            quantityControl.appendChild(quantityValue);
+            quantityControl.appendChild(increaseBtn);
+            
+            // Create the remove button
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.innerHTML = '<i class="ri-close-line"></i>';
+            removeBtn.dataset.filename = filename;
+            removeBtn.type = 'button'; // Prevent form submission
+            
+            removeBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                removeFromTemplate(filename);
+            });
+            
+            // Add elements to the sticker item
+            stickerItem.appendChild(img);
+            stickerItem.appendChild(quantityControl);
+            stickerItem.appendChild(removeBtn);
+            templateGrid.appendChild(stickerItem);
+        });
+    }
+    
+    function addToTemplate(filename) {
+        fetch('/add-to-template', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ filename }),
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    templateStickers = data.template_stickers;
+                    updateTemplateDisplay();
+                    showSuccess('Sticker added to template');
+                    
+                    // Scroll to template section
+                    templateSection.scrollIntoView({ behavior: 'smooth' });
+                }
+            })
+            .catch(error => {
+                console.error('Error adding to template:', error);
+                showError('Failed to add sticker to template');
+            });
+    }
+    
+    function removeFromTemplate(filename) {
+        fetch('/remove-from-template', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ filename }),
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    templateStickers = data.template_stickers;
+                    updateTemplateDisplay();
+                }
+            })
+            .catch(error => {
+                console.error('Error removing from template:', error);
+                showError('Failed to remove sticker from template');
+            });
+    }
+    
+    function clearTemplate() {
+        fetch('/clear-template', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    templateStickers = [];
+                    updateTemplateDisplay();
+                    showSuccess('Template cleared');
+                }
+            })
+            .catch(error => {
+                console.error('Error clearing template:', error);
+                showError('Failed to clear template');
+            });
+    }
+    
+    function downloadTemplateAsImage() {
+        if (templateStickers.length === 0) {
+            showError('Template is empty. Add stickers first!');
+            return;
+        }
+        
+        // Create a temporary canvas for the template
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Calculate total stickers count (accounting for quantities)
+        const totalStickers = templateStickers.reduce((count, sticker) => {
+            const quantity = typeof sticker === 'string' ? 1 : (sticker.quantity || 1);
+            return count + quantity;
+        }, 0);
+        
+        // Calculate template size
+        const columns = Math.min(3, Math.ceil(Math.sqrt(totalStickers)));
+        const rows = Math.ceil(totalStickers / columns);
+        
+        const stickerWidth = 300;
+        const stickerHeight = 300;
+        const padding = 20;
+        
+        canvas.width = columns * (stickerWidth + padding) + padding;
+        canvas.height = rows * (stickerHeight + padding) + padding;
+        
+        // Fill with white background
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Load and draw all stickers
+        let loadedCount = 0;
+        let totalExpectedImages = 0;
+        let loadError = false;
+        
+        // Create an array with all sticker instances, accounting for quantities
+        const stickerInstances = [];
+        templateStickers.forEach(stickerData => {
+            const filename = typeof stickerData === 'string' ? stickerData : stickerData.filename;
+            const quantity = typeof stickerData === 'string' ? 1 : (stickerData.quantity || 1);
+            
+            for (let i = 0; i < quantity; i++) {
+                stickerInstances.push(filename);
+            }
+        });
+        
+        totalExpectedImages = stickerInstances.length;
+        
+        const drawTemplateAndDownload = () => {
+            if (loadedCount === totalExpectedImages && !loadError) {
+                // Create download link
+                const dataUrl = canvas.toDataURL('image/png');
+                const downloadLink = document.createElement('a');
+                downloadLink.href = dataUrl;
+                downloadLink.download = `sticker_template_${Date.now()}.png`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                
+                showSuccess('Template downloaded');
+            }
+        };
+        
+        stickerInstances.forEach((filename, index) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = `/static/imgs/${filename}`;
+            
+            img.onload = () => {
+                const col = index % columns;
+                const row = Math.floor(index / columns);
+                const x = padding + col * (stickerWidth + padding);
+                const y = padding + row * (stickerHeight + padding);
+                
+                ctx.drawImage(img, x, y, stickerWidth, stickerHeight);
+                loadedCount++;
+                drawTemplateAndDownload();
+            };
+            
+            img.onerror = () => {
+                loadError = true;
+                showError('Error loading sticker images');
+            };
+        });
+    }
+    
+    // Event listeners for template buttons
+    addToTemplateBtn.addEventListener('click', () => {
+        if (currentGeneratedSticker) {
+            addToTemplate(currentGeneratedSticker);
+        } else {
+            showError('No sticker to add. Generate one first!');
+        }
+    });
+    
+    clearTemplateBtn.addEventListener('click', clearTemplate);
+    downloadTemplateBtn.addEventListener('click', downloadTemplateAsImage);
     
     // Sync quality settings between modes
     function syncQualitySettings(fromMode, toMode) {
@@ -295,38 +588,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(requestData)
             });
             
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to generate sticker');
+            if (response.ok) {
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Store the current sticker filename for adding to template
+                    currentGeneratedSticker = data.filename;
+                    
+                    // Update the image and download link
+                    stickerImage.src = `data:image/png;base64,${data.image}`;
+                    downloadBtn.href = `/static/imgs/${data.filename}`;
+                    
+                    // Hide loading spinner and show result
+                    loadingSpinner.classList.add('hidden');
+                    stickerResult.style.display = 'flex';
+                    
+                    // Add a subtle animation to the sticker image
+                    stickerImage.style.opacity = '0';
+                    stickerImage.style.transform = 'scale(0.9)';
+                    
+                    // Force reflow
+                    stickerImage.offsetHeight;
+                    
+                    // Apply animation
+                    stickerImage.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    stickerImage.style.opacity = '1';
+                    stickerImage.style.transform = 'scale(1)';
+                    
+                    // Add pulse animation to download button
+                    setTimeout(() => {
+                        downloadBtn.classList.add('pulse');
+                        setTimeout(() => downloadBtn.classList.remove('pulse'), 1000);
+                    }, 1000);
+                } else {
+                    throw new Error(data.error || 'Failed to generate sticker');
+                }
+            } else {
+                throw new Error('Failed to generate sticker');
             }
-            
-            // Update the image and download link
-            stickerImage.src = `data:image/png;base64,${data.image}`;
-            downloadBtn.href = `/static/imgs/${data.filename}`;
-            
-            // Hide loading spinner and show result
-            loadingSpinner.classList.add('hidden');
-            stickerResult.style.display = 'flex';
-            
-            // Add a subtle animation to the sticker image
-            stickerImage.style.opacity = '0';
-            stickerImage.style.transform = 'scale(0.9)';
-            
-            // Force reflow
-            stickerImage.offsetHeight;
-            
-            // Apply animation
-            stickerImage.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-            stickerImage.style.opacity = '1';
-            stickerImage.style.transform = 'scale(1)';
-            
-            // Add pulse animation to download button
-            setTimeout(() => {
-                downloadBtn.classList.add('pulse');
-                setTimeout(() => downloadBtn.classList.remove('pulse'), 1000);
-            }, 1000);
-            
         } catch (error) {
             showError(error.message);
             loadingSpinner.classList.add('hidden');
@@ -382,5 +681,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 300);
             }, 3000);
         }, 10);
+    }
+    
+    // Function to update sticker quantity
+    function updateStickerQuantity(filename, newQuantity) {
+        console.log(`Updating quantity for ${filename} to ${newQuantity}`);
+        
+        fetch('/update-quantity', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                filename: filename,
+                quantity: newQuantity 
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log("Quantity updated successfully:", data.template_stickers);
+                templateStickers = data.template_stickers;
+                updateTemplateDisplay();
+            } else {
+                console.error("Error updating quantity:", data.error);
+                showError(data.error || 'Failed to update quantity');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating quantity:', error);
+            showError('Failed to update sticker quantity');
+        });
     }
 }); 
