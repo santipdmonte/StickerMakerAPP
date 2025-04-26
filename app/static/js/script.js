@@ -25,17 +25,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const checkoutForm = document.getElementById('checkout-form');
     const finalizePaymentBtn = document.getElementById('finalize-payment-btn');
     
-    // Library elements
-    const libraryToggleBtn = document.getElementById('library-toggle-btn');
-    const libraryPanel = document.getElementById('library-panel');
-    const libraryCloseBtn = document.getElementById('library-close-btn');
-    const libraryOverlay = document.getElementById('library-overlay');
-    const libraryStickers = document.getElementById('library-stickers');
-    const libraryEmptyMessage = document.getElementById('library-empty-message');
     
     // Coins elements
-    const buyCoinsBtn = document.getElementById('buy-coins-btn');
-    const coinsCount = document.getElementById('coins-count');
+    const buyCoinsHeaderBtn = document.getElementById('buy-coins-btn-header');
+    const coinsCountHeader = document.getElementById('coins-count-header');
     const coinsModal = document.getElementById('coins-modal');
     const coinsModalCloseBtn = document.getElementById('coins-modal-close-btn');
     const coinsPackages = document.querySelectorAll('.coins-package');
@@ -985,80 +978,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Library Functions
-    function showLibrary() {
-        libraryPanel.classList.add('active');
-        libraryOverlay.classList.add('active');
-        document.body.style.overflow = 'hidden'; // Prevent scrolling
-        
-        // Load library stickers
-        loadLibraryStickers();
-    }
-    
-    function hideLibrary() {
-        libraryPanel.classList.remove('active');
-        libraryOverlay.classList.remove('active');
-        document.body.style.overflow = ''; // Restore scrolling
-    }
-    
-    function loadLibraryStickers() {
-        fetch('/get-library')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.stickers && data.stickers.length > 0) {
-                    // Clear current stickers except the empty message
-                    while (libraryStickers.firstChild && libraryStickers.firstChild !== libraryEmptyMessage) {
-                        libraryStickers.removeChild(libraryStickers.firstChild);
-                    }
-                    
-                    // Hide empty message
-                    libraryEmptyMessage.style.display = 'none';
-                    
-                    // Add each sticker to the library
-                    data.stickers.forEach(filename => {
-                        const stickerItem = document.createElement('div');
-                        stickerItem.className = 'library-sticker-item';
-                        
-                        const img = document.createElement('img');
-                        img.src = `/static/imgs/${filename}`;
-                        img.alt = filename;
-                        
-                        const actionsDiv = document.createElement('div');
-                        actionsDiv.className = 'library-sticker-actions';
-                        
-                        const addBtn = document.createElement('button');
-                        addBtn.className = 'library-add-btn';
-                        addBtn.innerHTML = '<i class="ri-add-line"></i> Add to Template';
-                        addBtn.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            addToTemplate(filename);
-                            showSuccess('Added to template');
-                        });
-                        
-                        actionsDiv.appendChild(addBtn);
-                        stickerItem.appendChild(img);
-                        stickerItem.appendChild(actionsDiv);
-                        
-                        // Insert before the empty message
-                        libraryStickers.insertBefore(stickerItem, libraryEmptyMessage);
-                    });
-                } else {
-                    // Show empty message
-                    libraryEmptyMessage.style.display = 'flex';
-                }
-            })
-            .catch(error => {
-                console.error('Error loading library stickers:', error);
-                showError('Failed to load library stickers');
-                libraryEmptyMessage.style.display = 'flex';
-            });
-    }
-    
-    // Event Listeners for Library
-    libraryToggleBtn.addEventListener('click', showLibrary);
-    libraryCloseBtn.addEventListener('click', hideLibrary);
-    libraryOverlay.addEventListener('click', hideLibrary);
-
     // Coins Functions
     function loadCoins() {
         fetch('/get-coins')
@@ -1075,7 +994,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function updateCoinsDisplay() {
-        coinsCount.textContent = currentCoins;
+        coinsCountHeader.textContent = currentCoins;
     }
     
     function showCoinsModal() {
@@ -1195,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Event Listeners for Coins
-    buyCoinsBtn.addEventListener('click', showCoinsModal);
+    buyCoinsHeaderBtn.addEventListener('click', showCoinsModal);
     coinsModalCloseBtn.addEventListener('click', hideCoinsModal);
     
     // Event listeners for package selection

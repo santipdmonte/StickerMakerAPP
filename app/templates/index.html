@@ -3,48 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sticker Maker</title>
+    <title>TheStickerHouse</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="icon" href="{{ url_for('static', filename='ico/TheStickerHouseLogo.ico') }}" type="image/x-icon">
 </head>
 <body>
-    <!-- Library Button and Panel -->
-    <div class="library-container">
-        <button id="library-toggle-btn" class="library-toggle-btn"><i class="ri-gallery-line"></i> Library</button>
-        <div id="library-panel" class="library-panel">
-            <div class="library-header">
-                <h3>Sticker Library</h3>
-                <button id="library-close-btn" class="library-close-btn"><i class="ri-close-line"></i></button>
-            </div>
-            <div class="library-content">
-                <div id="library-stickers" class="library-stickers-grid">
-                    <!-- Stickers will be loaded here -->
-                    <div class="library-empty-message" id="library-empty-message">
-                        <i class="ri-image-line"></i>
-                        <p>No stickers in library yet</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
     
-    <!-- Library Overlay -->
-    <div id="library-overlay" class="library-overlay"></div>
-    
-    <!-- Coins Display -->
-    <div class="coins-display">
-        <button id="buy-coins-btn" class="buy-coins-btn">
-            <i class="ri-coin-line"></i> <span id="coins-count">0</span>
-        </button>
-    </div>
-
     <div class="container">
         <header>
-            <h1>Sticker Maker</h1>
-            <p>Create beautiful stickers with AI</p>
+            <div class="header-content">
+                <div class="header-left">
+                    <a href="/library" class="library-page-btn">
+                        <i class="ri-pages-line"></i> Library Page
+                    </a>
+                </div>
+                
+                <div class="logo-container">
+                    <img src="{{ url_for('static', filename='logo/TheStickerHouseLogo.PNG') }}" alt="TheStickerHouse Logo" class="main-logo">
+                </div>
+                
+                <div class="header-right">
+                    <button id="buy-coins-btn-header" class="buy-coins-btn">
+                        <i class="ri-coin-line"></i> <span id="coins-count-header">0</span>
+                    </button>
+                </div>
+            </div>
         </header>
         
         <main class="card-container">

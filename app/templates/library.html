@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TheStickerHouse - Library</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="icon" href="{{ url_for('static', filename='ico/TheStickerHouseLogo.ico') }}" type="image/x-icon">
+    <style>
+        /* Additional styles for the library page */
+        .library-page-container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .library-page-title {
+            text-align: center;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .library-page-title h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .library-page-title i {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+        }
+
+        .library-page-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 25px;
+            padding: 20px;
+        }
+
+        .library-page-item {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            padding: 15px;
+            transition: var(--transition);
+            position: relative;
+            overflow: visible;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .library-page-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 65px rgba(0, 0, 0, 0.12);
+        }
+
+        .library-page-item img {
+            width: 100%;
+            height: 160px;
+            object-fit: contain;
+            margin-bottom: 15px;
+        }
+
+        .library-page-actions-new {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            gap: 8px;
+            z-index: 2;
+        }
+
+        .library-action-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 0;
+            margin: 0;
+            text-decoration: none;
+        }
+
+        .add-btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+
+        .download-btn-link {
+            background: linear-gradient(45deg, var(--accent-color), #ff8ab4);
+            color: white;
+        }
+
+        .library-action-btn:hover {
+            transform: scale(1.1) translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .library-action-btn i {
+            margin: 0;
+            line-height: 1;
+        }
+
+        .back-home-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 15px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 500;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 10px 25px rgba(124, 93, 250, 0.25);
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .back-home-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 30px rgba(124, 93, 250, 0.35);
+        }
+
+        .empty-library {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+            width: 100%;
+            grid-column: 1 / -1;
+        }
+
+        .empty-library i {
+            font-size: 5rem;
+            color: var(--primary-color);
+            opacity: 0.4;
+            margin-bottom: 20px;
+        }
+
+        .empty-library p {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+
+        .empty-library span {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        .create-sticker-btn {
+            margin-top: 30px;
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 10px 25px rgba(124, 93, 250, 0.25);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .create-sticker-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(124, 93, 250, 0.35);
+        }
+
+        @media (max-width: 768px) {
+            .library-page-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+                gap: 15px;
+                padding: 10px;
+            }
+
+            .library-page-item img {
+                height: 120px;
+            }
+
+            .library-page-actions {
+                flex-direction: column;
+            }
+
+            .back-home-btn {
+                bottom: 20px;
+                left: 20px;
+                width: 50px;
+                height: 50px;
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Sticker View Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1100; /* Ensure it's above other elements */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+        }
+
+        .modal.modal-visible {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-hidden {
+            display: none; /* Use display none when fully hidden */
+        }
+
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75); /* Darker overlay */
+            cursor: pointer;
+        }
+
+        .card-style-modal-content {
+            position: relative;
+            background-color: var(--card-bg); /* White card background */
+            padding: 30px; /* Add padding */
+            border-radius: var(--border-radius); /* Rounded corners */
+            box-shadow: var(--card-shadow); /* Card shadow */
+            max-width: 600px; /* Increase max width */
+            max-height: 85vh; /* Increase max height */
+            width: 90%;
+            display: flex;
+            flex-direction: column; /* Stack image and actions vertically */
+            align-items: center;
+            justify-content: space-between; /* Space image and actions */
+            transform: scale(0.8);
+            transition: transform 0.3s ease;
+            overflow: hidden; /* Hide overflow */
+        }
+        
+        .modal.modal-visible .card-style-modal-content {
+             transform: scale(1);
+        }
+
+        .modal-image-container {
+            width: 100%;
+            flex-grow: 1; /* Allow image container to take available space */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px; /* Space below image */
+            max-height: 60vh; /* Limit image container height */
+        }
+
+        #modal-sticker-image {
+            display: block;
+            max-width: 100%;
+            max-height: 100%; /* Image fits within its container */
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .modal-actions-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+            padding-top: 20px; /* Space above buttons */
+            border-top: 1px solid var(--input-border); /* Separator line */
+        }
+
+        /* Use existing button styles but adjust margin/width */
+        .modal-actions-container .template-button,
+        .modal-actions-container .download-button-link { /* Target link as well */
+            margin: 0;
+            flex: 1; /* Make buttons share space */
+            max-width: 200px; /* Limit button width */
+             /* Ensure link styles match button */
+            display: inline-flex; /* Align items correctly */
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            border-radius: 50px;
+        }
+        
+        .modal-actions-container .download-button-link {
+            /* Apply gradient from download-button style */
+            background: linear-gradient(45deg, #ff6b9b, #ff9eb5);
+            color: white;
+            box-shadow: 0 6px 15px rgba(255, 107, 155, 0.2);
+        }
+        
+        .modal-actions-container .download-button-link:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 107, 155, 0.3);
+        }
+
+        .sticker-modal-close {
+            position: absolute;
+            top: 15px; 
+            right: 15px; 
+            background-color: rgba(0, 0, 0, 0.1);
+            color: #666;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: none;
+            z-index: 1101;
+            padding: 0; /* Remove any padding */
+        }
+
+        .sticker-modal-close i {
+            display: flex; /* Ensure the icon itself uses flexbox */
+            align-items: center;
+            justify-content: center;
+            width: 100%; /* Fill the button */
+            height: 100%;
+            line-height: 1; /* Reset line height */
+            margin: 0; /* Remove any margin */
+        }
+
+        .sticker-modal-close:hover {
+            background-color: rgba(0, 0, 0, 0.2);
+            color: #000;
+        }
+
+        /* Hide old modal content style if needed */
+        .sticker-modal-content { 
+            display: none; 
+        }
+    </style>
+</head>
+<body>
+    <div class="library-page-container">
+        <header>
+            <div class="library-page-title">
+                <i class="ri-gallery-line"></i>
+                <h1>Sticker Library</h1>
+            </div>
+        </header>
+        
+        <main>
+            <div class="library-page-grid" id="library-page-grid">
+                <!-- Stickers will be loaded here -->
+                <div class="empty-library" id="empty-library">
+                    <i class="ri-image-line"></i>
+                    <p>Your sticker library is empty</p>
+                    <span>Generate some stickers to see them here!</span>
+                    <a href="/" class="create-sticker-btn">
+                        <i class="ri-add-circle-line"></i> Create a Sticker
+                    </a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Home Button -->
+    <a href="/" class="back-home-btn">
+        <i class="ri-home-line"></i>
+    </a>
+
+    <!-- Success/Error Toast Messages -->
+    <div class="success-toast" id="success-toast">
+        <i class="ri-checkbox-circle-line"></i>
+        <span id="success-message">Success!</span>
+    </div>
+    
+    <div class="error-toast" id="error-toast">
+        <i class="ri-error-warning-line"></i>
+        <span id="error-message">Error!</span>
+    </div>
+
+    <!-- Sticker View Modal -->
+    <div id="sticker-view-modal" class="modal modal-hidden">
+        <div class="modal-overlay" id="sticker-modal-overlay"></div>
+        <div class="modal-content card-style-modal-content">
+            <button class="modal-close-btn sticker-modal-close" id="sticker-modal-close"><i class="ri-close-line"></i></button>
+            <div class="modal-image-container">
+                <img id="modal-sticker-image" src="" alt="Enlarged Sticker">
+            </div>
+            <div class="modal-actions-container" id="modal-actions-container">
+                <!-- Buttons will be added here by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get UI elements
+            const libraryGrid = document.getElementById('library-page-grid');
+            const emptyLibrary = document.getElementById('empty-library');
+            const stickerViewModal = document.getElementById('sticker-view-modal');
+            const modalStickerImage = document.getElementById('modal-sticker-image');
+            const stickerModalClose = document.getElementById('sticker-modal-close');
+            const stickerModalOverlay = document.getElementById('sticker-modal-overlay');
+            const modalActionsContainer = document.getElementById('modal-actions-container'); // Get actions container
+
+            // Function to show the sticker modal
+            function showStickerModal(imageUrl, filename) { // Accept filename
+                modalStickerImage.src = imageUrl;
+                
+                // Clear previous buttons
+                modalActionsContainer.innerHTML = '';
+                
+                // Create Add to Template button
+                const addBtn = document.createElement('button');
+                addBtn.className = 'template-button'; // Use existing style
+                addBtn.innerHTML = '<i class="ri-add-line"></i> Add to Template';
+                addBtn.onclick = () => {
+                    addToTemplate(filename);
+                    // Optionally close modal after adding
+                    // hideStickerModal(); 
+                };
+                
+                // Create Download button (as link)
+                const downloadBtn = document.createElement('a');
+                downloadBtn.className = 'download-button-link'; // Use specific class for styling link
+                downloadBtn.innerHTML = '<i class="ri-download-line"></i> Download';
+                downloadBtn.href = imageUrl; // Use the direct image URL
+                downloadBtn.download = filename;
+                
+                // Append buttons to modal
+                modalActionsContainer.appendChild(addBtn);
+                modalActionsContainer.appendChild(downloadBtn);
+                
+                stickerViewModal.classList.remove('modal-hidden');
+                stickerViewModal.offsetHeight; 
+                stickerViewModal.classList.add('modal-visible');
+                document.body.style.overflow = 'hidden'; 
+            }
+
+            // Function to hide the sticker modal
+            function hideStickerModal() {
+                stickerViewModal.classList.remove('modal-visible');
+                document.body.style.overflow = ''; // Restore scrolling
+                // Wait for transition to finish before hiding completely
+                setTimeout(() => {
+                    stickerViewModal.classList.add('modal-hidden');
+                    modalStickerImage.src = ''; // Clear image src
+                }, 300); // Match transition duration
+            }
+
+            // Event listeners for modal close
+            stickerModalClose.addEventListener('click', hideStickerModal);
+            stickerModalOverlay.addEventListener('click', hideStickerModal);
+
+            // Function to show success message
+            function showSuccess(message) {
+                const successToast = document.getElementById('success-toast');
+                const successMessage = document.getElementById('success-message');
+                
+                successMessage.textContent = message;
+                successToast.classList.add('show');
+                
+                setTimeout(() => {
+                    successToast.classList.remove('show');
+                }, 3000);
+            }
+            
+            // Function to show error message
+            function showError(message) {
+                const errorToast = document.getElementById('error-toast');
+                const errorMessage = document.getElementById('error-message');
+                
+                errorMessage.textContent = message;
+                errorToast.classList.add('show');
+                
+                setTimeout(() => {
+                    errorToast.classList.remove('show');
+                }, 3000);
+            }
+
+            // Function to add sticker to template
+            function addToTemplate(filename) {
+                fetch('/add-to-template', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        filename: filename,
+                        quantity: 1
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showSuccess('Added to template!');
+                    } else {
+                        showError(data.error || 'Failed to add to template');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error adding to template:', error);
+                    showError('Failed to add to template');
+                });
+            }
+
+            // Load stickers from library
+            function loadLibraryStickers() {
+                fetch('/get-library')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.stickers && data.stickers.length > 0) {
+                            // Hide empty message
+                            emptyLibrary.style.display = 'none';
+                            
+                            // Clear any existing stickers (except empty message)
+                            const existingStickers = libraryGrid.querySelectorAll('.library-page-item');
+                            existingStickers.forEach(item => item.remove());
+                            
+                            // Add each sticker to the grid
+                            data.stickers.forEach(filename => {
+                                const stickerItem = document.createElement('div');
+                                stickerItem.className = 'library-page-item';
+                                
+                                const img = document.createElement('img');
+                                img.src = `/static/imgs/${filename}`;
+                                img.alt = filename;
+
+                                // Add click listener to the card itself
+                                stickerItem.addEventListener('click', () => {
+                                    // Pass both image src and filename
+                                    showStickerModal(img.src, filename); 
+                                });
+                                
+                                const actionsDiv = document.createElement('div');
+                                actionsDiv.className = 'library-page-actions-new';
+                                
+                                const addBtn = document.createElement('button');
+                                addBtn.className = 'library-action-btn add-btn';
+                                addBtn.title = 'Add to Template';
+                                addBtn.innerHTML = '<i class="ri-add-circle-line"></i>';
+                                addBtn.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                    addToTemplate(filename);
+                                });
+                                
+                                const downloadBtn = document.createElement('a');
+                                downloadBtn.className = 'library-action-btn download-btn-link';
+                                downloadBtn.title = 'Download';
+                                downloadBtn.innerHTML = '<i class="ri-download-2-line"></i>';
+                                downloadBtn.href = `/static/imgs/${filename}`;
+                                downloadBtn.download = filename;
+                                downloadBtn.addEventListener('click', (e) => {
+                                    e.stopPropagation();
+                                });
+                                
+                                actionsDiv.appendChild(addBtn);
+                                actionsDiv.appendChild(downloadBtn);
+                                stickerItem.appendChild(img);
+                                stickerItem.appendChild(actionsDiv);
+                                
+                                libraryGrid.appendChild(stickerItem);
+                            });
+                        } else {
+                            // Show empty message
+                            emptyLibrary.style.display = 'flex';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading library stickers:', error);
+                        showError('Failed to load stickers');
+                        emptyLibrary.style.display = 'flex';
+                    });
+            }
+
+            // Load stickers when page loads
+            loadLibraryStickers();
+        });
+    </script>
+</body>
+</html> 

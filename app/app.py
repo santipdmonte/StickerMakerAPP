@@ -18,6 +18,8 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'default_secret_key') 
 # app.config['SERVER_NAME'] = os.getenv('FLASK_SERVER_NAME', None) # REMOVED: Let url_for infer from request
 
+# TheStickerHouse - Sticker generation web application
+
 # Configure Mercado Pago SDK
 mp_access_token = os.getenv("PROD_ACCESS_TOKEN")
 if not mp_access_token:
@@ -531,6 +533,12 @@ def payment_feedback():
     # You could also return jsonify if you handle feedback purely on the frontend
 
 # --- End Mercado Pago Integration ---
+
+@app.route('/library')
+def library():
+    # Get the Mercado Pago public key from environment variables
+    mp_public_key = os.getenv('MP_PUBLIC_KEY', '')
+    return render_template('library.html', mp_public_key=mp_public_key)
 
 if __name__ == '__main__':
     # Add host='0.0.0.0' to listen on all interfaces, necessary when using SERVER_NAME with dev server
