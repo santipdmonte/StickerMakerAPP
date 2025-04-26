@@ -48,11 +48,11 @@
                             <label>Quality:</label>
                             <div class="quality-options">
                                 <input type="radio" id="quality-low" name="quality" value="low" checked>
-                                <label for="quality-low">Low</label>
+                                <label for="quality-low">Low <span class="quality-cost">(10 coins)</span></label>
                                 <input type="radio" id="quality-medium" name="quality" value="medium">
-                                <label for="quality-medium">Medium</label>
+                                <label for="quality-medium">Medium <span class="quality-cost">(25 coins)</span></label>
                                 <input type="radio" id="quality-high" name="quality" value="high">
-                                <label for="quality-high">High <span class="high-quality-sparkle">✨</span></label>
+                                <label for="quality-high">High <span class="high-quality-sparkle">✨</span> <span class="quality-cost">(100 coins)</span></label>
                             </div>
                         </div>
                         <textarea id="prompt-input" placeholder="Describe your sticker... (e.g., 'a cute panda eating bamboo on a transparent background')"></textarea>
@@ -76,11 +76,11 @@
                             <label>Quality:</label>
                             <div class="quality-options">
                                 <input type="radio" id="quality-low-ref" name="quality-ref" value="low" checked>
-                                <label for="quality-low-ref">Low</label>
+                                <label for="quality-low-ref">Low <span class="quality-cost">(10 coins)</span></label>
                                 <input type="radio" id="quality-medium-ref" name="quality-ref" value="medium">
-                                <label for="quality-medium-ref">Medium</label>
+                                <label for="quality-medium-ref">Medium <span class="quality-cost">(25 coins)</span></label>
                                 <input type="radio" id="quality-high-ref" name="quality-ref" value="high">
-                                <label for="quality-high-ref">High <span class="high-quality-sparkle">✨</span></label>
+                                <label for="quality-high-ref">High <span class="high-quality-sparkle">✨</span> <span class="quality-cost">(100 coins)</span></label>
                             </div>
                         </div>
                         
@@ -198,6 +198,17 @@
                     <p class="package-price">$1500.00</p>
                     <div class="package-badge">Best Value</div>
                     <button class="package-select-btn">Select</button>
+                </div>
+            </div>
+            
+            <div class="coupon-section">
+                <p>Have a coupon code?</p>
+                <div class="form-group compact-form">
+                    <div class="coupon-container">
+                        <input type="text" id="coins-coupon-direct" name="coupon" placeholder="Enter discount coupon">
+                        <button type="button" id="apply-coupon-direct-btn" class="apply-coupon-button">Apply</button>
+                    </div>
+                    <p id="coupon-direct-status" class="coupon-status"></p>
                 </div>
             </div>
             

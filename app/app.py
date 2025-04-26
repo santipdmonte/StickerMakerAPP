@@ -28,6 +28,10 @@ if not mp_access_token:
     # For demonstration, let's allow it to continue but it won't work without a token
 sdk = mercadopago.SDK(mp_access_token) if mp_access_token else None
 
+# Get discount coupon settings
+DISCOUNT_COUPON = os.getenv("CUPON", "")
+COUPON_LIMIT = int(os.getenv("CUPON_LIMITE", "-1"))
+
 # Create imgs/ folder
 folder_path = "app/static/imgs"
 os.makedirs(folder_path, exist_ok=True)
@@ -53,10 +57,24 @@ def index():
     if 'coins' not in session:
         session['coins'] = 100  # Start with 100 coins for new users
     
+    # Initialize coupon uses if not exists
+    if 'coupon_uses' not in session:
+        session['coupon_uses'] = 0
+    
     # Get the Mercado Pago public key from environment variables
     mp_public_key = os.getenv('MP_PUBLIC_KEY', '')
+    
+    # Pass coupon info to the template
+    discount_coupon = os.getenv("CUPON", "")
+    coupon_limit = int(os.getenv("CUPON_LIMITE", "-1"))
+    coupon_enabled = coupon_limit != 0
+    coupon_uses = session.get('coupon_uses', 0)
+    coupon_available = coupon_limit == -1 or coupon_uses < coupon_limit
         
-    return render_template('index.html', mp_public_key=mp_public_key)
+    return render_template('index.html', 
+                          mp_public_key=mp_public_key,
+                          coupon_enabled=coupon_enabled,
+                          coupon_available=coupon_available)
 
 
 @app.route('/generate', methods=['POST'])
@@ -259,6 +277,45 @@ def purchase_coins():
         return jsonify({"error": "Mercado Pago SDK not configured. Check Access Token."}), 500
          
     data = request.json
+    coupon = data.get('coupon', '').strip()
+    direct_apply = data.get('direct_apply', False)
+    
+    # Direct coupon application without purchase
+    if direct_apply:
+        if not coupon:
+            return jsonify({"error": "No coupon code provided"}), 400
+            
+        # Validate the coupon
+        if coupon != DISCOUNT_COUPON:
+            return jsonify({"error": "Invalid coupon code"}), 400
+            
+        # Check if coupon is disabled
+        if COUPON_LIMIT == 0:
+            return jsonify({"error": "This coupon is no longer valid."}), 400
+            
+        # Check usage limit for session
+        coupon_uses = session.get('coupon_uses', 0)
+        
+        # If there's a limit and it's reached, reject
+        if COUPON_LIMIT > 0 and coupon_uses >= COUPON_LIMIT:
+            return jsonify({"error": "You have reached the maximum number of uses for this coupon."}), 400
+            
+        # Apply coupon directly - add 500 coins to user's account
+        coins_added = 500
+        current_coins = session.get('coins', 0)
+        session['coins'] = current_coins + coins_added
+        
+        # Track coupon use
+        session['coupon_uses'] = coupon_uses + 1
+        
+        return jsonify({
+            "success": True,
+            "message": "Coupon applied successfully",
+            "coins_added": coins_added,
+            "current_coins": session.get('coins', 0)
+        })
+    
+    # Normal purchase flow
     name = data.get('name')
     email = data.get('email')
     coin_package = data.get('package')
@@ -277,15 +334,37 @@ def purchase_coins():
         return jsonify({"error": "Invalid coin package selected."}), 400
     
     package_info = coin_packages[coin_package]
+    coin_amount = package_info['amount']
+    price = package_info['price']
+    
+    # Apply coupon discount if valid
+    additional_coins = 0
+    if coupon and coupon == DISCOUNT_COUPON:
+        # Check if coupon is disabled
+        if COUPON_LIMIT == 0:
+            return jsonify({"error": "This coupon is no longer valid."}), 400
+            
+        # Check usage limit for session
+        coupon_uses = session.get('coupon_uses', 0)
+        
+        # If there's a limit and it's reached, reject
+        if COUPON_LIMIT > 0 and coupon_uses >= COUPON_LIMIT:
+            return jsonify({"error": "You have reached the maximum number of uses for this coupon."}), 400
+            
+        # Apply coupon - add 500 coins
+        additional_coins = 500
+        
+        # Track coupon use
+        session['coupon_uses'] = coupon_uses + 1
     
     items = [{
-        "title": f"{package_info['amount']} Coins Package",
+        "title": f"{coin_amount + additional_coins} Coins Package" + (" with Discount" if additional_coins > 0 else ""),
         "quantity": 1,
-        "unit_price": package_info['price'],
+        "unit_price": price,
         "currency_id": "ARS" # Or your country's currency code
     }]
     
-    total_amount = package_info['price']
+    total_amount = price
     
     # Basic payer info
     payer = {
@@ -298,9 +377,9 @@ def purchase_coins():
     
     try:
         # Force HTTPS scheme for external URLs
-        success_url = url_for('coin_payment_feedback', _external=True, _scheme='https', package=coin_package)
-        failure_url = url_for('coin_payment_feedback', _external=True, _scheme='https', package=coin_package)
-        pending_url = url_for('coin_payment_feedback', _external=True, _scheme='https', package=coin_package)
+        success_url = url_for('coin_payment_feedback', _external=True, _scheme='https', package=coin_package, additional_coins=additional_coins)
+        failure_url = url_for('coin_payment_feedback', _external=True, _scheme='https', package=coin_package, additional_coins=0)
+        pending_url = url_for('coin_payment_feedback', _external=True, _scheme='https', package=coin_package, additional_coins=0)
         
         back_urls_data = {
             "success": success_url,
@@ -328,7 +407,9 @@ def purchase_coins():
                 "success": True,
                 "preference_id": preference['id'],
                 "package": coin_package,
-                "amount": package_info['amount']
+                "amount": coin_amount,
+                "additional_coins": additional_coins,
+                "coupon_applied": additional_coins > 0
             })
         else:
             error_message = "Failed to create payment preference due to unexpected response."
@@ -355,6 +436,7 @@ def coin_payment_feedback():
     status = request.args.get('status')
     payment_id = request.args.get('payment_id')
     coin_package = request.args.get('package')
+    additional_coins = int(request.args.get('additional_coins', 0))
     
     # Define coin packages with their amounts
     coin_packages = {
@@ -366,7 +448,9 @@ def coin_payment_feedback():
     if status == 'approved' and coin_package in coin_packages:
         # Add coins to user's account
         current_coins = session.get('coins', 0)
-        session['coins'] = current_coins + coin_packages[coin_package]
+        package_coins = coin_packages[coin_package]
+        total_coins = package_coins + additional_coins
+        session['coins'] = current_coins + total_coins
         
     # Redirect back to index
     return redirect(url_for('index'))

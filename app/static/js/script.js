@@ -41,6 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const finalizeCoinsBtn = document.getElementById('finalize-coins-btn');
     const coinsNameInput = document.getElementById('coins-name');
     const coinsEmailInput = document.getElementById('coins-email');
+    const coinsCouponDirectInput = document.getElementById('coins-coupon-direct');
+    const applyCouponDirectBtn = document.getElementById('apply-coupon-direct-btn');
+    const couponDirectStatus = document.getElementById('coupon-direct-status');
     
     // Coin packages data
     const coinPackagesData = {
@@ -54,6 +57,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Current coins amount
     let currentCoins = 0;
+    
+    // Coupon state
+    let couponApplied = false;
+    let additionalCoins = 0;
     
     // --- Mercado Pago SDK Initialization ---
     // The public key is now injected from Flask via the template
@@ -783,8 +790,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const quality = getSelectedQuality();
         const qualityCost = {
             'low': 10,
-            'medium': 20,
-            'high': 30
+            'medium': 25,
+            'high': 100
         };
         
         const coinCost = qualityCost[quality] || 10;
@@ -998,9 +1005,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function showCoinsModal() {
-        // Hide the form and show packages by default
-        coinsForm.classList.add('hidden');
+        // Reset coupon direct input and status
+        coinsCouponDirectInput.value = '';
+        coinsCouponDirectInput.disabled = false;
+        applyCouponDirectBtn.disabled = false;
+        applyCouponDirectBtn.innerHTML = 'Apply';
+        couponDirectStatus.textContent = '';
+        couponDirectStatus.className = 'coupon-status';
+        
+        // Show packages and coupon section
         document.querySelector('.coins-packages').classList.remove('hidden');
+        document.querySelector('.coupon-section').classList.remove('hidden');
+        
+        // Hide the form
+        coinsForm.classList.add('hidden');
         
         // Reset selected package
         selectedPackage = null;
@@ -1029,87 +1047,96 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedPackageAmount.textContent = packageData.amount;
         selectedPackagePrice.textContent = packageData.price.toFixed(2);
         
-        // Hide packages and show form
+        // Reset coupon state when changing packages
+        resetCouponState();
+        
+        // Hide packages and coupon section
         document.querySelector('.coins-packages').classList.add('hidden');
+        document.querySelector('.coupon-section').classList.add('hidden');
+        
+        // Show form
         coinsForm.classList.remove('hidden');
     }
     
-    async function handleCoinsPurchase(e) {
-        e.preventDefault();
+    function resetCouponState() {
+        couponApplied = false;
+        additionalCoins = 0;
+        coinsCouponDirectInput.value = '';
+        coinsCouponDirectInput.disabled = false;
+        applyCouponDirectBtn.disabled = false;
+        applyCouponDirectBtn.innerHTML = 'Apply';
+        couponDirectStatus.textContent = '';
+        couponDirectStatus.className = 'coupon-status';
+    }
+    
+    async function validateDirectCoupon() {
+        const couponCode = coinsCouponDirectInput.value.trim();
         
-        if (!mp) {
-            showError("Payment system is not available. Please check configuration.");
+        if (!couponCode) {
+            couponDirectStatus.textContent = "Please enter a coupon code.";
+            couponDirectStatus.className = 'coupon-status error';
             return;
         }
         
-        if (!selectedPackage) {
-            showError("Please select a package first.");
-            return;
-        }
-        
-        const name = coinsNameInput.value.trim();
-        const email = coinsEmailInput.value.trim();
-        
-        // Frontend validation
-        let isValid = true;
-        if (!name) {
-            showError("Please enter your name.");
-            shakElement(coinsNameInput);
-            isValid = false;
-        }
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            showError("Please enter a valid email address.");
-            shakElement(coinsEmailInput);
-            isValid = false;
-        }
-        
-        if (!isValid) return;
-        
-        // Disable button and show loading state
-        finalizeCoinsBtn.disabled = true;
-        finalizeCoinsBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Processing...';
+        // Disable the input and button while checking
+        coinsCouponDirectInput.disabled = true;
+        applyCouponDirectBtn.disabled = true;
+        applyCouponDirectBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i>';
         
         try {
-            // Call backend to create preference for coins purchase
+            // Call the backend to validate and apply the coupon directly
             const response = await fetch('/purchase-coins', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    name,
-                    email,
-                    package: selectedPackage
+                    coupon: couponCode,
+                    direct_apply: true  // Indicate this is a direct coupon application
                 })
             });
             
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to create payment preference.');
+                throw new Error(errorData.error || 'Invalid coupon code.');
             }
             
             const data = await response.json();
             
-            if (!data.success || !data.preference_id) {
-                throw new Error('Failed to get preference ID from server.');
+            if (data.success && data.coins_added) {
+                // Update the UI to show success
+                couponDirectStatus.textContent = `Success! ${data.coins_added} coins have been added to your account.`;
+                couponDirectStatus.className = 'coupon-status success';
+                
+                applyCouponDirectBtn.innerHTML = '<i class="ri-check-line"></i> Applied';
+                
+                // Hide the packages section
+                document.querySelector('.coins-packages').classList.add('hidden');
+                
+                // Update the current coins
+                currentCoins = data.current_coins;
+                updateCoinsDisplay();
+                
+                // Show a success message
+                showSuccess(`Coupon redeemed! ${data.coins_added} coins have been added to your account.`);
+                
+                // After a delay, close the modal
+                setTimeout(() => {
+                    hideCoinsModal();
+                }, 3000);
+            } else {
+                throw new Error('Failed to apply coupon.');
             }
             
-            // Hide the modal before redirecting
-            hideCoinsModal();
-            
-            // Redirect to MercadoPago checkout
-            mp.checkout({
-                preference: {
-                    id: data.preference_id
-                },
-                autoOpen: true
-            });
-            
         } catch (error) {
-            console.error("Coins purchase error:", error);
-            showError(`Purchase failed: ${error.message}`);
-            finalizeCoinsBtn.disabled = false;
-            finalizeCoinsBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Purchase Coins';
+            console.error("Error validating coupon:", error);
+            couponDirectStatus.textContent = error.message || "Error applying coupon. Please try again.";
+            couponDirectStatus.className = 'coupon-status error';
+            
+            // Re-enable the input and button
+            coinsCouponDirectInput.disabled = false;
+            applyCouponDirectBtn.disabled = false;
+            applyCouponDirectBtn.innerHTML = 'Apply';
         }
     }
     
@@ -1126,6 +1153,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
+    // Coupon validation
+    applyCouponDirectBtn.addEventListener('click', validateDirectCoupon);
+    
     // Make the entire package card clickable
     coinsPackages.forEach(pkg => {
         pkg.addEventListener('click', function() {
@@ -1137,6 +1167,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Back button
     backToPackagesBtn.addEventListener('click', () => {
         document.querySelector('.coins-packages').classList.remove('hidden');
+        document.querySelector('.coupon-section').classList.remove('hidden');
         coinsForm.classList.add('hidden');
         selectedPackage = null;
     });

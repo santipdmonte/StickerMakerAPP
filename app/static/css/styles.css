@@ -1518,4 +1518,107 @@ button i, .download-button i {
     .header-right {
         justify-content: center;
     }
-} 
+}
+
+/* Coupon Styles */
+.coupon-container {
+    display: flex;
+    gap: 8px;
+}
+
+.coupon-container input {
+    flex: 1;
+}
+
+.apply-coupon-button {
+    background-color: #4a6cf7;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s;
+}
+
+.apply-coupon-button:hover {
+    background-color: #3a5ce6;
+}
+
+.apply-coupon-button:disabled {
+    background-color: #a0a0a0;
+    cursor: not-allowed;
+}
+
+.coupon-status {
+    margin-top: 6px;
+    font-size: 0.85em;
+    min-height: 18px;
+}
+
+.coupon-status.error {
+    color: #e74c3c;
+}
+
+.coupon-status.success {
+    color: #2ecc71;
+}
+
+.additional-coins {
+    color: #2ecc71;
+    font-weight: 500;
+}
+
+.coupon-section {
+    background-color: #f5f8ff;
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin-bottom: 20px;
+    margin-top: 15px;
+    border: 1px dashed #4a6cf7;
+    font-size: 0.9em;
+}
+
+.coupon-section p {
+    margin-top: 0;
+    margin-bottom: 8px;
+    color: #4a6cf7;
+    font-weight: 500;
+}
+
+.small-text {
+    font-size: 0.85em;
+    color: #666;
+    font-weight: normal;
+}
+
+.compact-form {
+    margin-bottom: 0;
+}
+
+.compact-form .coupon-container {
+    margin-bottom: 4px;
+}
+
+.compact-form input {
+    padding: 6px 10px;
+    font-size: 0.9em;
+}
+
+.compact-form .apply-coupon-button {
+    padding: 6px 10px;
+    font-size: 0.85em;
+}
+
+.quality-cost {
+    font-size: 0.75em;
+    color: #777;
+    font-weight: normal;
+    opacity: 0.8;
+}
+
+.quality-options label:hover .quality-cost {
+    opacity: 1;
+}
+
+/* End Coupon Styles */ 
