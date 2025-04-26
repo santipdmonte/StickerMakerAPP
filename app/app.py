@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import mercadopago 
 
 from generate_sticker import generate_sticker, generate_sticker_with_reference
-from utils import create_placeholder_image
+from utils import create_placeholder_image, send_sticker_email
 
 # Load environment variables
 load_dotenv()
@@ -467,10 +467,17 @@ def create_preference():
     data = request.json
     name = data.get('name')
     email = data.get('email')
-    # address = data.get('address') # Address isn't directly used in preference here, but good to have
+    address = data.get('address', '') # Obtenemos la dirección aunque no se usaba antes
 
     if not all([name, email]):
          return jsonify({"error": "Missing name or email for checkout."}), 400
+
+    # Guardar los datos del cliente en la sesión para tenerlos disponibles en la ruta de retroalimentación
+    session['customer_data'] = {
+        'name': name,
+        'email': email,
+        'address': address
+    }
 
     template_stickers = session.get('template_stickers', [])
     if not template_stickers:
@@ -502,14 +509,18 @@ def create_preference():
 
     # Define back URLs dynamically using url_for
     # Ensure your server is accessible externally for Mercado Pago callbacks
-    base_url = request.url_root # Gets the base URL (e.g., http://127.0.0.1:5000/)
+    base_url = request.url_root
     
     # --- Generate Back URLs ---
     try:
         # Force HTTPS scheme for external URLs
-        success_url = url_for('payment_feedback', _external=True, _scheme='https')
-        failure_url = url_for('payment_feedback', _external=True, _scheme='https')
-        pending_url = url_for('payment_feedback', _external=True, _scheme='https')
+        # Incluir datos del cliente en las URLs de retorno
+        success_url = url_for('payment_feedback', _external=True, _scheme='https', 
+                             name=name, email=email, address=address)
+        failure_url = url_for('payment_feedback', _external=True, _scheme='https',
+                             name=name, email=email, address=address)
+        pending_url = url_for('payment_feedback', _external=True, _scheme='https',
+                             name=name, email=email, address=address)
         
         back_urls_data = {
             "success": success_url,
@@ -598,8 +609,35 @@ def payment_feedback():
     feedback_message = "Payment process completed."
     if status == 'approved':
         feedback_message = f"Payment successful! Payment ID: {payment_id}"
-        # Potentially clear the template session here after successful payment
-        # session['template_stickers'] = [] 
+        
+        # Obtener los datos del cliente
+        customer_data = session.get('customer_data', {})
+        
+        # Obtener la lista de archivos de stickers
+        template_stickers = session.get('template_stickers', [])
+        sticker_files = []
+        
+        # Preparar la lista de archivos físicos para adjuntar al correo
+        for sticker in template_stickers:
+            if isinstance(sticker, dict):
+                filename = sticker.get('filename', '')
+                if filename:
+                    file_path = os.path.join('app/static/imgs', filename)
+                    if os.path.exists(file_path):
+                        sticker_files.append(file_path)
+        
+        # Enviar correo electrónico al diseñador
+        if sticker_files:
+            send_sticker_email(customer_data, sticker_files)
+            print(f"Correo enviado con éxito para el pago {payment_id}")
+        else:
+            print(f"No se encontraron archivos de stickers para adjuntar al correo para el pago {payment_id}")
+        
+        # Limpiar la sesión después del pago exitoso
+        session['template_stickers'] = []
+        # Limpiar los datos del cliente de la sesión
+        if 'customer_data' in session:
+            session.pop('customer_data')
     elif status == 'failure':
         feedback_message = "Payment failed. Please try again or contact support."
     elif status == 'pending':

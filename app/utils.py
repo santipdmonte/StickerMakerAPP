@@ -3,6 +3,10 @@ import time
 import os
 from PIL import Image
 from io import BytesIO
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 
 
 def save_image(result, img_path):
@@ -36,3 +40,77 @@ def create_placeholder_image(img_path):
     img.save(buffered, format="PNG")
     img_str = base64.b64encode(buffered.getvalue()).decode()
     return img_str
+
+
+def send_sticker_email(customer_data, sticker_files):
+    """
+    Envía un correo electrónico a los diseñadores con la plantilla de stickers y datos del cliente.
+    
+    Args:
+        customer_data (dict): Diccionario con datos del cliente (nombre, email, dirección, etc.)
+        sticker_files (list): Lista de rutas a los archivos de stickers a adjuntar
+    
+    Returns:
+        bool: True si el correo se envió correctamente, False en caso contrario
+    """
+    try:
+        # Configuración del correo
+        sender_email = "info@thestickerhouse.com"
+        receivers = [
+            "spedemonte@thestickerhouse.com",
+            "gcena@thestickerhouse.com",
+            "santiagopedemonte02@gmail.com"
+        ]
+        
+        # Crear mensaje
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = ", ".join(receivers)
+        msg['Subject'] = "Nueva orden de stickers - The Sticker House"
+        
+        # Cuerpo del mensaje
+        body = f"""
+        <html>
+        <body>
+            <h2>Nueva orden de stickers</h2>
+            <h3>Datos del cliente:</h3>
+            <ul>
+                <li><strong>Nombre:</strong> {customer_data.get('name', 'No proporcionado')}</li>
+                <li><strong>Email:</strong> {customer_data.get('email', 'No proporcionado')}</li>
+                <li><strong>Dirección:</strong> {customer_data.get('address', 'No proporcionada')}</li>
+            </ul>
+            <p>Se adjuntan los archivos de la plantilla de stickers para imprimir.</p>
+            <p>Por favor, procesa esta orden lo antes posible.</p>
+            <p>Saludos,<br>The Sticker House</p>
+        </body>
+        </html>
+        """
+        
+        msg.attach(MIMEText(body, 'html'))
+        
+        # Adjuntar archivos
+        for file_path in sticker_files:
+            if os.path.exists(file_path):
+                with open(file_path, 'rb') as file:
+                    part = MIMEApplication(file.read(), Name=os.path.basename(file_path))
+                    part['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
+                    msg.attach(part)
+        
+        # Configurar servidor SMTP
+        # Nota: Estos valores deberían estar en variables de entorno
+        smtp_server = os.getenv("SMTP_SERVER", "smtp.example.com")
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        smtp_user = os.getenv("SMTP_USER", sender_email)
+        smtp_password = os.getenv("SMTP_PASSWORD", "your-password")
+        
+        # Conectar al servidor y enviar el correo
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+            
+        return True
+        
+    except Exception as e:
+        print(f"Error al enviar el correo: {e}")
+        return False
