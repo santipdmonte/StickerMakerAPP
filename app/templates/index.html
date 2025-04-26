@@ -11,6 +11,36 @@
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
 </head>
 <body>
+    <!-- Library Button and Panel -->
+    <div class="library-container">
+        <button id="library-toggle-btn" class="library-toggle-btn"><i class="ri-gallery-line"></i> Library</button>
+        <div id="library-panel" class="library-panel">
+            <div class="library-header">
+                <h3>Sticker Library</h3>
+                <button id="library-close-btn" class="library-close-btn"><i class="ri-close-line"></i></button>
+            </div>
+            <div class="library-content">
+                <div id="library-stickers" class="library-stickers-grid">
+                    <!-- Stickers will be loaded here -->
+                    <div class="library-empty-message" id="library-empty-message">
+                        <i class="ri-image-line"></i>
+                        <p>No stickers in library yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Library Overlay -->
+    <div id="library-overlay" class="library-overlay"></div>
+    
+    <!-- Coins Display -->
+    <div class="coins-display">
+        <button id="buy-coins-btn" class="buy-coins-btn">
+            <i class="ri-coin-line"></i> <span id="coins-count">0</span>
+        </button>
+    </div>
+
     <div class="container">
         <header>
             <h1>Sticker Maker</h1>
@@ -97,6 +127,7 @@
                     <h2><i class="ri-grid-fill"></i> Sticker Template</h2>
                     <div class="template-actions">
                         <button id="download-template-btn" class="download-button"><i class="ri-download-cloud-line"></i> Download Template</button>
+                        <button id="buy-stickers-btn" class="buy-button"><i class="ri-shopping-cart-line"></i> Buy Stickers</button>
                         <button id="clear-template-btn" class="clear-button"><i class="ri-delete-bin-6-line"></i> Clear All</button>
                     </div>
                 </div>
@@ -113,10 +144,100 @@
         </main>
         
         <footer>
-            <p>Made with <i class="ri-heart-fill"></i> using OpenAI's Image API</p>
+            <p></p>
         </footer>
     </div>
     
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    
+    <!-- Mercado Pago SDK -->
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+    
+    <!-- Pass MP Public Key from Flask to JavaScript -->
+    <script>
+        const mpPublicKey = "{{ mp_public_key }}";
+    </script>
+    
+    <!-- Checkout Modal -->
+    <div id="checkout-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close-btn" id="modal-close-btn"><i class="ri-close-line"></i></button>
+            <h2>Checkout</h2>
+            <p>Please provide your details to complete the purchase.</p>
+            
+            <form id="checkout-form">
+                <div class="form-group">
+                    <label for="checkout-name">Name:</label>
+                    <input type="text" id="checkout-name" name="name" required value="Ejemplo">
+                </div>
+                <div class="form-group">
+                    <label for="checkout-email">Email:</label>
+                    <input type="email" id="checkout-email" name="email" required value="example@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="checkout-address">Address:</label>
+                    <textarea id="checkout-address" name="address" rows="3" required>example 123</textarea>
+                </div>
+                
+                <button type="submit" id="finalize-payment-btn" class="finalize-button"><i class="ri-secure-payment-line"></i> Finalize Payment</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Coins Purchase Modal -->
+    <div id="coins-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close-btn" id="coins-modal-close-btn"><i class="ri-close-line"></i></button>
+            <h2>Buy Coins</h2>
+            <p>Purchase coins to create more stickers!</p>
+            
+            <div class="coins-packages">
+                <div class="coins-package" data-package="small">
+                    <div class="package-icon"><i class="ri-coin-line"></i></div>
+                    <h3>100 Coins</h3>
+                    <p class="package-price">$500.00</p>
+                    <button class="package-select-btn">Select</button>
+                </div>
+                <div class="coins-package" data-package="medium">
+                    <div class="package-icon"><i class="ri-coins-line"></i></div>
+                    <h3>300 Coins</h3>
+                    <p class="package-price">$1000.00</p>
+                    <div class="package-badge">Popular</div>
+                    <button class="package-select-btn">Select</button>
+                </div>
+                <div class="coins-package" data-package="large">
+                    <div class="package-icon"><i class="ri-money-dollar-box-line"></i></div>
+                    <h3>500 Coins</h3>
+                    <p class="package-price">$1500.00</p>
+                    <div class="package-badge">Best Value</div>
+                    <button class="package-select-btn">Select</button>
+                </div>
+            </div>
+            
+            <form id="coins-form" class="hidden">
+                <div class="selected-package-info">
+                    <p>Selected: <span id="selected-package-name">Medium Package</span></p>
+                    <p>Amount: <span id="selected-package-amount">300</span> coins</p>
+                    <p>Price: $<span id="selected-package-price">1000.00</span></p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="coins-name">Name:</label>
+                    <input type="text" id="coins-name" name="name" required value="Ejemplo">
+                </div>
+                <div class="form-group">
+                    <label for="coins-email">Email:</label>
+                    <input type="email" id="coins-email" name="email" required value="example@example.com">
+                </div>
+                
+                <button type="submit" id="finalize-coins-btn" class="finalize-button">
+                    <i class="ri-secure-payment-line"></i> Purchase Coins
+                </button>
+                <button type="button" id="back-to-packages-btn" class="back-button">
+                    <i class="ri-arrow-left-line"></i> Back to Packages
+                </button>
+            </form>
+        </div>
+    </div>
 </body>
 </html> 

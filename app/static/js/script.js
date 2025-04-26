@@ -16,7 +16,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const templateGrid = document.getElementById('template-grid');
     const downloadTemplateBtn = document.getElementById('download-template-btn');
     const clearTemplateBtn = document.getElementById('clear-template-btn');
+    const buyStickersBtn = document.getElementById('buy-stickers-btn');
     const emptyTemplateMessage = document.querySelector('.empty-template-message');
+    
+    // Checkout Modal elements
+    const checkoutModal = document.getElementById('checkout-modal');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+    const checkoutForm = document.getElementById('checkout-form');
+    const finalizePaymentBtn = document.getElementById('finalize-payment-btn');
+    
+    // Library elements
+    const libraryToggleBtn = document.getElementById('library-toggle-btn');
+    const libraryPanel = document.getElementById('library-panel');
+    const libraryCloseBtn = document.getElementById('library-close-btn');
+    const libraryOverlay = document.getElementById('library-overlay');
+    const libraryStickers = document.getElementById('library-stickers');
+    const libraryEmptyMessage = document.getElementById('library-empty-message');
+    
+    // Coins elements
+    const buyCoinsBtn = document.getElementById('buy-coins-btn');
+    const coinsCount = document.getElementById('coins-count');
+    const coinsModal = document.getElementById('coins-modal');
+    const coinsModalCloseBtn = document.getElementById('coins-modal-close-btn');
+    const coinsPackages = document.querySelectorAll('.coins-package');
+    const packageSelectBtns = document.querySelectorAll('.package-select-btn');
+    const coinsForm = document.getElementById('coins-form');
+    const selectedPackageName = document.getElementById('selected-package-name');
+    const selectedPackageAmount = document.getElementById('selected-package-amount');
+    const selectedPackagePrice = document.getElementById('selected-package-price');
+    const backToPackagesBtn = document.getElementById('back-to-packages-btn');
+    const finalizeCoinsBtn = document.getElementById('finalize-coins-btn');
+    const coinsNameInput = document.getElementById('coins-name');
+    const coinsEmailInput = document.getElementById('coins-email');
+    
+    // Coin packages data
+    const coinPackagesData = {
+        'small': { name: 'Small Package', amount: 100, price: 500.00 },
+        'medium': { name: 'Medium Package', amount: 300, price: 1000.00 },
+        'large': { name: 'Large Package', amount: 500, price: 1500.00 }
+    };
+    
+    // Current selected package
+    let selectedPackage = null;
+    
+    // Current coins amount
+    let currentCoins = 0;
+    
+    // --- Mercado Pago SDK Initialization ---
+    // The public key is now injected from Flask via the template
+    // const mpPublicKey is already defined before this script loads
+    let mp = null;
+    if (mpPublicKey && mpPublicKey !== '') {
+        try {
+            mp = new MercadoPago(mpPublicKey, {
+                locale: 'es-AR' // Adjust locale if needed (e.g., 'es-MX', 'pt-BR')
+            });
+            console.log("Mercado Pago SDK Initialized.");
+        } catch (error) {
+            console.error("Failed to initialize Mercado Pago SDK:", error);
+            showError("Payment system could not be initialized.");
+            // Disable payment button if SDK fails
+            finalizePaymentBtn.disabled = true;
+            finalizePaymentBtn.textContent = "Payment Unavailable";
+        }
+    } else {
+        console.warn("Mercado Pago Public Key not set. Payment processing will not work.");
+        // Optionally disable the finalize button if the key isn't set
+        finalizePaymentBtn.disabled = true;
+        finalizePaymentBtn.innerHTML = '<i class="ri-error-warning-line"></i> Payment Key Missing';
+    }
+    // ---
     
     // Quality selectors
     const qualityRadios = document.querySelectorAll('input[name="quality"]');
@@ -57,6 +126,164 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Load template stickers on page load
     loadTemplate();
+    
+    // Load user's coins on page load
+    loadCoins();
+    
+    // Buy Stickers button click handler
+    buyStickersBtn.addEventListener('click', () => {
+        if (templateStickers.length === 0) {
+            showError('Template is empty. Add stickers first!');
+            return;
+        }
+        
+        handleBuyStickers();
+    });
+    
+    // Close modal listeners
+    modalCloseBtn.addEventListener('click', hideModal);
+    checkoutModal.addEventListener('click', (e) => {
+        // Close if clicked outside the modal content
+        if (e.target === checkoutModal) {
+            hideModal();
+        }
+    });
+    
+    // Handle checkout form submission
+    checkoutForm.addEventListener('submit', (e) => {
+        e.preventDefault(); // Prevent default form submission
+        handleFinalizePayment();
+    });
+    
+    function showModal() {
+        checkoutModal.classList.remove('hidden');
+        // Use setTimeout to allow the display change to render before adding the class for transition
+        setTimeout(() => {
+            checkoutModal.classList.add('visible');
+        }, 10); // Small delay
+    }
+    
+    function hideModal() {
+        checkoutModal.classList.remove('visible');
+        // Wait for the transition to finish before setting display: none
+        setTimeout(() => {
+            checkoutModal.classList.add('hidden');
+            // Optionally clear form fields when closing
+            checkoutForm.reset();
+        }, 300); // Matches the CSS transition duration
+    }
+
+    function handleBuyStickers() {
+        // Count total stickers (considering quantities)
+        const totalStickers = templateStickers.reduce((count, sticker) => {
+            const quantity = typeof sticker === 'string' ? 1 : (sticker.quantity || 1);
+            return count + quantity;
+        }, 0);
+        
+        // Show the checkout modal instead of the success message
+        showModal();
+        
+        // You could pre-fill modal info if needed, e.g.:
+        // const modalInfo = checkoutModal.querySelector('.modal-info');
+        // modalInfo.textContent = `You are about to purchase ${totalStickers} stickers.`;
+    }
+    
+    async function handleFinalizePayment() {
+        if (!mp) {
+            showError("Payment system is not available. Please check configuration.");
+            return;
+        }
+
+        const nameInput = document.getElementById('checkout-name');
+        const emailInput = document.getElementById('checkout-email');
+        const addressInput = document.getElementById('checkout-address');
+        
+        const name = nameInput.value.trim();
+        const email = emailInput.value.trim();
+        const address = addressInput.value.trim();
+        
+        // Frontend validation
+        let isValid = true;
+        if (!name) {
+            showError("Please enter your name.");
+            shakElement(nameInput);
+            isValid = false;
+        }
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { // Simple email regex
+            showError("Please enter a valid email address.");
+            shakElement(emailInput);
+             isValid = false;
+        }
+        if (!address) {
+             showError("Please enter your address.");
+             shakElement(addressInput);
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            return; // Stop if validation fails
+        }
+        
+        // Disable button and show loading state
+        finalizePaymentBtn.disabled = true;
+        finalizePaymentBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Processing...';
+
+        try {
+            // 1. Call backend to create the preference
+            const response = await fetch('/create_preference', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, email, address }) // Send user details
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to create payment preference on server.');
+            }
+
+            const data = await response.json();
+            const preferenceId = data.preference_id;
+
+            if (!preferenceId) {
+                throw new Error('Preference ID not received from server.');
+            }
+            
+            // Log the preference ID
+            console.log("Received Preference ID:", preferenceId);
+
+            // 2. Hide the modal *before* redirecting
+            hideModal(); 
+
+            // 3. Redirect to Mercado Pago Checkout using the preference ID
+            // The SDK handles the redirection
+            mp.checkout({
+                preference: {
+                    id: preferenceId
+                },
+                // Optional: Render the button in a container if you don't want immediate redirect
+                // render: {
+                //    container: '.checkout-btn-container', // Class name of the container where the payment button will be placed
+                //    label: 'Pagar com Mercado Pago'
+                // },
+                // Using autoOpen will redirect immediately after preference is loaded by SDK
+                 autoOpen: true, 
+            });
+            
+             // Note: Execution stops here if autoOpen is true as the page redirects.
+             // If not using autoOpen, re-enable the button after SDK renders.
+             // finalizePaymentBtn.disabled = false;
+             // finalizePaymentBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Finalize Payment';
+
+        } catch (error) {
+            console.error("Checkout Error:", error);
+            showError(`Checkout failed: ${error.message}`);
+            // Re-enable button on error
+            finalizePaymentBtn.disabled = false;
+            finalizePaymentBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Finalize Payment';
+        }
+    }
     
     // Template Functions
     function loadTemplate() {
@@ -559,8 +786,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Get selected quality
+        // Get selected quality and determine cost
         const quality = getSelectedQuality();
+        const qualityCost = {
+            'low': 10,
+            'medium': 20,
+            'high': 30
+        };
+        
+        const coinCost = qualityCost[quality] || 10;
+        
+        // Check if user has enough coins
+        if (currentCoins < coinCost) {
+            showError(`Not enough coins! You need ${coinCost} coins for a ${quality} quality sticker. Buy more coins.`);
+            setTimeout(() => {
+                showCoinsModal();
+            }, 1500);
+            return;
+        }
         
         // Show loading spinner
         loadingSpinner.classList.remove('hidden');
@@ -592,6 +835,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
                 
                 if (data.success) {
+                    // Deduct coins
+                    await deductCoins(coinCost);
+                    
                     // Update the current sticker reference
                     currentGeneratedSticker = data.filename;
                     
@@ -614,6 +860,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Scroll to results section
                     resultsSection.scrollIntoView({behavior: 'smooth'});
+                    
+                    // Show success message with cost
+                    showSuccess(`Sticker generated! Used ${coinCost} coins.`);
                 } else {
                     throw new Error(data.error || 'Failed to generate sticker');
                 }
@@ -626,6 +875,34 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             generateBtn.disabled = false;
             generateBtn.innerHTML = '<i class="ri-magic-line"></i> Generate Sticker';
+        }
+    }
+    
+    // Function to deduct coins
+    async function deductCoins(amount) {
+        try {
+            const response = await fetch('/update-coins', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    amount: -amount // Negative amount for deduction
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    currentCoins = data.coins;
+                    updateCoinsDisplay();
+                    return true;
+                }
+            }
+            return false;
+        } catch (error) {
+            console.error('Error deducting coins:', error);
+            return false;
         }
     }
     
@@ -707,4 +984,251 @@ document.addEventListener('DOMContentLoaded', () => {
             showError('Failed to update sticker quantity');
         });
     }
+
+    // Library Functions
+    function showLibrary() {
+        libraryPanel.classList.add('active');
+        libraryOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden'; // Prevent scrolling
+        
+        // Load library stickers
+        loadLibraryStickers();
+    }
+    
+    function hideLibrary() {
+        libraryPanel.classList.remove('active');
+        libraryOverlay.classList.remove('active');
+        document.body.style.overflow = ''; // Restore scrolling
+    }
+    
+    function loadLibraryStickers() {
+        fetch('/get-library')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.stickers && data.stickers.length > 0) {
+                    // Clear current stickers except the empty message
+                    while (libraryStickers.firstChild && libraryStickers.firstChild !== libraryEmptyMessage) {
+                        libraryStickers.removeChild(libraryStickers.firstChild);
+                    }
+                    
+                    // Hide empty message
+                    libraryEmptyMessage.style.display = 'none';
+                    
+                    // Add each sticker to the library
+                    data.stickers.forEach(filename => {
+                        const stickerItem = document.createElement('div');
+                        stickerItem.className = 'library-sticker-item';
+                        
+                        const img = document.createElement('img');
+                        img.src = `/static/imgs/${filename}`;
+                        img.alt = filename;
+                        
+                        const actionsDiv = document.createElement('div');
+                        actionsDiv.className = 'library-sticker-actions';
+                        
+                        const addBtn = document.createElement('button');
+                        addBtn.className = 'library-add-btn';
+                        addBtn.innerHTML = '<i class="ri-add-line"></i> Add to Template';
+                        addBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            addToTemplate(filename);
+                            showSuccess('Added to template');
+                        });
+                        
+                        actionsDiv.appendChild(addBtn);
+                        stickerItem.appendChild(img);
+                        stickerItem.appendChild(actionsDiv);
+                        
+                        // Insert before the empty message
+                        libraryStickers.insertBefore(stickerItem, libraryEmptyMessage);
+                    });
+                } else {
+                    // Show empty message
+                    libraryEmptyMessage.style.display = 'flex';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading library stickers:', error);
+                showError('Failed to load library stickers');
+                libraryEmptyMessage.style.display = 'flex';
+            });
+    }
+    
+    // Event Listeners for Library
+    libraryToggleBtn.addEventListener('click', showLibrary);
+    libraryCloseBtn.addEventListener('click', hideLibrary);
+    libraryOverlay.addEventListener('click', hideLibrary);
+
+    // Coins Functions
+    function loadCoins() {
+        fetch('/get-coins')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentCoins = data.coins;
+                    updateCoinsDisplay();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading coins:', error);
+            });
+    }
+    
+    function updateCoinsDisplay() {
+        coinsCount.textContent = currentCoins;
+    }
+    
+    function showCoinsModal() {
+        // Hide the form and show packages by default
+        coinsForm.classList.add('hidden');
+        document.querySelector('.coins-packages').classList.remove('hidden');
+        
+        // Reset selected package
+        selectedPackage = null;
+        
+        coinsModal.classList.remove('hidden');
+        setTimeout(() => {
+            coinsModal.classList.add('visible');
+        }, 10);
+    }
+    
+    function hideCoinsModal() {
+        coinsModal.classList.remove('visible');
+        setTimeout(() => {
+            coinsModal.classList.add('hidden');
+        }, 300);
+    }
+    
+    function selectPackage(packageType) {
+        if (!coinPackagesData[packageType]) return;
+        
+        selectedPackage = packageType;
+        const packageData = coinPackagesData[packageType];
+        
+        // Update UI with selected package details
+        selectedPackageName.textContent = packageData.name;
+        selectedPackageAmount.textContent = packageData.amount;
+        selectedPackagePrice.textContent = packageData.price.toFixed(2);
+        
+        // Hide packages and show form
+        document.querySelector('.coins-packages').classList.add('hidden');
+        coinsForm.classList.remove('hidden');
+    }
+    
+    async function handleCoinsPurchase(e) {
+        e.preventDefault();
+        
+        if (!mp) {
+            showError("Payment system is not available. Please check configuration.");
+            return;
+        }
+        
+        if (!selectedPackage) {
+            showError("Please select a package first.");
+            return;
+        }
+        
+        const name = coinsNameInput.value.trim();
+        const email = coinsEmailInput.value.trim();
+        
+        // Frontend validation
+        let isValid = true;
+        if (!name) {
+            showError("Please enter your name.");
+            shakElement(coinsNameInput);
+            isValid = false;
+        }
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            showError("Please enter a valid email address.");
+            shakElement(coinsEmailInput);
+            isValid = false;
+        }
+        
+        if (!isValid) return;
+        
+        // Disable button and show loading state
+        finalizeCoinsBtn.disabled = true;
+        finalizeCoinsBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Processing...';
+        
+        try {
+            // Call backend to create preference for coins purchase
+            const response = await fetch('/purchase-coins', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name,
+                    email,
+                    package: selectedPackage
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to create payment preference.');
+            }
+            
+            const data = await response.json();
+            
+            if (!data.success || !data.preference_id) {
+                throw new Error('Failed to get preference ID from server.');
+            }
+            
+            // Hide the modal before redirecting
+            hideCoinsModal();
+            
+            // Redirect to MercadoPago checkout
+            mp.checkout({
+                preference: {
+                    id: data.preference_id
+                },
+                autoOpen: true
+            });
+            
+        } catch (error) {
+            console.error("Coins purchase error:", error);
+            showError(`Purchase failed: ${error.message}`);
+            finalizeCoinsBtn.disabled = false;
+            finalizeCoinsBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Purchase Coins';
+        }
+    }
+    
+    // Event Listeners for Coins
+    buyCoinsBtn.addEventListener('click', showCoinsModal);
+    coinsModalCloseBtn.addEventListener('click', hideCoinsModal);
+    
+    // Event listeners for package selection
+    packageSelectBtns.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const packageType = this.closest('.coins-package').dataset.package;
+            selectPackage(packageType);
+        });
+    });
+    
+    // Make the entire package card clickable
+    coinsPackages.forEach(pkg => {
+        pkg.addEventListener('click', function() {
+            const packageType = this.dataset.package;
+            selectPackage(packageType);
+        });
+    });
+    
+    // Back button
+    backToPackagesBtn.addEventListener('click', () => {
+        document.querySelector('.coins-packages').classList.remove('hidden');
+        coinsForm.classList.add('hidden');
+        selectedPackage = null;
+    });
+    
+    // Coins purchase form submission
+    coinsForm.addEventListener('submit', handleCoinsPurchase);
+    
+    // Click outside to close the modal
+    coinsModal.addEventListener('click', (e) => {
+        if (e.target === coinsModal) {
+            hideCoinsModal();
+        }
+    });
 }); 
