@@ -11,6 +11,25 @@
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link rel="icon" href="{{ url_for('static', filename='ico/TheStickerHouseLogo.ico') }}" type="image/x-icon">
     <style>
+        :root {
+            --card-width: 200px;
+            --card-border-radius: 20px;
+            --card-padding: 15px;
+            --standard-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            --hover-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+            --transition-speed: 0.3s;
+            --primary-color: #7c5dfa;
+            --secondary-color: #9277ff;
+            --accent-color: #ff6b9b;
+            --text-color: #404660;
+            --bg-color: #f8f8fb;
+            --card-bg: white;
+            --border-radius: 20px;
+            --transition: all 0.3s ease;
+            --card-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            --input-border: #dfe3fa;
+        }
+        
         /* Additional styles for the library page */
         .library-page-container {
             max-width: 1200px;
@@ -19,6 +38,7 @@
             padding: 20px;
             opacity: 1;
             transform: translateY(0);
+            background-color: var(--bg-color);
         }
 
         .library-page-title {
@@ -46,27 +66,30 @@
 
         .library-page-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(var(--card-width), 1fr));
             gap: 25px;
             padding: 20px;
+            min-height: 400px; /* Ensure a minimum height for the grid */
         }
 
         .library-page-item {
             background-color: var(--card-bg);
-            border-radius: var(--border-radius);
-            box-shadow: var(--card-shadow);
-            padding: 15px;
-            transition: var(--transition);
+            border-radius: var(--card-border-radius);
+            box-shadow: var(--standard-shadow);
+            padding: var(--card-padding);
+            transition: transform var(--transition-speed), box-shadow var(--transition-speed);
             position: relative;
             overflow: visible;
             display: flex;
             flex-direction: column;
             align-items: center;
+            height: 230px; /* Establecer altura fija */
+            width: 100%;
         }
 
         .library-page-item:hover {
             transform: translateY(-5px);
-            box-shadow: 0 25px 65px rgba(0, 0, 0, 0.12);
+            box-shadow: var(--hover-shadow);
         }
 
         .library-page-item img {
@@ -94,7 +117,7 @@
             border-radius: 50%;
             border: none;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all var(--transition-speed);
             font-size: 1.2rem;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             padding: 0;
@@ -135,7 +158,7 @@
             font-weight: 500;
             border-radius: 50%;
             cursor: pointer;
-            transition: var(--transition);
+            transition: var(--transition-speed);
             box-shadow: 0 10px 25px rgba(124, 93, 250, 0.25);
             width: 60px;
             height: 60px;
@@ -151,7 +174,7 @@
         }
 
         .empty-library {
-            display: flex;
+            display: none; /* Start hidden until we know it's empty */
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -191,7 +214,7 @@
             font-weight: 500;
             border-radius: var(--border-radius);
             cursor: pointer;
-            transition: var(--transition);
+            transition: var(--transition-speed);
             box-shadow: 0 10px 25px rgba(124, 93, 250, 0.25);
             display: inline-flex;
             align-items: center;
@@ -203,6 +226,79 @@
             box-shadow: 0 15px 30px rgba(124, 93, 250, 0.35);
         }
 
+        /* Loading Animation */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            width: 100%;
+            grid-column: 1 / -1;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 15px;
+            border: 4px solid rgba(124, 93, 250, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+
+        /* Pagination Controls */
+        .pagination-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 30px;
+            gap: 15px;
+        }
+
+        .pagination-btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all var(--transition-speed);
+            opacity: 0.8;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(124, 93, 250, 0.25);
+            opacity: 1;
+        }
+
+        .pagination-btn:disabled {
+            background: linear-gradient(45deg, #cccccc, #dddddd);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .pagination-info {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
         @media (max-width: 768px) {
             .library-page-grid {
                 grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -210,12 +306,19 @@
                 padding: 10px;
             }
 
-            .library-page-item img {
-                height: 120px;
+            .library-page-item {
+                height: 200px; /* Altura más pequeña para móviles */
+                padding: 12px;
             }
 
-            .library-page-actions {
-                flex-direction: column;
+            .library-page-item img {
+                height: 130px;
+            }
+
+            .library-action-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
             }
 
             .back-home-btn {
@@ -224,6 +327,40 @@
                 width: 50px;
                 height: 50px;
                 font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .library-page-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 10px;
+            }
+
+            .library-page-item {
+                height: 180px;
+                padding: 10px;
+            }
+
+            .library-page-item img {
+                height: 110px;
+            }
+
+            .library-page-title h1 {
+                font-size: 2rem;
+            }
+
+            .library-page-title i {
+                font-size: 2rem;
+            }
+        }
+
+        @media (min-width: 992px) {
+            .library-page-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+
+            .library-page-item {
+                height: 230px;
             }
         }
 
@@ -237,10 +374,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 1100; /* Ensure it's above other elements */
+            z-index: 1100;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+            transition: opacity var(--transition-speed), visibility 0s linear var(--transition-speed);
         }
 
         .modal.modal-visible {
@@ -380,6 +517,14 @@
         .sticker-modal-content { 
             display: none; 
         }
+
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-color);
+        }
     </style>
 </head>
 <body>
@@ -393,7 +538,13 @@
         
         <main>
             <div class="library-page-grid" id="library-page-grid">
-                <!-- Stickers will be loaded here -->
+                <!-- Loading Animation -->
+                <div class="loading-container" id="loading-container">
+                    <div class="spinner"></div>
+                    <div class="loading-text">Loading stickers...</div>
+                </div>
+                
+                <!-- Empty Library Message (Hidden Initially) -->
                 <div class="empty-library" id="empty-library">
                     <i class="ri-image-line"></i>
                     <p>Your sticker library is empty</p>
@@ -402,6 +553,17 @@
                         <i class="ri-add-circle-line"></i> Create a Sticker
                     </a>
                 </div>
+            </div>
+            
+            <!-- Pagination Controls -->
+            <div class="pagination-controls" id="pagination-controls" style="display: none;">
+                <button class="pagination-btn" id="prev-page-btn" disabled>
+                    <i class="ri-arrow-left-s-line"></i>
+                </button>
+                <div class="pagination-info" id="pagination-info">Page 1 of 1</div>
+                <button class="pagination-btn" id="next-page-btn" disabled>
+                    <i class="ri-arrow-right-s-line"></i>
+                </button>
             </div>
         </main>
     </div>
@@ -428,7 +590,7 @@
         <div class="modal-content card-style-modal-content">
             <button class="modal-close-btn sticker-modal-close" id="sticker-modal-close"><i class="ri-close-line"></i></button>
             <div class="modal-image-container">
-                <img id="modal-sticker-image" src="" alt="Enlarged Sticker">
+                <img id="modal-sticker-image" src="" alt="Sticker Preview">
             </div>
             <div class="modal-actions-container" id="modal-actions-container">
                 <!-- Buttons will be added here by JS -->
@@ -441,11 +603,24 @@
             // Get UI elements
             const libraryGrid = document.getElementById('library-page-grid');
             const emptyLibrary = document.getElementById('empty-library');
+            const loadingContainer = document.getElementById('loading-container');
             const stickerViewModal = document.getElementById('sticker-view-modal');
             const modalStickerImage = document.getElementById('modal-sticker-image');
             const stickerModalClose = document.getElementById('sticker-modal-close');
             const stickerModalOverlay = document.getElementById('sticker-modal-overlay');
-            const modalActionsContainer = document.getElementById('modal-actions-container'); // Get actions container
+            const modalActionsContainer = document.getElementById('modal-actions-container');
+            
+            // Pagination elements
+            const paginationControls = document.getElementById('pagination-controls');
+            const prevPageBtn = document.getElementById('prev-page-btn');
+            const nextPageBtn = document.getElementById('next-page-btn');
+            const paginationInfo = document.getElementById('pagination-info');
+            
+            // Pagination state
+            const ITEMS_PER_PAGE = 20;
+            let allStickers = [];
+            let currentPage = 1;
+            let totalPages = 1;
 
             // Function to show the sticker modal
             function showStickerModal(imageUrl, filename) { // Accept filename
@@ -547,78 +722,197 @@
                     showError('Failed to add to template');
                 });
             }
-
+            
             // Load stickers from library
-            function loadLibraryStickers() {
-                fetch('/get-library')
-                    .then(response => response.json())
+            function loadLibraryStickers(page = 1, useServerPagination = true) {
+                // Show loading, hide empty state
+                loadingContainer.style.display = 'flex';
+                emptyLibrary.style.display = 'none';
+                
+                // Si usamos paginación del servidor, configuramos los parámetros
+                let url = '/get-library';
+                if (useServerPagination) {
+                    url = `/get-library?page=${page}&items_per_page=${ITEMS_PER_PAGE}`;
+                }
+                
+                fetch(url)
+                    .then(response => {
+                        // Verificar si la respuesta es correcta
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success && data.stickers && data.stickers.length > 0) {
-                            // Hide empty message
+                            // Actualizar la información de paginación si viene del servidor
+                            if (useServerPagination && data.total_pages) {
+                                currentPage = data.page;
+                                totalPages = data.total_pages;
+                                
+                                // Actualizar controles de paginación
+                                paginationInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+                                prevPageBtn.disabled = currentPage <= 1;
+                                nextPageBtn.disabled = currentPage >= totalPages;
+                                paginationControls.style.display = totalPages > 1 ? 'flex' : 'none';
+                                
+                                // Limpiar grid actual
+                                const existingStickers = libraryGrid.querySelectorAll('.library-page-item');
+                                existingStickers.forEach(item => item.remove());
+                                
+                                // Renderizar stickers de esta página
+                                renderStickers(data.stickers);
+                            } else {
+                                // Usar paginación del cliente (el método anterior)
+                                allStickers = data.stickers;
+                                currentPage = 1;
+                                renderStickersPage();
+                            }
+                            
+                            // Ocultar estados de carga y vacío
+                            loadingContainer.style.display = 'none';
                             emptyLibrary.style.display = 'none';
-                            
-                            // Clear any existing stickers (except empty message)
-                            const existingStickers = libraryGrid.querySelectorAll('.library-page-item');
-                            existingStickers.forEach(item => item.remove());
-                            
-                            // Add each sticker to the grid
-                            data.stickers.forEach(filename => {
-                                const stickerItem = document.createElement('div');
-                                stickerItem.className = 'library-page-item';
-                                
-                                const img = document.createElement('img');
-                                img.src = `/static/imgs/${filename}`;
-                                img.alt = filename;
-
-                                // Add click listener to the card itself
-                                stickerItem.addEventListener('click', () => {
-                                    // Pass both image src and filename
-                                    showStickerModal(img.src, filename); 
-                                });
-                                
-                                const actionsDiv = document.createElement('div');
-                                actionsDiv.className = 'library-page-actions-new';
-                                
-                                const addBtn = document.createElement('button');
-                                addBtn.className = 'library-action-btn add-btn';
-                                addBtn.title = 'Add to Template';
-                                addBtn.innerHTML = '<i class="ri-add-circle-line"></i>';
-                                addBtn.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    addToTemplate(filename);
-                                });
-                                
-                                const downloadBtn = document.createElement('a');
-                                downloadBtn.className = 'library-action-btn download-btn-link';
-                                downloadBtn.title = 'Download';
-                                downloadBtn.innerHTML = '<i class="ri-download-2-line"></i>';
-                                downloadBtn.href = `/static/imgs/${filename}`;
-                                downloadBtn.download = filename;
-                                downloadBtn.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                });
-                                
-                                actionsDiv.appendChild(addBtn);
-                                actionsDiv.appendChild(downloadBtn);
-                                stickerItem.appendChild(img);
-                                stickerItem.appendChild(actionsDiv);
-                                
-                                libraryGrid.appendChild(stickerItem);
-                            });
                         } else {
-                            // Show empty message
+                            // No hay stickers, mostrar estado vacío
+                            loadingContainer.style.display = 'none';
                             emptyLibrary.style.display = 'flex';
+                            paginationControls.style.display = 'none';
                         }
                     })
                     .catch(error => {
                         console.error('Error loading library stickers:', error);
                         showError('Failed to load stickers');
+                        loadingContainer.style.display = 'none';
                         emptyLibrary.style.display = 'flex';
+                        paginationControls.style.display = 'none';
                     });
             }
 
-            // Load stickers when page loads
-            loadLibraryStickers();
+            // Función para renderizar stickers (usado tanto por paginación del cliente como del servidor)
+            function renderStickers(stickers) {
+                stickers.forEach(filename => {
+                    const stickerItem = document.createElement('div');
+                    stickerItem.className = 'library-page-item';
+                    
+                    const img = document.createElement('img');
+                    img.src = `/static/imgs/${filename}`;
+                    img.alt = filename;
+                    
+                    // Add loading state for image
+                    img.style.opacity = '0';
+                    img.style.transition = 'opacity 0.3s ease';
+                    img.onload = () => {
+                        img.style.opacity = '1';
+                    };
+
+                    // Add click listener to the card itself
+                    stickerItem.addEventListener('click', () => {
+                        // Pass both image src and filename
+                        showStickerModal(img.src, filename); 
+                    });
+                    
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'library-page-actions-new';
+                    
+                    const addBtn = document.createElement('button');
+                    addBtn.className = 'library-action-btn add-btn';
+                    addBtn.title = 'Add to Template';
+                    addBtn.innerHTML = '<i class="ri-add-circle-line"></i>';
+                    addBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        addToTemplate(filename);
+                    });
+                    
+                    const downloadBtn = document.createElement('a');
+                    downloadBtn.className = 'library-action-btn download-btn-link';
+                    downloadBtn.title = 'Download';
+                    downloadBtn.innerHTML = '<i class="ri-download-2-line"></i>';
+                    downloadBtn.href = `/static/imgs/${filename}`;
+                    downloadBtn.download = filename;
+                    downloadBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                    });
+                    
+                    actionsDiv.appendChild(addBtn);
+                    actionsDiv.appendChild(downloadBtn);
+                    stickerItem.appendChild(img);
+                    stickerItem.appendChild(actionsDiv);
+                    
+                    libraryGrid.appendChild(stickerItem);
+                });
+            }
+
+            // Función para renderizar stickers para la página actual (paginación del cliente)
+            function renderStickersPage() {
+                // Clear any existing stickers (excluding the empty/loading messages)
+                const existingStickers = libraryGrid.querySelectorAll('.library-page-item');
+                existingStickers.forEach(item => item.remove());
+                
+                if (allStickers.length === 0) {
+                    // No stickers to display
+                    loadingContainer.style.display = 'none';
+                    emptyLibrary.style.display = 'flex';
+                    paginationControls.style.display = 'none';
+                    return;
+                }
+                
+                // Calculate pagination
+                totalPages = Math.ceil(allStickers.length / ITEMS_PER_PAGE);
+                const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+                const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, allStickers.length);
+                
+                // Update pagination controls
+                paginationInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+                prevPageBtn.disabled = currentPage <= 1;
+                nextPageBtn.disabled = currentPage >= totalPages;
+                
+                // Show pagination if we have more than one page
+                paginationControls.style.display = totalPages > 1 ? 'flex' : 'none';
+                
+                // Get stickers for current page
+                const pageStickers = allStickers.slice(startIndex, endIndex);
+                
+                // Hide loading and empty states
+                loadingContainer.style.display = 'none';
+                emptyLibrary.style.display = 'none';
+                
+                // Render stickers for this page
+                renderStickers(pageStickers);
+            }
+
+            // Pagination navigation - usar la paginación del servidor
+            prevPageBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    // Mostrar el estado de carga
+                    loadingContainer.style.display = 'flex';
+                    const existingStickers = libraryGrid.querySelectorAll('.library-page-item');
+                    existingStickers.forEach(item => item.remove());
+                    
+                    // Cargar la página anterior desde el servidor
+                    loadLibraryStickers(currentPage - 1, true);
+                    
+                    // Scroll to top for best UX
+                    window.scrollTo(0, 0);
+                }
+            });
+
+            nextPageBtn.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    // Mostrar el estado de carga
+                    loadingContainer.style.display = 'flex';
+                    const existingStickers = libraryGrid.querySelectorAll('.library-page-item');
+                    existingStickers.forEach(item => item.remove());
+                    
+                    // Cargar la siguiente página desde el servidor
+                    loadLibraryStickers(currentPage + 1, true);
+                    
+                    // Scroll to top for best UX
+                    window.scrollTo(0, 0);
+                }
+            });
+
+            // Load stickers when page loads (página 1 con paginación del servidor)
+            loadLibraryStickers(1, true);
         });
     </script>
 </body>

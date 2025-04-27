@@ -17,8 +17,9 @@ def generate_sticker(prompt, img_path, quality='low'):
         size="1024x1024"
     )
 
-    image_b64 = save_image(result, img_path)
-    return image_b64
+    # save_image now returns a tuple (image_b64, s3_url)
+    image_data = save_image(result, img_path)
+    return image_data
 
 
 def generate_sticker_with_reference(prompt, img_path, img_base64, quality='low'):
@@ -51,8 +52,9 @@ def generate_sticker_with_reference(prompt, img_path, img_base64, quality='low')
                 size="1024x1024",
             )
         
-        image_b64 = save_image(result, img_path)
-        return image_b64
+        # save_image now returns a tuple (image_b64, s3_url)
+        image_data = save_image(result, img_path)
+        return image_data
     finally:
         # Clean up the temporary file
         if os.path.exists(tmp_file_path):
