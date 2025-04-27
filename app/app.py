@@ -8,7 +8,15 @@ from dotenv import load_dotenv
 import mercadopago 
 
 from generate_sticker import generate_sticker, generate_sticker_with_reference
-from utils import create_placeholder_image, send_sticker_email
+from utils import create_placeholder_image, send_sticker_email, create_template_zip
+from s3_utils import (
+    upload_file_to_s3, 
+    upload_bytes_to_s3, 
+    get_s3_client, 
+    list_files_in_s3_folder, 
+    S3_STICKERS_FOLDER, 
+    S3_TEMPLATES_FOLDER
+)
 
 # Load environment variables
 load_dotenv()
@@ -32,10 +40,25 @@ sdk = mercadopago.SDK(mp_access_token) if mp_access_token else None
 DISCOUNT_COUPON = os.getenv("CUPON", "")
 COUPON_LIMIT = int(os.getenv("CUPON_LIMITE", "-1"))
 
-# Create imgs/ folder
+# Create static directories if they don't exist
 folder_path = "app/static/imgs"
+templates_path = "app/static/templates"
 os.makedirs(folder_path, exist_ok=True)
+os.makedirs(templates_path, exist_ok=True)
 
+# Flag to determine if S3 should be used
+USE_S3 = os.getenv('USE_S3', 'True').lower() in ('true', '1', 't')
+
+# Check if S3 is properly configured
+if USE_S3:
+    try:
+        # Test S3 connection
+        get_s3_client()
+        print("Successfully connected to AWS S3")
+    except Exception as e:
+        print(f"Warning: Unable to connect to AWS S3: {e}")
+        print("Falling back to local storage only")
+        USE_S3 = False
 
 @app.route('/')
 def index():
@@ -92,8 +115,13 @@ def generate():
     img_path = os.path.join(folder_path, filename)
     
     try:
-        image_b64 = generate_sticker(prompt, img_path, quality)
-        # image_b64 = create_placeholder_image(img_path)
+        image_b64, s3_url = generate_sticker(prompt, img_path, quality)
+        
+        # Store S3 URL in session for later use
+        if s3_url:
+            s3_urls = session.get('s3_urls', {})
+            s3_urls[filename] = s3_url
+            session['s3_urls'] = s3_urls
         
         return jsonify({"success": True, "filename": filename, "image": image_b64})
     except Exception as e:
@@ -119,8 +147,13 @@ def generate_with_reference():
     img_path = os.path.join(folder_path, filename)
     
     try:
-        image_b64 = generate_sticker_with_reference(prompt, img_path, reference_image, quality)
-        # image_b64 = create_placeholder_image(img_path)
+        image_b64, s3_url = generate_sticker_with_reference(prompt, img_path, reference_image, quality)
+        
+        # Store S3 URL in session for later use
+        if s3_url:
+            s3_urls = session.get('s3_urls', {})
+            s3_urls[filename] = s3_url
+            session['s3_urls'] = s3_urls
         
         return jsonify({"success": True, "filename": filename, "image": image_b64})
     except ValueError as e:
@@ -230,18 +263,103 @@ def clear_template():
 
 @app.route('/get-library', methods=['GET'])
 def get_library():
-    # Get all sticker files from the imgs directory
+    # Permitir solicitud de tamaño específico de página para paginación
+    page = request.args.get('page', 1, type=int)
+    items_per_page = request.args.get('items_per_page', 0, type=int)  # 0 = todos los items
+    
+    # Get sticker files - check S3 first if enabled, fall back to local files
     sticker_files = []
+    
+    if USE_S3:
+        try:
+            # Get files from S3 stickers folder
+            s3_files = list_files_in_s3_folder(S3_STICKERS_FOLDER)
+            
+            # Extract just the filenames without folder prefix
+            for file_key in s3_files:
+                filename = os.path.basename(file_key)
+                if filename.endswith('.png'):
+                    sticker_files.append(filename)
+                    
+            if sticker_files:
+                # Ordenar por fecha descendente (asumiendo que el nombre del archivo contiene timestamp)
+                try:
+                    sticker_files.sort(key=lambda x: os.path.basename(x), reverse=True)
+                except:
+                    pass
+                    
+                total_items = len(sticker_files)
+                
+                # Aplicar paginación si se solicitó
+                if items_per_page > 0:
+                    start_idx = (page - 1) * items_per_page
+                    end_idx = start_idx + items_per_page
+                    paginated_files = sticker_files[start_idx:end_idx]
+                else:
+                    paginated_files = sticker_files
+                
+                return jsonify({
+                    "success": True,
+                    "stickers": paginated_files,
+                    "total_items": total_items,
+                    "page": page,
+                    "items_per_page": items_per_page,
+                    "total_pages": (total_items + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
+                    "source": "s3"
+                })
+        except Exception as e:
+            print(f"Error listing S3 files: {e}")
+            # Fall back to local files
+    
+    # If S3 failed or is disabled, check local files
     try:
         for file in os.listdir(folder_path):
             if file.endswith('.png'):
                 sticker_files.append(file)
-        return jsonify({
-            "success": True,
-            "stickers": sticker_files
-        })
+        
+        if sticker_files:
+            # Ordenar por fecha descendente (asumiendo que el nombre del archivo contiene timestamp)
+            try:
+                sticker_files.sort(key=lambda x: os.path.basename(x), reverse=True)
+            except:
+                pass
+                
+            total_items = len(sticker_files)
+            
+            # Aplicar paginación si se solicitó
+            if items_per_page > 0:
+                start_idx = (page - 1) * items_per_page
+                end_idx = start_idx + items_per_page
+                paginated_files = sticker_files[start_idx:end_idx]
+            else:
+                paginated_files = sticker_files
+            
+            return jsonify({
+                "success": True,
+                "stickers": paginated_files,
+                "total_items": total_items,
+                "page": page,
+                "items_per_page": items_per_page,
+                "total_pages": (total_items + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
+                "source": "local"
+            })
+        else:
+            return jsonify({
+                "success": True,
+                "stickers": [],
+                "total_items": 0,
+                "page": 1,
+                "items_per_page": items_per_page,
+                "total_pages": 0,
+                "source": "local"
+            })
+            
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "error": str(e),
+            "success": False,
+            "stickers": []
+        }), 500
 
 # --- Coins System Routes ---
 
@@ -617,7 +735,11 @@ def payment_feedback():
         template_stickers = session.get('template_stickers', [])
         sticker_files = []
         
-        # Preparar la lista de archivos físicos para adjuntar al correo
+        # Get S3 URLs from session
+        s3_urls = session.get('s3_urls', {})
+        sticker_s3_urls = {}
+        
+        # Preparar la lista de archivos físicos y URLs de S3 para adjuntar al correo
         for sticker in template_stickers:
             if isinstance(sticker, dict):
                 filename = sticker.get('filename', '')
@@ -625,24 +747,69 @@ def payment_feedback():
                     file_path = os.path.join('app/static/imgs', filename)
                     if os.path.exists(file_path):
                         sticker_files.append(file_path)
+                        
+                        # Add S3 URL if available
+                        if filename in s3_urls:
+                            sticker_s3_urls[filename] = s3_urls[filename]
+                        # If not already in s3_urls, upload it now
+                        elif USE_S3:
+                            success, url = upload_file_to_s3(
+                                file_path, 
+                                filename, 
+                                folder=S3_STICKERS_FOLDER
+                            )
+                            if success:
+                                sticker_s3_urls[filename] = url
         
-        # Enviar correo electrónico al diseñador
-        if sticker_files:
-            send_sticker_email(customer_data, sticker_files)
+        # Create a template ZIP package if there are multiple stickers
+        template_zip_path = None
+        template_s3_url = None
+        
+        if len(sticker_files) > 1 and USE_S3:
+            template_name = f"plantilla_{int(time.time())}.zip"
+            template_zip_path = os.path.join(templates_path, template_name)
+            
+            # Create the template ZIP
+            if create_template_zip(sticker_files, template_zip_path):
+                # Upload to S3
+                success, url = upload_file_to_s3(
+                    template_zip_path,
+                    template_name,
+                    folder=S3_TEMPLATES_FOLDER
+                )
+                if success:
+                    template_s3_url = url
+        
+        # Enviar correo electrónico al diseñador y al cliente con enlaces a los archivos
+        if sticker_files or sticker_s3_urls:
+            # If we have a template URL, add it to the s3_urls
+            if template_s3_url:
+                sticker_s3_urls['__template__'] = template_s3_url
+                
+            send_sticker_email(customer_data, sticker_files, sticker_s3_urls)
             print(f"Correo enviado con éxito para el pago {payment_id}")
         else:
             print(f"No se encontraron archivos de stickers para adjuntar al correo para el pago {payment_id}")
         
+        # Clean up the template ZIP file if it was created
+        if template_zip_path and os.path.exists(template_zip_path):
+            try:
+                os.remove(template_zip_path)
+            except:
+                pass
+                
         # Limpiar la sesión después del pago exitoso
         session['template_stickers'] = []
-        # Limpiar los datos del cliente de la sesión
-        if 'customer_data' in session:
-            session.pop('customer_data')
+        # Limpiar los datos del cliente y URLs de S3 de la sesión
+        for key in ['customer_data', 's3_urls']:
+            if key in session:
+                session.pop(key)
+                
     elif status == 'failure':
         feedback_message = "Payment failed. Please try again or contact support."
     elif status == 'pending':
         feedback_message = "Payment is pending. We will notify you upon confirmation."
-        
+    
     # For now, just render a simple feedback page or redirect to index with a message
     # Ideally, create a dedicated feedback template
     # return render_template('feedback.html', message=feedback_message) 
