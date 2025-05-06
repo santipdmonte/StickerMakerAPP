@@ -1,4 +1,40 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Agregar estilo para el toast de información si no existe
+    if (!document.getElementById('toast-styles')) {
+        const toastStyles = document.createElement('style');
+        toastStyles.id = 'toast-styles';
+        toastStyles.textContent = `
+            .info-toast {
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%) translateY(100px);
+                background-color: #3498db;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 50px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                z-index: 10000;
+                opacity: 0;
+                transition: transform 0.3s ease, opacity 0.3s ease;
+                font-family: 'Poppins', sans-serif;
+                font-size: 14px;
+            }
+            .info-toast i {
+                font-size: 18px;
+            }
+            .info-toast.show {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        `;
+        document.head.appendChild(toastStyles);
+    }
+    
     // UI Elements
     const promptInput = document.getElementById('prompt-input');
     const referencePromptInput = document.getElementById('reference-prompt-input');
@@ -106,6 +142,34 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentMode = 'simple';
     let currentGeneratedSticker = null;
     let templateStickers = [];
+    
+    // S3 state tracking
+    let s3Enabled = true;  // Default assumption
+    let s3StatusChecked = false;
+    
+    // Check S3 status on page load
+    checkS3Status();
+    
+    // Function to check S3 status
+    function checkS3Status() {
+        fetch('/debug-s3')
+            .then(response => response.json())
+            .then(data => {
+                s3Enabled = data.s3_enabled === true;
+                s3StatusChecked = true;
+                console.log(`S3 status checked: ${s3Enabled ? 'enabled' : 'disabled'}`);
+            })
+            .catch(error => {
+                console.error('Error checking S3 status:', error);
+                s3Enabled = false;  // Assume disabled on error
+                s3StatusChecked = true;
+            });
+    }
+    
+    // Function to get image URL - siempre usa la ruta '/img/' que redirige a S3
+    function getImageUrl(filename) {
+        return `/img/${filename}`;
+    }
     
     // Initially hide the sticker result
     stickerResult.style.display = 'none';
@@ -332,9 +396,74 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`Sticker: ${filename}, Quantity: ${quantity}`);
             
             // Create the image element
+            const imgWrapper = document.createElement('div');
+            imgWrapper.className = 'template-image-wrapper';
+            imgWrapper.style.width = '100%';
+            imgWrapper.style.height = '150px';
+            imgWrapper.style.display = 'flex';
+            imgWrapper.style.alignItems = 'center';
+            imgWrapper.style.justifyContent = 'center';
+            imgWrapper.style.position = 'relative';
+            
+            // Agregar indicador de carga
+            const loadingSpinner = document.createElement('div');
+            loadingSpinner.className = 'spinner';
+            loadingSpinner.style.width = '30px';
+            loadingSpinner.style.height = '30px';
+            loadingSpinner.style.border = '3px solid rgba(124, 93, 250, 0.1)';
+            loadingSpinner.style.borderRadius = '50%';
+            loadingSpinner.style.borderTopColor = 'var(--primary-color)';
+            loadingSpinner.style.animation = 'spin 1s ease-in-out infinite';
+            imgWrapper.appendChild(loadingSpinner);
+            
             const img = document.createElement('img');
-            img.src = `/static/imgs/${filename}`;
             img.alt = 'Template sticker';
+            img.style.display = 'none';
+            img.style.maxWidth = '100%';
+            img.style.maxHeight = '100%';
+            img.style.objectFit = 'contain';
+            
+            // Intentar cargar desde caché local primero
+            const cachedSrc = localStorage.getItem(`img_cache_${filename}`);
+            if (cachedSrc) {
+                img.src = cachedSrc;
+                console.log(`Using cached image for template: ${filename}`);
+            } else {
+                // Siempre usar la ruta /img/ que redirige a S3
+                img.src = getImageUrl(filename);
+                console.log(`Loading template image: ${filename} from ${img.src}`);
+            }
+            
+            // Cuando la imagen carga correctamente
+            img.onload = function() {
+                // Guardar en caché para futuras cargas
+                try {
+                    localStorage.setItem(`img_cache_${filename}`, img.src);
+                } catch (e) {
+                    console.warn('Error caching template image:', e);
+                }
+                
+                // Mostrar imagen y ocultar spinner
+                loadingSpinner.style.display = 'none';
+                img.style.display = 'block';
+            };
+            
+            // Manejar errores de carga
+            img.onerror = function() {
+                console.error(`Error loading template image: ${filename}`);
+                
+                // Limpiar caché si la URL era inválida
+                localStorage.removeItem(`img_cache_${filename}`);
+                
+                // Mostrar un placeholder de error
+                loadingSpinner.style.display = 'none';
+                const errorIcon = document.createElement('div');
+                errorIcon.innerHTML = '<i class="ri-image-line" style="font-size: 40px; color: #ccc;"></i>';
+                imgWrapper.appendChild(errorIcon);
+            };
+            
+            imgWrapper.appendChild(img);
+            stickerItem.appendChild(imgWrapper);
             
             // Create quantity controls
             const quantityControl = document.createElement('div');
@@ -389,7 +518,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             // Add elements to the sticker item
-            stickerItem.appendChild(img);
             stickerItem.appendChild(quantityControl);
             stickerItem.appendChild(removeBtn);
             templateGrid.appendChild(stickerItem);
@@ -469,6 +597,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
+        // Mostrar un indicador de carga mientras se procesa el template
+        const loadingToast = document.createElement('div');
+        loadingToast.className = 'info-toast show';
+        loadingToast.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Generando template...';
+        document.body.appendChild(loadingToast);
+        
         // Create a temporary canvas for the template
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -513,7 +647,10 @@ document.addEventListener('DOMContentLoaded', () => {
         totalExpectedImages = stickerInstances.length;
         
         const drawTemplateAndDownload = () => {
-            if (loadedCount === totalExpectedImages && !loadError) {
+            if (loadedCount === totalExpectedImages) {
+                // Eliminar el toast de carga
+                document.body.removeChild(loadingToast);
+                
                 // Create download link
                 const dataUrl = canvas.toDataURL('image/png');
                 const downloadLink = document.createElement('a');
@@ -527,27 +664,116 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
         
-        stickerInstances.forEach((filename, index) => {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.src = `/static/imgs/${filename}`;
+        // Función para obtener la imagen directamente mediante fetch para evitar problemas CORS
+        const fetchImageAsBlob = async (url) => {
+            try {
+                // Usamos el endpoint /img/ para obtener la redirección a S3
+                const response = await fetch(url, { mode: 'cors' });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const blob = await response.blob();
+                return URL.createObjectURL(blob);
+            } catch (error) {
+                console.error(`Error fetching image: ${error}`);
+                return null;
+            }
+        };
+        
+        // Función para cargar y dibujar la imagen en el canvas
+        const loadAndDrawImage = async (filename, index) => {
+            // Posición donde se dibujará esta imagen
+            const col = index % columns;
+            const row = Math.floor(index / columns);
+            const x = padding + col * (stickerWidth + padding);
+            const y = padding + row * (stickerHeight + padding);
             
-            img.onload = () => {
-                const col = index % columns;
-                const row = Math.floor(index / columns);
-                const x = padding + col * (stickerWidth + padding);
-                const y = padding + row * (stickerHeight + padding);
+            try {
+                // Primero intentamos usar la URL en caché, pero pasando por fetch para evitar CORS
+                const cachedSrc = localStorage.getItem(`img_cache_${filename}`);
+                let blobUrl;
                 
-                ctx.drawImage(img, x, y, stickerWidth, stickerHeight);
+                if (cachedSrc) {
+                    // Intentar usar la URL cacheada pero obteniéndola como blob
+                    blobUrl = await fetchImageAsBlob(cachedSrc);
+                }
+                
+                // Si no hay URL en caché o falló, intentar con la ruta directa
+                if (!blobUrl) {
+                    blobUrl = await fetchImageAsBlob(`/img/${filename}`);
+                    
+                    // Si se obtuvo la URL, guardarla en caché
+                    if (blobUrl) {
+                        try {
+                            localStorage.setItem(`img_cache_${filename}`, `/img/${filename}`);
+                        } catch (e) {
+                            console.warn('Error caching image URL:', e);
+                        }
+                    }
+                }
+                
+                if (blobUrl) {
+                    // Crear y cargar la imagen desde la URL del blob
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.drawImage(img, x, y, stickerWidth, stickerHeight);
+                        URL.revokeObjectURL(blobUrl); // Liberar memoria
+                        loadedCount++;
+                        drawTemplateAndDownload();
+                    };
+                    img.onerror = () => {
+                        console.error(`Failed to load blob URL for ${filename}`);
+                        drawPlaceholder(x, y);
+                        URL.revokeObjectURL(blobUrl); // Liberar memoria
+                        loadedCount++;
+                        drawTemplateAndDownload();
+                    };
+                    img.src = blobUrl;
+                } else {
+                    // Si no se pudo obtener la imagen, dibujar un placeholder
+                    drawPlaceholder(x, y);
+                    loadedCount++;
+                    drawTemplateAndDownload();
+                }
+            } catch (error) {
+                console.error(`Error processing image ${filename}:`, error);
+                drawPlaceholder(x, y);
                 loadedCount++;
                 drawTemplateAndDownload();
-            };
-            
-            img.onerror = () => {
-                loadError = true;
-                showError('Error loading sticker images');
-            };
+            }
+        };
+        
+        // Función para dibujar un placeholder
+        const drawPlaceholder = (x, y) => {
+            // Dibujar un cuadro gris con un ícono de error
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(x, y, stickerWidth, stickerHeight);
+            ctx.fillStyle = '#cccccc';
+            ctx.font = '48px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('?', x + stickerWidth/2, y + stickerHeight/2);
+        };
+        
+        // Iniciar la carga de todas las imágenes
+        stickerInstances.forEach((filename, index) => {
+            loadAndDrawImage(filename, index);
         });
+        
+        // Si después de 15 segundos no se ha completado, forzar la descarga con lo que se tenga
+        setTimeout(() => {
+            if (loadedCount < totalExpectedImages) {
+                console.warn(`Timeout reached. Forcing download with ${loadedCount}/${totalExpectedImages} images loaded`);
+                // Dibujar placeholders para las imágenes restantes
+                for (let i = loadedCount; i < totalExpectedImages; i++) {
+                    const col = i % columns;
+                    const row = Math.floor(i / columns);
+                    const x = padding + col * (stickerWidth + padding);
+                    const y = padding + row * (stickerHeight + padding);
+                    drawPlaceholder(x, y);
+                }
+                loadedCount = totalExpectedImages;
+                drawTemplateAndDownload();
+            }
+        }, 15000);
     }
     
     // Event listeners for template buttons
@@ -847,10 +1073,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     stickerResult.classList.add('pulse');
                     
                     // Set the image source
-                    stickerImage.src = `/static/imgs/${data.filename}`;
+                    stickerImage.src = `/img/${data.filename}`;
                     
                     // Enable download button
-                    downloadBtn.href = `/static/imgs/${data.filename}`;
+                    downloadBtn.href = `/img/${data.filename}`;
                     downloadBtn.download = data.filename;
                     
                     // Remove animation class after animation completes

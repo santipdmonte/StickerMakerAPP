@@ -15,47 +15,58 @@ logger = logging.getLogger(__name__)
 
 def save_image(result, img_path, use_s3=True):
     """
-    Save image to local filesystem and optionally upload to S3
+    Process image and upload exclusively to S3
     
     Args:
         result: The image generation result with b64_json data
-        img_path: Local path to save the image
-        use_s3: Whether to also upload to S3
+        img_path: Path used only for filename reference, file not saved locally
+        use_s3: Parameter kept for backward compatibility, ignored (always True)
         
     Returns:
-        tuple: (image_base64, s3_url or None)
+        tuple: (image_base64, s3_url)
     """
     image_base64 = result.data[0].b64_json
     image_bytes = base64.b64decode(image_base64)
 
-    # Save locally
+    # Process image for optimal size
     image = Image.open(BytesIO(image_bytes))
     image = image.resize((250, 250), Image.LANCZOS)
-    image.save(img_path, format="PNG")
     
-    s3_url = None
-    if use_s3:
-        # Upload to S3 in the stickers folder
-        filename = os.path.basename(img_path)
-        success, result = upload_file_to_s3(img_path, filename, folder=S3_STICKERS_FOLDER)
-        if success:
-            s3_url = result
-        else:
-            logger.error(f"Failed to upload image to S3: {result}")
+    # Convert to bytes for upload
+    buffered = BytesIO()
+    image.save(buffered, format="PNG")
+    buffered.seek(0)
+
+    # Upload to S3
+    filename = os.path.basename(img_path)
+    success, result = upload_bytes_to_s3(
+        buffered, 
+        filename, 
+        content_type='image/png',
+        folder=S3_STICKERS_FOLDER
+    )
+    
+    if success:
+        s3_url = result
+        logger.info(f"Successfully uploaded image to S3: {filename}")
+    else:
+        error_msg = f"Failed to upload image to S3: {result}"
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
     
     return image_base64, s3_url
 
 
 def create_placeholder_image(img_path, use_s3=True):
     """
-    Create a placeholder image and optionally upload to S3
+    Create a placeholder image and upload exclusively to S3
     
     Args:
-        img_path: Local path to save the image
-        use_s3: Whether to also upload to S3
+        img_path: Path used only for filename reference, file not saved locally
+        use_s3: Parameter kept for backward compatibility, ignored (always True)
         
     Returns:
-        tuple: (image_base64, s3_url or None)
+        tuple: (image_base64, s3_url)
     """
     time.sleep(2)
 
@@ -69,23 +80,29 @@ def create_placeholder_image(img_path, use_s3=True):
         img = Image.open(placeholder_path)
         img = img.resize((250, 250), Image.LANCZOS)
     
-    # Save to the destination path
-    img.save(img_path, format="PNG")
-    
-    # Convert to base64 for response
+    # Convert to bytes for upload and base64 for response
     buffered = BytesIO()
     img.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode()
+    img_bytes = buffered.getvalue()
+    img_str = base64.b64encode(img_bytes).decode()
     
-    s3_url = None
-    if use_s3:
-        # Upload to S3 in the stickers folder
-        filename = os.path.basename(img_path)
-        success, result = upload_file_to_s3(img_path, filename, folder=S3_STICKERS_FOLDER)
-        if success:
-            s3_url = result
-        else:
-            logger.error(f"Failed to upload image to S3: {result}")
+    # Upload to S3
+    filename = os.path.basename(img_path)
+    buffered.seek(0)  # Reset buffer position
+    success, result = upload_bytes_to_s3(
+        buffered,
+        filename,
+        content_type='image/png',
+        folder=S3_STICKERS_FOLDER
+    )
+    
+    if success:
+        s3_url = result
+        logger.info(f"Successfully uploaded placeholder to S3: {filename}")
+    else:
+        error_msg = f"Failed to upload placeholder to S3: {result}"
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
     
     return img_str, s3_url
 
@@ -115,42 +132,24 @@ def create_template_zip(sticker_files, output_path):
         return False
 
 
-def send_sticker_email(customer_data, sticker_files, s3_urls=None):
+def send_sticker_email(customer_data, sticker_files=None, s3_urls=None):
     """
     Envía un correo electrónico a los diseñadores con la plantilla de stickers y datos del cliente.
     
     Args:
         customer_data (dict): Diccionario con datos del cliente (nombre, email, dirección, etc.)
-        sticker_files (list): Lista de rutas a los archivos de stickers
+        sticker_files (list): Lista de rutas a los archivos de stickers (obsoleto, mantenido por compatibilidad)
         s3_urls (dict): Diccionario con URLs de S3 para cada archivo (filename -> url)
         
     Returns:
         bool: True si el correo se envió correctamente, False en caso contrario
     """
+    if sticker_files is None:
+        sticker_files = []
+    if s3_urls is None:
+        s3_urls = {}
+        
     try:
-        # Crear un archivo ZIP con la plantilla si hay más de un sticker
-        template_zip_path = None
-        template_s3_url = None
-        
-        if len(sticker_files) > 1:
-            template_name = f"plantilla_{int(time.time())}.zip"
-            template_zip_path = os.path.join("app/static/templates", template_name)
-            
-            # Ensure the templates directory exists
-            os.makedirs(os.path.dirname(template_zip_path), exist_ok=True)
-            
-            # Create the ZIP file
-            if create_template_zip(sticker_files, template_zip_path):
-                # Upload to S3 in the templates folder
-                if os.path.exists(template_zip_path):
-                    success, url = upload_file_to_s3(
-                        template_zip_path, 
-                        template_name,
-                        folder=S3_TEMPLATES_FOLDER
-                    )
-                    if success:
-                        template_s3_url = url
-        
         # Configuración del correo
         sender_email = "info@thestickerhouse.com"
         receivers = [
@@ -174,9 +173,9 @@ def send_sticker_email(customer_data, sticker_files, s3_urls=None):
         s3_links_html = ""
         
         # Si tenemos una plantilla ZIP, mostrarla primero
-        if template_s3_url:
+        if s3_urls and '__template__' in s3_urls:
             s3_links_html = f"""<h3>Plantilla completa:</h3>
-            <p><a href="{template_s3_url}" target="_blank">Descargar plantilla completa</a></p>
+            <p><a href="{s3_urls['__template__']}" target="_blank">Descargar plantilla completa</a></p>
             <hr>
             <h3>Stickers individuales:</h3><ul>"""
         elif s3_urls and len(s3_urls) > 0:
@@ -185,7 +184,8 @@ def send_sticker_email(customer_data, sticker_files, s3_urls=None):
         # Agregar enlaces a los stickers individuales
         if s3_urls and len(s3_urls) > 0:
             for filename, url in s3_urls.items():
-                s3_links_html += f'<li><a href="{url}" target="_blank">{filename}</a></li>'
+                if filename != '__template__':  # No duplicar la plantilla
+                    s3_links_html += f'<li><a href="{url}" target="_blank">{filename}</a></li>'
             s3_links_html += "</ul>"
         
         body = f"""
@@ -199,7 +199,7 @@ def send_sticker_email(customer_data, sticker_files, s3_urls=None):
                 <li><strong>Dirección:</strong> {customer_data.get('address', 'No proporcionada')}</li>
             </ul>
             {s3_links_html}
-            <p>Los archivos de la plantilla de stickers están disponibles en los enlaces anteriores o adjuntos al correo.</p>
+            <p>Los archivos de la plantilla de stickers están disponibles en los enlaces anteriores.</p>
             <p>Por favor, procesa esta orden lo antes posible.</p>
             <p>Saludos,<br>The Sticker House</p>
         </body>
@@ -208,45 +208,23 @@ def send_sticker_email(customer_data, sticker_files, s3_urls=None):
         
         msg.attach(MIMEText(body, 'html'))
         
-        # Adjuntar archivos sólo para los diseñadores internos
-        if "@thestickerhouse.com" in msg['To']:
-            # If we have a template ZIP, attach it
-            if template_zip_path and os.path.exists(template_zip_path):
-                with open(template_zip_path, 'rb') as file:
-                    part = MIMEApplication(file.read(), Name=os.path.basename(template_zip_path))
-                    part['Content-Disposition'] = f'attachment; filename="{os.path.basename(template_zip_path)}"'
-                    msg.attach(part)
-            # Otherwise attach individual files
-            elif not s3_urls:
-                for file_path in sticker_files:
-                    if os.path.exists(file_path):
-                        with open(file_path, 'rb') as file:
-                            part = MIMEApplication(file.read(), Name=os.path.basename(file_path))
-                            part['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
-                            msg.attach(part)
-        
         # Configurar servidor SMTP
-        # Nota: Estos valores deberían estar en variables de entorno
-        smtp_server = os.getenv("SMTP_SERVER", "smtp.example.com")
-        smtp_port = int(os.getenv("SMTP_PORT", "587"))
-        smtp_user = os.getenv("SMTP_USER", sender_email)
-        smtp_password = os.getenv("SMTP_PASSWORD", "your-password")
+        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        smtp_username = os.getenv('SMTP_USERNAME')
+        smtp_password = os.getenv('SMTP_PASSWORD')
         
-        # Conectar al servidor y enviar el correo
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_password)
-            server.send_message(msg)
-            
-        # Clean up the template ZIP file if it was created
-        if template_zip_path and os.path.exists(template_zip_path):
-            try:
-                os.remove(template_zip_path)
-            except:
-                pass
-            
+        if not smtp_username or not smtp_password:
+            logger.error("SMTP credentials not found in environment variables")
+            return False
+        
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        
         return True
-        
     except Exception as e:
-        logger.error(f"Error al enviar el correo: {e}")
+        logger.error(f"Error sending email: {e}")
         return False

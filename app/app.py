@@ -1,8 +1,10 @@
 import os
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response, send_file
 import time
 import json
 from dotenv import load_dotenv
+import tempfile
+from io import BytesIO
 
 # Added Mercado Pago
 import mercadopago 
@@ -43,22 +45,42 @@ COUPON_LIMIT = int(os.getenv("CUPON_LIMITE", "-1"))
 # Create static directories if they don't exist
 folder_path = "app/static/imgs"
 templates_path = "app/static/templates"
-os.makedirs(folder_path, exist_ok=True)
-os.makedirs(templates_path, exist_ok=True)
 
-# Flag to determine if S3 should be used
-USE_S3 = os.getenv('USE_S3', 'True').lower() in ('true', '1', 't')
+# Asegurar que todos los directorios existan
+required_directories = [
+    folder_path,
+    templates_path,
+    "app/static/stickers",  # Carpeta alternativa para stickers
+    "app/static/img"        # Para archivos estáticos como hat.png
+]
 
-# Check if S3 is properly configured
-if USE_S3:
-    try:
-        # Test S3 connection
-        get_s3_client()
-        print("Successfully connected to AWS S3")
-    except Exception as e:
-        print(f"Warning: Unable to connect to AWS S3: {e}")
-        print("Falling back to local storage only")
-        USE_S3 = False
+for directory in required_directories:
+    os.makedirs(directory, exist_ok=True)
+    print(f"Ensured directory exists: {directory}")
+
+# Flag to determine if S3 should be used - Forzar a True para usar exclusivamente S3
+USE_S3 = True
+
+# Verify S3 configuration
+try:
+    # Test S3 connection
+    s3_client = get_s3_client()
+    bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
+    if not bucket_name:
+        raise ValueError("AWS_S3_BUCKET_NAME is not set in environment variables")
+    
+    # Test bucket existence
+    s3_client.head_bucket(Bucket=bucket_name)
+    print(f"Successfully connected to AWS S3 bucket: {bucket_name}")
+except Exception as e:
+    error_msg = f"ERROR: S3 configuration is invalid or connection failed: {e}"
+    print(error_msg)
+    # No usar fallback a almacenamiento local, lanzar una excepción para indicar el problema
+    if os.environ.get('FLASK_ENV') == 'development':
+        print("Application will continue but S3 operations will fail.")
+    else:
+        # En producción, no permitir que la aplicación inicie sin S3 configurado
+        raise RuntimeError(error_msg)
 
 @app.route('/')
 def index():
@@ -733,70 +755,77 @@ def payment_feedback():
         
         # Obtener la lista de archivos de stickers
         template_stickers = session.get('template_stickers', [])
-        sticker_files = []
         
         # Get S3 URLs from session
         s3_urls = session.get('s3_urls', {})
         sticker_s3_urls = {}
         
-        # Preparar la lista de archivos físicos y URLs de S3 para adjuntar al correo
+        # Preparar lista de URLs de S3 para el correo
         for sticker in template_stickers:
             if isinstance(sticker, dict):
                 filename = sticker.get('filename', '')
-                if filename:
-                    file_path = os.path.join('app/static/imgs', filename)
-                    if os.path.exists(file_path):
-                        sticker_files.append(file_path)
-                        
-                        # Add S3 URL if available
-                        if filename in s3_urls:
-                            sticker_s3_urls[filename] = s3_urls[filename]
-                        # If not already in s3_urls, upload it now
-                        elif USE_S3:
-                            success, url = upload_file_to_s3(
-                                file_path, 
-                                filename, 
-                                folder=S3_STICKERS_FOLDER
-                            )
-                            if success:
-                                sticker_s3_urls[filename] = url
+                if filename and filename in s3_urls:
+                    sticker_s3_urls[filename] = s3_urls[filename]
         
         # Create a template ZIP package if there are multiple stickers
         template_zip_path = None
         template_s3_url = None
         
-        if len(sticker_files) > 1 and USE_S3:
-            template_name = f"plantilla_{int(time.time())}.zip"
-            template_zip_path = os.path.join(templates_path, template_name)
+        if len(sticker_s3_urls) > 1 and USE_S3:
+            # En este caso, necesitamos descargar las imágenes temporalmente
+            # para crear el ZIP y luego subirlo a S3
+            temp_dir = tempfile.mkdtemp()
+            temp_files = []
             
-            # Create the template ZIP
-            if create_template_zip(sticker_files, template_zip_path):
-                # Upload to S3
-                success, url = upload_file_to_s3(
-                    template_zip_path,
-                    template_name,
-                    folder=S3_TEMPLATES_FOLDER
-                )
-                if success:
-                    template_s3_url = url
+            try:
+                # Descargar archivos temporalmente para crear el ZIP
+                s3_client = get_s3_client()
+                bucket = os.getenv('AWS_S3_BUCKET_NAME')
+                
+                for filename, url in sticker_s3_urls.items():
+                    # Obtener key de S3 desde URL
+                    key = f"{S3_STICKERS_FOLDER}/{filename}"
+                    temp_file_path = os.path.join(temp_dir, filename)
+                    
+                    # Descargar archivo
+                    s3_client.download_file(bucket, key, temp_file_path)
+                    temp_files.append(temp_file_path)
+                
+                # Crear template zip
+                if temp_files:
+                    template_name = f"plantilla_{int(time.time())}.zip"
+                    template_zip_path = os.path.join(temp_dir, template_name)
+                    
+                    if create_template_zip(temp_files, template_zip_path):
+                        # Upload to S3
+                        success, url = upload_file_to_s3(
+                            template_zip_path,
+                            template_name,
+                            folder=S3_TEMPLATES_FOLDER
+                        )
+                        if success:
+                            template_s3_url = url
+                
+            finally:
+                # Limpiar archivos temporales
+                for file in temp_files:
+                    if os.path.exists(file):
+                        os.remove(file)
+                if template_zip_path and os.path.exists(template_zip_path):
+                    os.remove(template_zip_path)
+                os.rmdir(temp_dir)
         
         # Enviar correo electrónico al diseñador y al cliente con enlaces a los archivos
-        if sticker_files or sticker_s3_urls:
+        if sticker_s3_urls:
             # If we have a template URL, add it to the s3_urls
             if template_s3_url:
                 sticker_s3_urls['__template__'] = template_s3_url
                 
-            send_sticker_email(customer_data, sticker_files, sticker_s3_urls)
+            # Enviar solo con URLs de S3, sin archivos locales
+            send_sticker_email(customer_data, [], sticker_s3_urls)
             print(f"Correo enviado con éxito para el pago {payment_id}")
         else:
-            print(f"No se encontraron archivos de stickers para adjuntar al correo para el pago {payment_id}")
-        
-        # Clean up the template ZIP file if it was created
-        if template_zip_path and os.path.exists(template_zip_path):
-            try:
-                os.remove(template_zip_path)
-            except:
-                pass
+            print(f"No se encontraron URLs de stickers para adjuntar al correo para el pago {payment_id}")
                 
         # Limpiar la sesión después del pago exitoso
         session['template_stickers'] = []
@@ -810,16 +839,8 @@ def payment_feedback():
     elif status == 'pending':
         feedback_message = "Payment is pending. We will notify you upon confirmation."
     
-    # For now, just render a simple feedback page or redirect to index with a message
-    # Ideally, create a dedicated feedback template
-    # return render_template('feedback.html', message=feedback_message) 
-    
     # Simple redirect back to index for now
-    # You might want to pass the feedback message via flash messages
-    # from flask import flash
-    # flash(feedback_message)
-    return redirect(url_for('index')) 
-    # You could also return jsonify if you handle feedback purely on the frontend
+    return redirect(url_for('index'))
 
 # --- End Mercado Pago Integration ---
 
@@ -828,6 +849,554 @@ def library():
     # Get the Mercado Pago public key from environment variables
     mp_public_key = os.getenv('MP_PUBLIC_KEY', '')
     return render_template('library.html', mp_public_key=mp_public_key)
+
+@app.route('/img/<filename>')
+def get_image(filename):
+    """
+    Sirve imágenes exclusivamente desde S3
+    """
+    print(f"[GET_IMAGE] Accessing image: {filename}")
+    
+    # 1. Intentar obtener URL de la sesión primero
+    s3_urls = session.get('s3_urls', {})
+    if filename in s3_urls:
+        print(f"[GET_IMAGE] Image URL found in session cache: {filename}")
+        url = s3_urls[filename]
+        print(f"[GET_IMAGE] Redirecting to cached S3 URL: {url}")
+        
+        # En lugar de redireccionar directamente, intentar descargar y servir
+        # para evitar problemas de CORS cuando se usa en un canvas
+        try:
+            s3_client = get_s3_client()
+            bucket = os.getenv('AWS_S3_BUCKET_NAME')
+            key = f"{S3_STICKERS_FOLDER}/{filename}"
+            
+            # Descargar el archivo a memoria
+            file_obj = BytesIO()
+            s3_client.download_fileobj(Bucket=bucket, Key=key, Fileobj=file_obj)
+            file_obj.seek(0)
+            
+            # Determinar el tipo de contenido
+            content_type = 'image/png'
+            if filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
+                content_type = 'image/jpeg'
+            elif filename.lower().endswith('.gif'):
+                content_type = 'image/gif'
+                
+            # Añadir cabeceras CORS
+            response = make_response(send_file(
+                file_obj,
+                mimetype=content_type,
+                as_attachment=False,
+                download_name=filename
+            ))
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Methods'] = 'GET'
+            response.headers['Cache-Control'] = 'public, max-age=86400'  # Cache por 24 horas
+            
+            return response
+        except Exception as e:
+            print(f"[GET_IMAGE] Error downloading from S3, using redirect: {e}")
+            # Si falla, usar redirección como fallback
+            return redirect(url)
+    
+    # 2. Si no está en la sesión, verificar si existe en S3 y crear una URL firmada
+    try:
+        s3_client = get_s3_client()
+        bucket = os.getenv('AWS_S3_BUCKET_NAME')
+        
+        if not bucket:
+            error_msg = "S3 bucket name not specified in environment variables"
+            print(f"[GET_IMAGE] Error: {error_msg}")
+            return f"Configuration error: {error_msg}", 500
+        
+        # Lista de posibles rutas a probar en S3
+        possible_keys = [
+            f"{S3_STICKERS_FOLDER}/{filename}",  # Ruta estándar con carpeta stickers
+            filename,                           # Directamente en la raíz del bucket
+            f"stickers/{filename}",             # Carpeta stickers estándar (por si S3_STICKERS_FOLDER es diferente)
+            f"images/{filename}",               # Otra posible carpeta
+            f"imgs/{filename}"                  # Otra posible carpeta
+        ]
+        
+        # Probar cada posible ruta
+        found_key = None
+        for key in possible_keys:
+            print(f"[GET_IMAGE] Checking if object exists in S3: {bucket}/{key}")
+            try:
+                s3_client.head_object(Bucket=bucket, Key=key)
+                print(f"[GET_IMAGE] ✓ Object found in S3: {bucket}/{key}")
+                found_key = key
+                break
+            except Exception as e:
+                print(f"[GET_IMAGE] ✗ Object not found at {key}: {str(e)}")
+        
+        # Si se encontró el archivo, intentar descargarlo y servirlo
+        if found_key:
+            try:
+                print(f"[GET_IMAGE] Downloading and serving: {bucket}/{found_key}")
+                # Descargar el archivo a memoria
+                file_obj = BytesIO()
+                s3_client.download_fileobj(Bucket=bucket, Key=found_key, Fileobj=file_obj)
+                file_obj.seek(0)
+                
+                # Generar URL prefirmada para futuras peticiones
+                presigned_url = s3_client.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': bucket, 'Key': found_key},
+                    ExpiresIn=3600  # URL válida por 1 hora
+                )
+                
+                # Guardar URL en la sesión para futuras solicitudes
+                s3_urls[filename] = presigned_url
+                session['s3_urls'] = s3_urls
+                
+                # Determinar el tipo de contenido
+                content_type = 'image/png'
+                if filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
+                    content_type = 'image/jpeg'
+                elif filename.lower().endswith('.gif'):
+                    content_type = 'image/gif'
+                
+                # Añadir cabeceras CORS
+                response = make_response(send_file(
+                    file_obj,
+                    mimetype=content_type,
+                    as_attachment=False,
+                    download_name=filename
+                ))
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'GET'
+                response.headers['Cache-Control'] = 'public, max-age=86400'  # Cache por 24 horas
+                
+                return response
+            except Exception as e:
+                print(f"[GET_IMAGE] Error serving file directly, using redirect: {e}")
+                # Si falla, usar redirección como fallback
+                return redirect(presigned_url)
+        else:
+            print(f"[GET_IMAGE] ✗ File {filename} not found in any expected S3 location")
+            return f"Image {filename} not found in S3", 404
+    except Exception as e:
+        error_msg = f"Error accessing S3: {str(e)}"
+        print(f"[GET_IMAGE] {error_msg}")
+        return error_msg, 500
+
+@app.route('/debug-s3')
+def debug_s3():
+    """
+    Ruta de diagnóstico para verificar la conexión a S3 y listar archivos
+    """
+    debug_info = {
+        "s3_enabled": True,  # Siempre True
+        "environment_vars": {
+            "aws_access_key_present": bool(os.getenv('AWS_ACCESS_KEY_ID')),
+            "aws_secret_key_present": bool(os.getenv('AWS_SECRET_ACCESS_KEY')),
+            "bucket_name": os.getenv('AWS_S3_BUCKET_NAME'),
+            "region": os.getenv('AWS_REGION', 'us-east-1')
+        },
+        "stickers_folder": S3_STICKERS_FOLDER,
+        "files": [],
+        "errors": []
+    }
+    
+    try:
+        # Intentar conectar a S3
+        s3_client = get_s3_client()
+        debug_info["connection"] = "Success"
+        
+        # Verificar si el bucket existe
+        bucket = os.getenv('AWS_S3_BUCKET_NAME')
+        
+        if not bucket:
+            debug_info["errors"].append("AWS_S3_BUCKET_NAME not set in environment variables")
+        else:
+            try:
+                # Verificar si el bucket existe
+                s3_client.head_bucket(Bucket=bucket)
+                debug_info["bucket_exists"] = True
+                
+                # Listar objetos en el bucket
+                folder_prefix = S3_STICKERS_FOLDER + "/"
+                response = s3_client.list_objects_v2(
+                    Bucket=bucket,
+                    Prefix=folder_prefix,
+                    MaxKeys=10  # Limitar a 10 resultados para ser breve
+                )
+                
+                if 'Contents' in response:
+                    # Añadir detalles de los archivos encontrados
+                    for obj in response['Contents']:
+                        # Crear URL prefirmada para cada objeto
+                        presigned_url = s3_client.generate_presigned_url(
+                            'get_object',
+                            Params={'Bucket': bucket, 'Key': obj['Key']},
+                            ExpiresIn=3600
+                        )
+                        
+                        debug_info["files"].append({
+                            "key": obj['Key'],
+                            "size": obj['Size'],
+                            "last_modified": str(obj['LastModified']),
+                            "url": presigned_url
+                        })
+                else:
+                    debug_info["errors"].append(f"No files found in {folder_prefix}")
+                    
+                # Intentar verificar la existencia de un archivo específico (uno que debería existir)
+                if debug_info["files"]:
+                    sample_key = debug_info["files"][0]["key"]
+                    try:
+                        s3_client.head_object(Bucket=bucket, Key=sample_key)
+                        debug_info["sample_file_check"] = f"File {sample_key} exists"
+                    except Exception as e:
+                        debug_info["errors"].append(f"Error checking {sample_key}: {str(e)}")
+            
+            except Exception as e:
+                debug_info["errors"].append(f"Error accessing bucket or listing objects: {str(e)}")
+    
+    except Exception as e:
+        debug_info["connection"] = "Failed"
+        debug_info["errors"].append(f"Connection error: {str(e)}")
+    
+    return jsonify(debug_info)
+
+@app.route('/direct-s3-img/<filename>')
+def direct_s3_image(filename):
+    """
+    Método alternativo: Descarga directamente la imagen de S3 y la sirve,
+    sin usar redirección
+    """
+    print(f"[DIRECT-S3] Starting direct image access for: {filename}")
+    
+    try:
+        print("[DIRECT-S3] Getting S3 client...")
+        s3_client = get_s3_client()
+        print("[DIRECT-S3] Got S3 client successfully")
+        
+        bucket = os.getenv('AWS_S3_BUCKET_NAME')
+        print(f"[DIRECT-S3] Using bucket: {bucket}")
+        
+        if not bucket:
+            error_msg = "AWS_S3_BUCKET_NAME not set in environment variables"
+            print(f"[DIRECT-S3] ERROR: {error_msg}")
+            return f"Configuration error: {error_msg}", 500
+        
+        # Lista de posibles rutas a probar
+        possible_keys = [
+            f"{S3_STICKERS_FOLDER}/{filename}",
+            filename,
+            f"stickers/{filename}",
+            f"images/{filename}",
+            f"imgs/{filename}"
+        ]
+        
+        # Primero, listar todos los objetos en el bucket para diagnóstico
+        try:
+            print(f"[DIRECT-S3] Listing objects in bucket: {bucket} to find possible matches")
+            all_objects = s3_client.list_objects_v2(Bucket=bucket)
+            
+            if 'Contents' in all_objects and all_objects['Contents']:
+                print(f"[DIRECT-S3] ✓ Found {len(all_objects['Contents'])} objects in bucket")
+                
+                # Buscar posibles coincidencias para diagnóstico
+                possible_matches = []
+                for obj in all_objects['Contents']:
+                    key = obj['Key']
+                    if filename in key:
+                        possible_matches.append(key)
+                
+                if possible_matches:
+                    print(f"[DIRECT-S3] Possible matches found for {filename}:")
+                    for match in possible_matches:
+                        print(f"[DIRECT-S3]   - {match}")
+                    
+                    # Añadir las coincidencias encontradas a las rutas a probar
+                    possible_keys.extend(possible_matches)
+                else:
+                    print(f"[DIRECT-S3] No filename matches for {filename} in bucket contents")
+            else:
+                print(f"[DIRECT-S3] Warning: No objects found in bucket {bucket}")
+        except Exception as e:
+            print(f"[DIRECT-S3] Error listing bucket contents: {str(e)}")
+        
+        # Intentar encontrar y descargar el archivo
+        for key in possible_keys:
+            try:
+                print(f"[DIRECT-S3] Attempting to download: {bucket}/{key}")
+                
+                # Verificar si el objeto existe
+                try:
+                    s3_client.head_object(Bucket=bucket, Key=key)
+                    print(f"[DIRECT-S3] ✓ Object exists: {bucket}/{key}")
+                except Exception as e:
+                    print(f"[DIRECT-S3] ✗ Object does not exist: {bucket}/{key} - {str(e)}")
+                    continue
+                
+                # Descargar el objeto a un buffer en memoria
+                file_obj = BytesIO()
+                s3_client.download_fileobj(Bucket=bucket, Key=key, Fileobj=file_obj)
+                
+                # Resetear la posición del buffer
+                file_obj.seek(0)
+                
+                # Determinar el tipo de contenido
+                content_type = 'image/png'  # Por defecto
+                if filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
+                    content_type = 'image/jpeg'
+                elif filename.lower().endswith('.gif'):
+                    content_type = 'image/gif'
+                
+                print(f"[DIRECT-S3] ✓ Success! Serving image from {bucket}/{key}")
+                
+                # Guardar la ruta correcta para futuras referencias
+                s3_urls = session.get('s3_urls', {})
+                
+                # Crear URL prefirmada para esta imagen
+                presigned_url = s3_client.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': bucket, 'Key': key},
+                    ExpiresIn=3600
+                )
+                
+                # Guardar la URL para futuras solicitudes
+                s3_urls[filename] = presigned_url
+                session['s3_urls'] = s3_urls
+                
+                # Crear respuesta con cabeceras CORS
+                response = make_response(send_file(
+                    file_obj,
+                    mimetype=content_type,
+                    as_attachment=False,
+                    download_name=filename
+                ))
+                
+                # Añadir cabeceras CORS y cache
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'GET'
+                response.headers['Cache-Control'] = 'public, max-age=86400'  # Cache por 24 horas
+                
+                return response
+                
+            except Exception as e:
+                print(f"[DIRECT-S3] Error with {key}: {str(e)}")
+                continue
+        
+        # Si llegamos aquí, no pudimos encontrar el archivo
+        print(f"[DIRECT-S3] ✗ Image {filename} not found in any location in S3 bucket")
+        return f"Image {filename} not found in S3 bucket", 404
+        
+    except Exception as e:
+        error_msg = f"Error accessing S3: {str(e)}"
+        print(f"[DIRECT-S3] Error: {error_msg}")
+        return error_msg, 500
+
+@app.route('/debug-s3-bucket')
+def debug_s3_bucket():
+    """
+    Endpoint para mostrar la estructura completa del bucket y verificar credenciales
+    """
+    debug_info = {
+        "aws_check": {},
+        "bucket_info": {},
+        "folder_structure": {},
+        "sample_files": [],
+        "errors": []
+    }
+    
+    # Verificar que las variables de entorno estén configuradas
+    aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
+    aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+    aws_region = os.getenv('AWS_REGION', 'us-east-1')
+    bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
+    
+    debug_info["aws_check"] = {
+        "aws_access_key_present": bool(aws_access_key),
+        "aws_secret_key_present": bool(aws_secret_key),
+        "aws_region": aws_region,
+        "bucket_name": bucket_name,
+        "s3_stickers_folder": S3_STICKERS_FOLDER,
+        "s3_templates_folder": S3_TEMPLATES_FOLDER
+    }
+    
+    if not aws_access_key or not aws_secret_key:
+        debug_info["errors"].append("AWS credentials missing or incomplete")
+        return jsonify(debug_info)
+    
+    if not bucket_name:
+        debug_info["errors"].append("AWS_S3_BUCKET_NAME not set")
+        return jsonify(debug_info)
+    
+    # Verificar conexión a AWS
+    try:
+        # Intentar crear cliente S3
+        s3_client = get_s3_client()
+        debug_info["aws_check"]["connection"] = "Success"
+        
+        # Verificar que el bucket existe
+        try:
+            s3_client.head_bucket(Bucket=bucket_name)
+            debug_info["bucket_info"]["exists"] = True
+        except Exception as e:
+            debug_info["bucket_info"]["exists"] = False
+            debug_info["bucket_info"]["error"] = str(e)
+            debug_info["errors"].append(f"Bucket {bucket_name} does not exist or not accessible: {str(e)}")
+            return jsonify(debug_info)
+        
+        # Listar objetos en el bucket (raíz)
+        try:
+            response = s3_client.list_objects_v2(Bucket=bucket_name, Delimiter='/')
+            
+            if 'CommonPrefixes' in response:
+                folders = [prefix['Prefix'] for prefix in response['CommonPrefixes']]
+                debug_info["folder_structure"]["root_folders"] = folders
+            else:
+                debug_info["folder_structure"]["root_folders"] = []
+            
+            if 'Contents' in response:
+                files = [obj['Key'] for obj in response['Contents']]
+                debug_info["folder_structure"]["root_files"] = files
+            else:
+                debug_info["folder_structure"]["root_files"] = []
+        except Exception as e:
+            debug_info["errors"].append(f"Error listing bucket root: {str(e)}")
+        
+        # Listar objetos en la carpeta de stickers
+        try:
+            response = s3_client.list_objects_v2(
+                Bucket=bucket_name, 
+                Prefix=f"{S3_STICKERS_FOLDER}/",
+                MaxKeys=20
+            )
+            
+            if 'Contents' in response:
+                files = [obj['Key'] for obj in response['Contents']]
+                debug_info["folder_structure"]["stickers_folder"] = files
+                
+                # Obtener algunos ejemplos
+                sample_count = min(5, len(response['Contents']))
+                for i in range(sample_count):
+                    obj = response['Contents'][i]
+                    try:
+                        url = s3_client.generate_presigned_url(
+                            'get_object',
+                            Params={'Bucket': bucket_name, 'Key': obj['Key']},
+                            ExpiresIn=3600
+                        )
+                        debug_info["sample_files"].append({
+                            "key": obj['Key'],
+                            "url": url,
+                            "size": obj['Size'],
+                            "last_modified": str(obj['LastModified'])
+                        })
+                    except Exception as e:
+                        debug_info["errors"].append(f"Error generating URL for {obj['Key']}: {str(e)}")
+            else:
+                debug_info["folder_structure"]["stickers_folder"] = []
+                debug_info["errors"].append(f"No files found in {S3_STICKERS_FOLDER}/ folder")
+        except Exception as e:
+            debug_info["errors"].append(f"Error listing stickers folder: {str(e)}")
+        
+        # Probar con 'stickers/' como alternativa si no se encontraron archivos
+        if not debug_info["folder_structure"].get("stickers_folder"):
+            try:
+                response = s3_client.list_objects_v2(
+                    Bucket=bucket_name, 
+                    Prefix="stickers/",
+                    MaxKeys=5
+                )
+                
+                if 'Contents' in response:
+                    files = [obj['Key'] for obj in response['Contents']]
+                    debug_info["folder_structure"]["alternate_stickers_folder"] = files
+                    debug_info["notes"] = f"Found files in 'stickers/' instead of '{S3_STICKERS_FOLDER}/'"
+            except Exception:
+                pass
+        
+    except Exception as e:
+        debug_info["aws_check"]["connection"] = "Failed"
+        debug_info["errors"].append(f"Error connecting to AWS: {str(e)}")
+    
+    return jsonify(debug_info)
+
+@app.route('/setup-dirs')
+def setup_directories():
+    """
+    Ruta de administración para verificar y crear los directorios necesarios
+    """
+    result = {
+        "success": True,
+        "directories": {},
+        "use_s3": USE_S3
+    }
+    
+    # Lista de directorios a verificar/crear
+    directories = [
+        folder_path,
+        templates_path,
+        "app/static/stickers",
+        "app/static/img",
+        "app/static",
+        "static/imgs",
+        "imgs"
+    ]
+    
+    for directory in directories:
+        try:
+            # Crear directorio si no existe
+            os.makedirs(directory, exist_ok=True)
+            
+            # Verificar permisos
+            writable = os.access(directory, os.W_OK)
+            absolute_path = os.path.abspath(directory)
+            exists = os.path.isdir(directory)
+            
+            # Listar algunos archivos en el directorio
+            files = []
+            if exists:
+                try:
+                    for f in os.listdir(directory)[:5]:  # Solo listar 5 archivos como máximo
+                        if f.endswith('.png'):
+                            file_path = os.path.join(directory, f)
+                            files.append({
+                                "name": f,
+                                "size": os.path.getsize(file_path) if os.path.isfile(file_path) else 0,
+                                "path": file_path
+                            })
+                except Exception as e:
+                    files = [f"Error listing: {str(e)}"]
+            
+            result["directories"][directory] = {
+                "exists": exists,
+                "writable": writable,
+                "absolute_path": absolute_path,
+                "files": files
+            }
+        except Exception as e:
+            result["directories"][directory] = {
+                "error": str(e)
+            }
+            result["success"] = False
+    
+    # Crear un archivo de prueba para verificar que todo funciona
+    test_file_path = os.path.join(folder_path, "test_image.png")
+    try:
+        # Crear una imagen simple
+        from PIL import Image
+        img = Image.new('RGB', (100, 100), color=(255, 0, 0))
+        img.save(test_file_path)
+        result["test_file"] = {
+            "path": test_file_path,
+            "created": True,
+            "url": url_for('get_image', filename="test_image.png", _external=True)
+        }
+    except Exception as e:
+        result["test_file"] = {
+            "error": str(e),
+            "created": False
+        }
+    
+    return jsonify(result)
 
 if __name__ == '__main__':
     # Add host='0.0.0.0' to listen on all interfaces, necessary when using SERVER_NAME with dev server
