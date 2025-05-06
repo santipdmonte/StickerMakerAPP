@@ -248,7 +248,8 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .loading-text {
@@ -623,37 +624,82 @@
             let totalPages = 1;
 
             // Function to show the sticker modal
-            function showStickerModal(imageUrl, filename) { // Accept filename
-                modalStickerImage.src = imageUrl;
-                
-                // Clear previous buttons
-                modalActionsContainer.innerHTML = '';
-                
-                // Create Add to Template button
-                const addBtn = document.createElement('button');
-                addBtn.className = 'template-button'; // Use existing style
-                addBtn.innerHTML = '<i class="ri-add-line"></i> Add to Template';
-                addBtn.onclick = () => {
-                    addToTemplate(filename);
-                    // Optionally close modal after adding
-                    // hideStickerModal(); 
-                };
-                
-                // Create Download button (as link)
-                const downloadBtn = document.createElement('a');
-                downloadBtn.className = 'download-button-link'; // Use specific class for styling link
-                downloadBtn.innerHTML = '<i class="ri-download-line"></i> Download';
-                downloadBtn.href = imageUrl; // Use the direct image URL
-                downloadBtn.download = filename;
-                
-                // Append buttons to modal
-                modalActionsContainer.appendChild(addBtn);
-                modalActionsContainer.appendChild(downloadBtn);
-                
+            function showStickerModal(imageUrl, filename) {
+                // Mostrar el modal primero con un indicador de carga
                 stickerViewModal.classList.remove('modal-hidden');
                 stickerViewModal.offsetHeight; 
                 stickerViewModal.classList.add('modal-visible');
-                document.body.style.overflow = 'hidden'; 
+                document.body.style.overflow = 'hidden';
+
+                // Obtener el contenedor de la imagen del modal
+                const modalImageContainer = document.querySelector('.modal-image-container');
+                
+                // Añadir indicador de carga
+                const modalSpinner = document.createElement('div');
+                modalSpinner.className = 'spinner';
+                modalSpinner.style.width = '40px';
+                modalSpinner.style.height = '40px';
+                modalSpinner.style.border = '4px solid rgba(124, 93, 250, 0.1)';
+                modalSpinner.style.borderRadius = '50%';
+                modalSpinner.style.borderTopColor = 'var(--primary-color)';
+                modalSpinner.style.animation = 'spin 1s ease-in-out infinite';
+                
+                // Ocultar la imagen hasta que cargue
+                modalStickerImage.style.display = 'none';
+                modalImageContainer.appendChild(modalSpinner);
+                
+                // Limpiar acciones anteriores
+                modalActionsContainer.innerHTML = '';
+                
+                // Función para cuando la imagen se cargue
+                modalStickerImage.onload = function() {
+                    modalSpinner.remove();
+                    modalStickerImage.style.display = 'block';
+                    
+                    // Create Add to Template button
+                    const addBtn = document.createElement('button');
+                    addBtn.className = 'template-button'; // Use existing style
+                    addBtn.innerHTML = '<i class="ri-add-line"></i> Add to Template';
+                    addBtn.onclick = () => {
+                        addToTemplate(filename);
+                        // Mostrar mensaje de éxito
+                        showSuccess('Added to template!');
+                    };
+                    
+                    // Create Download button (as link)
+                    const downloadBtn = document.createElement('a');
+                    downloadBtn.className = 'download-button-link'; // Use specific class for styling link
+                    downloadBtn.innerHTML = '<i class="ri-download-line"></i> Download';
+                    downloadBtn.href = imageUrl; // Use the direct image URL
+                    downloadBtn.download = filename;
+                    
+                    // Append buttons to modal
+                    modalActionsContainer.appendChild(addBtn);
+                    modalActionsContainer.appendChild(downloadBtn);
+                };
+                
+                // Manejar errores de carga
+                modalStickerImage.onerror = function() {
+                    console.error(`Error loading image in modal: ${imageUrl}`);
+                    modalSpinner.remove();
+                    
+                    // Mostrar un mensaje de error
+                    const errorMsg = document.createElement('div');
+                    errorMsg.innerHTML = `<i class="ri-error-warning-line" style="font-size: 40px; color: #ff6b6b;"></i>
+                                        <p style="color: #666;">Failed to load image</p>`;
+                    errorMsg.style.textAlign = 'center';
+                    modalImageContainer.appendChild(errorMsg);
+                    
+                    // Crear solo el botón de cerrar
+                    const closeBtn = document.createElement('button');
+                    closeBtn.className = 'template-button';
+                    closeBtn.innerHTML = '<i class="ri-close-line"></i> Close';
+                    closeBtn.onclick = hideStickerModal;
+                    modalActionsContainer.appendChild(closeBtn);
+                };
+                
+                // Establecer el src después de configurar los handlers
+                modalStickerImage.src = imageUrl;
             }
 
             // Function to hide the sticker modal
@@ -794,21 +840,95 @@
                     const stickerItem = document.createElement('div');
                     stickerItem.className = 'library-page-item';
                     
-                    const img = document.createElement('img');
-                    img.src = `/static/imgs/${filename}`;
-                    img.alt = filename;
+                    const imgContainer = document.createElement('div');
+                    imgContainer.className = 'sticker-image-container';
+                    imgContainer.style.width = '100%';
+                    imgContainer.style.height = '160px';
+                    imgContainer.style.display = 'flex';
+                    imgContainer.style.alignItems = 'center';
+                    imgContainer.style.justifyContent = 'center';
                     
-                    // Add loading state for image
-                    img.style.opacity = '0';
-                    img.style.transition = 'opacity 0.3s ease';
-                    img.onload = () => {
-                        img.style.opacity = '1';
+                    // Añadir un indicador de carga
+                    const loadingIndicator = document.createElement('div');
+                    loadingIndicator.className = 'spinner';
+                    loadingIndicator.style.width = '30px';
+                    loadingIndicator.style.height = '30px';
+                    loadingIndicator.style.border = '3px solid rgba(124, 93, 250, 0.1)';
+                    loadingIndicator.style.borderRadius = '50%';
+                    loadingIndicator.style.borderTopColor = 'var(--primary-color)';
+                    loadingIndicator.style.animation = 'spin 1s ease-in-out infinite';
+                    imgContainer.appendChild(loadingIndicator);
+                    
+                    const img = document.createElement('img');
+                    img.alt = filename;
+                    img.style.display = 'none'; // Ocultar hasta que cargue
+                    img.style.maxWidth = '100%';
+                    img.style.maxHeight = '100%';
+                    img.style.objectFit = 'contain';
+                    
+                    // Cargar la imagen desde la caché si está disponible
+                    const cachedSrc = localStorage.getItem(`img_cache_${filename}`);
+                    if (cachedSrc) {
+                        img.src = cachedSrc;
+                        console.log(`Using cached image for ${filename}`);
+                    } else {
+                        img.src = `/img/${filename}`;
+                        console.log(`Loading image from server: ${filename}`);
+                    }
+                    
+                    // Manejar la carga exitosa
+                    img.onload = function() {
+                        // Guardar en caché local para futuras cargas
+                        try {
+                            localStorage.setItem(`img_cache_${filename}`, img.src);
+                        } catch (e) {
+                            console.warn('Error caching image:', e);
+                        }
+                        
+                        // Ocultar spinner y mostrar imagen
+                        loadingIndicator.style.display = 'none';
+                        img.style.display = 'block';
                     };
-
+                    
+                    // Manejar errores de carga
+                    img.onerror = function() {
+                        console.warn(`Error loading image from S3: ${filename}, trying alternative method`);
+                        
+                        // Limpiar caché si la URL era inválida
+                        localStorage.removeItem(`img_cache_${filename}`);
+                        
+                        // Intentar método directo de S3 primero
+                        img.src = `/direct-s3-img/${filename}`;
+                        
+                        // Si falla el método directo
+                        img.onerror = function() {
+                            console.warn(`Direct S3 method failed for ${filename}, trying local fallback`);
+                            
+                            // Intentar con local
+                            img.src = `/static/imgs/${filename}`;
+                            
+                            // Si falla también el fallback local
+                            img.onerror = function() {
+                                console.error(`Failed to load image: ${filename} from both S3 and local storage`);
+                                loadingIndicator.style.display = 'none';
+                                
+                                // Mostrar un placeholder de error
+                                const errorIcon = document.createElement('div');
+                                errorIcon.innerHTML = '<i class="ri-image-line" style="font-size: 40px; color: #ccc;"></i>';
+                                imgContainer.appendChild(errorIcon);
+                            };
+                        };
+                    };
+                    
+                    imgContainer.appendChild(img);
+                    stickerItem.appendChild(imgContainer);
+                    
                     // Add click listener to the card itself
                     stickerItem.addEventListener('click', () => {
-                        // Pass both image src and filename
-                        showStickerModal(img.src, filename); 
+                        // Solo mostrar modal si la imagen cargó correctamente
+                        if (img.complete && img.naturalWidth > 0) {
+                            showStickerModal(img.src, filename); 
+                        }
                     });
                     
                     const actionsDiv = document.createElement('div');
@@ -827,7 +947,7 @@
                     downloadBtn.className = 'library-action-btn download-btn-link';
                     downloadBtn.title = 'Download';
                     downloadBtn.innerHTML = '<i class="ri-download-2-line"></i>';
-                    downloadBtn.href = `/static/imgs/${filename}`;
+                    downloadBtn.href = `/img/${filename}`;
                     downloadBtn.download = filename;
                     downloadBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -835,7 +955,6 @@
                     
                     actionsDiv.appendChild(addBtn);
                     actionsDiv.appendChild(downloadBtn);
-                    stickerItem.appendChild(img);
                     stickerItem.appendChild(actionsDiv);
                     
                     libraryGrid.appendChild(stickerItem);
