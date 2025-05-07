@@ -345,361 +345,27 @@ footer p {
     display: inline-block;
 }
 
-@media (max-width: 768px) {
-    .container {
-        padding: 5px;
-    }
-    
-    .card {
-        padding: 15px;
-    }
-    
-    header h1 {
-        font-size: 2.2rem;
-    }
-    
-    main {
-        flex-direction: column;
-    }
-    
-    .input-section, .results-section {
-        width: 100%;
-    }
+/* Add these styles for better card layout */
+.card-container {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    width: 100%;
+}
 
-    .results-section {
-        margin-top: 30px;
-    }
+.card {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    padding: 30px;
+    transition: all 0.3s ease;
+}
 
-    .sticker-result {
-        width: 100%;
-    }
-
-    .header-content {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0;
-    }
-    
-    .header-left, .header-right {
-        width: auto;
-        margin-bottom: 0;
-    }
-    
-    .header-left {
-        flex-wrap: nowrap;
-        justify-content: flex-start;
-        padding-left: 0;
-    }
-    
-    .library-page-btn {
-        font-size: 0.8rem;
-        padding: 8px 10px;
-        margin-left: 0;
-    }
-    
-    .library-page-btn i {
-        font-size: 1rem;
-    }
-    
-    .logo-container {
-        margin: 0;
-    }
-    
-    .main-logo {
-        max-width: 100px;
-    }
-    
-    .header-right {
-        justify-content: flex-end;
-    }
-    
-    .buy-coins-btn {
-        padding: 8px 12px;
-        font-size: 0.8rem;
-    }
-    
-    .buy-coins-btn i {
-        font-size: 1.2rem;
-    }
-
-    /* Mobile optimizations for input section */
-    .mode-selector {
-        gap: 8px;
-        margin-bottom: 15px;
-    }
-
-    .mode-btn {
-        padding: 10px 12px;
-        font-size: 0.85rem;
-    }
-
-    .quality-selector {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-        margin-bottom: 20px;
-    }
-
-    .quality-selector > label {
-        margin-bottom: 5px;
-    }
-
-    .quality-options {
-        width: 100%;
-        max-width: 100%;
-    }
-
-    .quality-options label {
-        padding: 8px 8px;
-        font-size: 0.85rem;
-        white-space: nowrap;
-    }
-
-    textarea {
-        min-height: 120px;
-        padding: 15px;
-        font-size: 0.95rem;
-    }
-
-    button {
-        width: 100%;
-        padding: 14px 20px;
-        font-size: 0.95rem;
-        margin-top: 20px;
-    }
-
-    .card-container {
-        gap: 15px;
-    }
-
-    .main-card {
-        flex-direction: column;
-        gap: 20px;
-    }
-
-    .sticker-actions {
-        flex-direction: column;
-        gap: 10px;
-        width: 100%;
-    }
-
-    .sticker-actions .download-button,
-    .sticker-actions .template-button {
-        width: 100%;
-    }
-
-    .quality-cost {
-        display: block;
-        text-align: center;
-        margin-top: 2px;
-    }
-
-    /* Sticker Template section mobile optimizations */
-    .template-header {
-        padding: 20px;
-    }
-
-    .template-header h2 {
-        font-size: 1.3rem;
-        margin-bottom: 15px;
-    }
-
-    .template-actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        width: 100%;
-    }
-
-    .template-actions .download-button,
-    .template-actions .buy-button {
-        width: 100%;
-        height: auto;
-        min-width: unset;
-        padding: 12px 10px;
-        font-size: 0.85rem;
-        margin: 0;
-        justify-content: center;
-    }
-
-    .template-actions .clear-button {
-        grid-column: span 2;
-        width: 100%;
-        height: auto;
-        min-width: unset;
-        padding: 12px 10px;
-        font-size: 0.85rem;
-        margin-top: 5px;
-    }
-
-    .template-actions .download-button i,
-    .template-actions .buy-button i,
-    .template-actions .clear-button i {
-        font-size: 1rem;
-        margin-right: 5px;
-    }
-
-    .template-grid {
-        padding: 20px;
-        gap: 15px;
-        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    }
-
-    .template-item {
-        padding: 10px;
-    }
-
-    .template-item img {
-        height: 100px;
-    }
-
-    .quantity-control {
-        margin-top: 8px;
-        height: 26px;
-        padding: 0 4px;
-    }
-
-    .quantity-btn {
-        width: 20px;
-        height: 20px;
-    }
-
-    .quantity-btn i {
-        font-size: 12px;
-    }
-
-    .quantity-value {
-        min-width: 25px;
-        font-size: 12px;
-    }
-
-    /* Modal fixes for mobile */
-    .modal {
-        align-items: flex-start;
-        padding: 15px 0;
-        overflow-y: auto;
-    }
-    
-    .modal-content {
-        width: 90%;
-        max-width: 350px;
-        padding: 20px 15px;
-        border-radius: 15px;
-        margin: 30px auto;
-        max-height: 85vh;
-        overflow-y: auto;
-    }
-    
-    .modal h2 {
-        font-size: 1.4rem;
-        margin-bottom: 10px;
-    }
-    
-    .modal p {
-        font-size: 0.85rem;
-        margin-bottom: 15px;
-    }
-    
-    .coins-packages {
-        grid-template-columns: 1fr;
-        gap: 12px;
-        margin: 15px 0;
-    }
-    
-    .coins-package {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 12px 10px;
-        margin: 0 auto;
-        max-width: 100%;
-        width: 100%;
-        border-width: 1px;
-    }
-    
-    .package-icon {
-        font-size: 1.8rem;
-        margin-bottom: 6px;
-    }
-    
-    .coins-package h3 {
-        font-size: 1.1rem;
-        margin-bottom: 3px;
-    }
-    
-    .package-price {
-        font-size: 0.9rem;
-        margin-bottom: 10px;
-    }
-    
-    .package-select-btn {
-        width: 100%;
-        padding: 8px 15px;
-        font-size: 0.85rem;
-    }
-    
-    .package-badge {
-        top: -6px;
-        right: -6px;
-        padding: 3px 6px;
-        font-size: 0.6rem;
-    }
-    
-    .selected-package-info {
-        padding: 10px 12px;
-    }
-    
-    .selected-package-info p {
-        font-size: 0.85rem;
-    }
-    
-    .back-button, 
-    .finalize-button {
-        padding: 10px 15px;
-        font-size: 0.85rem;
-    }
-
-    /* Coupon section fix for mobile */
-    .coupon-section {
-        padding: 8px 12px;
-        margin-bottom: 15px;
-        margin-top: 10px;
-    }
-
-    .coupon-section p {
-        font-size: 0.85rem;
-    }
-
-    .coupon-container {
-        gap: 5px;
-    }
-
-    .coupon-container input {
-        padding: 8px;
-        font-size: 0.85rem;
-    }
-
-    .apply-coupon-button {
-        padding: 8px 10px;
-        font-size: 0.8rem;
-    }
-
-    /* Modal close button fix for mobile */
-    .modal-close-btn {
-        top: 10px;
-        right: 10px;
-        font-size: 1.4rem;
-        padding: 8px;
-        background-color: rgba(255, 255, 255, 0.8);
-        border-radius: 50%;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
+.main-card {
+    display: flex;
+    justify-content: space-between;
+    gap: 30px;
 }
 
 .error-toast, .success-toast {
@@ -1098,29 +764,6 @@ button i, .download-button i {
     }
 }
 
-/* Add these styles for better card layout */
-.card-container {
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
-    width: 100%;
-}
-
-.card {
-    background-color: var(--card-bg);
-    border-radius: var(--border-radius);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-    overflow: hidden;
-    padding: 30px;
-    transition: all 0.3s ease;
-}
-
-.main-card {
-    display: flex;
-    justify-content: space-between;
-    gap: 30px;
-}
-
 /* Sticker Actions (for the main card) */
 .sticker-actions {
     display: flex;
@@ -1310,37 +953,6 @@ button i, .download-button i {
     font-size: 0.95rem;
     max-width: 70%;
     color: #94a3b8;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .template-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 20px;
-        padding: 25px 30px;
-    }
-    
-    .template-actions {
-        width: 100%;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 15px;
-    }
-    
-    .template-actions .download-button,
-    .template-actions .clear-button,
-    .template-actions .buy-button {
-        flex: 1;
-        min-width: unset;
-        width: 100%;
-    }
-    
-    .template-grid {
-        padding: 25px 30px;
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-        gap: 20px;
-    }
 }
 
 /* Quantity controls for template items */
@@ -1791,99 +1403,6 @@ body.modal-open {
     margin-right: 8px;
 }
 
-@media (max-width: 768px) {
-    .coins-packages {
-        grid-template-columns: 1fr;
-    }
-    
-    .coins-package {
-        max-width: 300px;
-        margin: 0 auto;
-    }
-    
-    .buy-coins-btn {
-        padding: 8px 15px;
-        font-size: 0.9rem;
-    }
-    
-    /* Modal fixes for mobile */
-    .modal-content {
-        width: 95%;
-        max-width: 400px;
-        padding: 25px 20px;
-        border-radius: 15px;
-    }
-    
-    .modal h2 {
-        font-size: 1.5rem;
-        margin-bottom: 12px;
-    }
-    
-    .modal p {
-        font-size: 0.9rem;
-        margin-bottom: 20px;
-    }
-    
-    .coins-packages {
-        grid-template-columns: 1fr;
-        gap: 15px;
-        margin: 20px 0;
-    }
-    
-    .coins-package {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 18px 15px;
-        margin: 0 auto;
-        max-width: 100%;
-        width: 100%;
-    }
-    
-    .package-icon {
-        font-size: 2rem;
-        margin-bottom: 10px;
-    }
-    
-    .coins-package h3 {
-        font-size: 1.2rem;
-        margin-bottom: 5px;
-    }
-    
-    .package-price {
-        font-size: 1rem;
-        margin-bottom: 15px;
-    }
-    
-    .package-select-btn {
-        width: 100%;
-        padding: 10px 20px;
-        font-size: 0.9rem;
-    }
-    
-    .package-badge {
-        top: -8px;
-        right: -8px;
-        padding: 4px 8px;
-        font-size: 0.65rem;
-    }
-    
-    .selected-package-info {
-        padding: 12px 15px;
-    }
-    
-    .selected-package-info p {
-        font-size: 0.9rem;
-    }
-    
-    .back-button, 
-    .finalize-button {
-        padding: 12px 20px;
-        font-size: 0.9rem;
-    }
-}
-
 /* Actualizar los estilos de los botones en el header */
 .header-left .library-toggle-btn,
 .header-right .buy-coins-btn {
@@ -1891,6 +1410,8 @@ body.modal-open {
     transform: none;
     margin: 0;
 }
+
+
 
 /* Coupon Styles */
 .coupon-container {
@@ -1994,3 +1515,484 @@ body.modal-open {
 }
 
 /* End Coupon Styles */ 
+
+@media (max-width: 768px) {
+    .container {
+        padding: 2px;
+    }
+    
+    .card {
+        padding: 15px;
+    }
+    
+    header h1 {
+        font-size: 2.2rem;
+    }
+    
+    main {
+        flex-direction: column;
+    }
+    
+    .input-section, .results-section {
+        width: 100%;
+    }
+
+    .results-section {
+        margin-top: 30px;
+    }
+
+    .sticker-result {
+        width: 100%;
+    }
+
+    .header-content {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0;
+    }
+    
+    .header-left, .header-right {
+        width: auto;
+        margin-bottom: 0;
+    }
+    
+    .header-left {
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        padding-left: 0;
+    }
+    
+    .library-page-btn {
+        font-size: 0.8rem;
+        padding: 8px 10px;
+        margin-left: 0;
+    }
+    
+    .library-page-btn i {
+        font-size: 1rem;
+    }
+    
+    .logo-container {
+        margin: 0;
+    }
+    
+    .main-logo {
+        max-width: 100px;
+    }
+    
+    .header-right {
+        justify-content: flex-end;
+    }
+    
+    .buy-coins-btn {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+    
+    .buy-coins-btn i {
+        font-size: 1.2rem;
+    }
+
+    /* Mobile optimizations for input section */
+    .mode-selector {
+        gap: 8px;
+        margin-bottom: 15px;
+    }
+
+    .mode-btn {
+        padding: 10px 12px;
+        font-size: 0.85rem;
+    }
+
+    .quality-selector {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .quality-selector > label {
+        margin-bottom: 5px;
+    }
+
+    .quality-options {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .quality-options label {
+        padding: 8px 8px;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    textarea {
+        min-height: 120px;
+        padding: 15px;
+        font-size: 0.95rem;
+    }
+
+    button {
+        width: 100%;
+        padding: 14px 20px;
+        font-size: 0.95rem;
+        margin-top: 20px;
+    }
+
+    .card-container {
+        gap: 15px;
+    }
+
+    .main-card {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .sticker-actions {
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .sticker-actions .download-button,
+    .sticker-actions .template-button {
+        width: 100%;
+    }
+
+    .quality-cost {
+        display: block;
+        text-align: center;
+        margin-top: 2px;
+    }
+
+    /* Sticker Template section mobile optimizations */
+    .template-header {
+        padding: 20px;
+    }
+
+    .template-header h2 {
+        font-size: 1.3rem;
+        margin-bottom: 15px;
+    }
+
+    .template-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .template-actions .download-button,
+    .template-actions .buy-button {
+        width: 100%;
+        height: auto;
+        min-width: unset;
+        padding: 12px 10px;
+        font-size: 0.85rem;
+        margin: 0;
+        justify-content: center;
+    }
+
+    .template-actions .clear-button {
+        grid-column: span 2;
+        width: 100%;
+        height: auto;
+        min-width: unset;
+        padding: 12px 10px;
+        font-size: 0.85rem;
+        margin-top: 5px;
+    }
+
+    .template-actions .download-button i,
+    .template-actions .buy-button i,
+    .template-actions .clear-button i {
+        font-size: 1rem;
+        margin-right: 5px;
+    }
+
+    .template-grid {
+        padding: 20px;
+        gap: 15px;
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    }
+
+    .template-item {
+        padding: 10px;
+    }
+
+    .template-item img {
+        height: 100px;
+    }
+
+    .quantity-control {
+        margin-top: 8px;
+        height: 26px;
+        padding: 0 4px;
+    }
+
+    .quantity-btn {
+        width: 20px;
+        height: 20px;
+    }
+
+    .quantity-btn i {
+        font-size: 12px;
+    }
+
+    .quantity-value {
+        min-width: 25px;
+        font-size: 12px;
+    }
+
+    /* Modal fixes for mobile */
+    .modal {
+        align-items: flex-start;
+        padding: 15px 0;
+        overflow-y: auto;
+    }
+    
+    .modal-content {
+        width: 90%;
+        max-width: 350px;
+        padding: 20px 15px;
+        border-radius: 15px;
+        margin: 30px auto;
+        max-height: 85vh;
+        overflow-y: auto;
+    }
+    
+    .modal h2 {
+        font-size: 1.4rem;
+        margin-bottom: 10px;
+    }
+    
+    .modal p {
+        font-size: 0.85rem;
+        margin-bottom: 15px;
+    }
+    
+    .coins-packages {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin: 15px 0;
+    }
+    
+    .coins-package {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 10px;
+        margin: 0 auto;
+        max-width: 100%;
+        width: 100%;
+        border-width: 1px;
+    }
+    
+    .package-icon {
+        font-size: 1.8rem;
+        margin-bottom: 6px;
+    }
+    
+    .coins-package h3 {
+        font-size: 1.1rem;
+        margin-bottom: 3px;
+    }
+    
+    .package-price {
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+    }
+    
+    .package-select-btn {
+        width: 100%;
+        padding: 8px 15px;
+        font-size: 0.85rem;
+    }
+    
+    .package-badge {
+        top: -6px;
+        right: -6px;
+        padding: 3px 6px;
+        font-size: 0.6rem;
+    }
+    
+    .selected-package-info {
+        padding: 10px 12px;
+    }
+    
+    .selected-package-info p {
+        font-size: 0.85rem;
+    }
+    
+    .back-button, 
+    .finalize-button {
+        padding: 10px 15px;
+        font-size: 0.85rem;
+    }
+
+    /* Coupon section fix for mobile */
+    .coupon-section {
+        padding: 8px 12px;
+        margin-bottom: 15px;
+        margin-top: 10px;
+    }
+
+    .coupon-section p {
+        font-size: 0.85rem;
+    }
+
+    .coupon-container {
+        gap: 5px;
+    }
+
+    .coupon-container input {
+        padding: 8px;
+        font-size: 0.85rem;
+    }
+
+    .apply-coupon-button {
+        padding: 8px 10px;
+        font-size: 0.8rem;
+    }
+
+    /* Modal close button fix for mobile */
+    .modal-close-btn {
+        top: 10px;
+        right: 10px;
+        font-size: 1.4rem;
+        padding: 8px;
+        background-color: rgba(255, 255, 255, 0.8);
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .coins-packages {
+        grid-template-columns: 1fr;
+    }
+    
+    .coins-package {
+        max-width: 300px;
+        margin: 0 auto;
+    }
+    
+    .buy-coins-btn {
+        padding: 8px 15px;
+        font-size: 0.9rem;
+    }
+    
+    /* Modal fixes for mobile */
+    .modal-content {
+        width: 95%;
+        max-width: 400px;
+        padding: 25px 20px;
+        border-radius: 15px;
+    }
+    
+    .modal h2 {
+        font-size: 1.5rem;
+        margin-bottom: 12px;
+    }
+    
+    .modal p {
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+    }
+    
+    .coins-packages {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        margin: 20px 0;
+    }
+    
+    .coins-package {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 18px 15px;
+        margin: 0 auto;
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    .package-icon {
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+    
+    .coins-package h3 {
+        font-size: 1.2rem;
+        margin-bottom: 5px;
+    }
+    
+    .package-price {
+        font-size: 1rem;
+        margin-bottom: 15px;
+    }
+    
+    .package-select-btn {
+        width: 100%;
+        padding: 10px 20px;
+        font-size: 0.9rem;
+    }
+    
+    .package-badge {
+        top: -8px;
+        right: -8px;
+        padding: 4px 8px;
+        font-size: 0.65rem;
+    }
+    
+    .selected-package-info {
+        padding: 12px 15px;
+    }
+    
+    .selected-package-info p {
+        font-size: 0.9rem;
+    }
+    
+    .back-button, 
+    .finalize-button {
+        padding: 12px 20px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .template-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+        padding: 25px 30px;
+    }
+    
+    .template-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+    
+    .template-actions .download-button,
+    .template-actions .clear-button,
+    .template-actions .buy-button {
+        flex: 1;
+        min-width: unset;
+        width: 100%;
+    }
+    
+    .template-grid {
+        padding: 25px 30px;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 20px;
+    }
+}
