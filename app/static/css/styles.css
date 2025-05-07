@@ -347,11 +347,11 @@ footer p {
 
 @media (max-width: 768px) {
     .container {
-        padding: 15px;
+        padding: 5px;
     }
     
     .card {
-        padding: 20px;
+        padding: 15px;
     }
     
     header h1 {
@@ -375,33 +375,203 @@ footer p {
     }
 
     .header-content {
-        flex-direction: column;
-        padding: 10px 0;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0;
     }
     
     .header-left, .header-right {
-        width: 100%;
-        margin-bottom: 10px;
-        justify-content: center;
+        width: auto;
+        margin-bottom: 0;
     }
     
     .header-left {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 10px;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        padding-left: 0;
     }
     
     .library-page-btn {
         font-size: 0.8rem;
-        padding: 10px 15px;
+        padding: 8px 10px;
+        margin-left: 0;
+    }
+    
+    .library-page-btn i {
+        font-size: 1rem;
     }
     
     .logo-container {
-        margin: 15px 0;
+        margin: 0;
+    }
+    
+    .main-logo {
+        max-width: 100px;
     }
     
     .header-right {
+        justify-content: flex-end;
+    }
+    
+    .buy-coins-btn {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+    
+    .buy-coins-btn i {
+        font-size: 1.2rem;
+    }
+
+    /* Mobile optimizations for input section */
+    .mode-selector {
+        gap: 8px;
+        margin-bottom: 15px;
+    }
+
+    .mode-btn {
+        padding: 10px 12px;
+        font-size: 0.85rem;
+    }
+
+    .quality-selector {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .quality-selector > label {
+        margin-bottom: 5px;
+    }
+
+    .quality-options {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .quality-options label {
+        padding: 8px 8px;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    textarea {
+        min-height: 120px;
+        padding: 15px;
+        font-size: 0.95rem;
+    }
+
+    button {
+        width: 100%;
+        padding: 14px 20px;
+        font-size: 0.95rem;
+        margin-top: 20px;
+    }
+
+    .card-container {
+        gap: 15px;
+    }
+
+    .main-card {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .sticker-actions {
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .sticker-actions .download-button,
+    .sticker-actions .template-button {
+        width: 100%;
+    }
+
+    .quality-cost {
+        display: block;
+        text-align: center;
+        margin-top: 2px;
+    }
+
+    /* Sticker Template section mobile optimizations */
+    .template-header {
+        padding: 20px;
+    }
+
+    .template-header h2 {
+        font-size: 1.3rem;
+        margin-bottom: 15px;
+    }
+
+    .template-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .template-actions .download-button,
+    .template-actions .buy-button {
+        width: 100%;
+        height: auto;
+        min-width: unset;
+        padding: 12px 10px;
+        font-size: 0.85rem;
+        margin: 0;
         justify-content: center;
+    }
+
+    .template-actions .clear-button {
+        grid-column: span 2;
+        width: 100%;
+        height: auto;
+        min-width: unset;
+        padding: 12px 10px;
+        font-size: 0.85rem;
+        margin-top: 5px;
+    }
+
+    .template-actions .download-button i,
+    .template-actions .buy-button i,
+    .template-actions .clear-button i {
+        font-size: 1rem;
+        margin-right: 5px;
+    }
+
+    .template-grid {
+        padding: 20px;
+        gap: 15px;
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    }
+
+    .template-item {
+        padding: 10px;
+    }
+
+    .template-item img {
+        height: 100px;
+    }
+
+    .quantity-control {
+        margin-top: 8px;
+        height: 26px;
+        padding: 0 4px;
+    }
+
+    .quantity-btn {
+        width: 20px;
+        height: 20px;
+    }
+
+    .quantity-btn i {
+        font-size: 12px;
+    }
+
+    .quantity-value {
+        min-width: 25px;
+        font-size: 12px;
     }
 }
 
@@ -729,7 +899,24 @@ button i, .download-button i {
     color: #64748b;
 }
 
-/* JavaScript will handle the slider position dynamically */
+.quality-cost {
+    font-size: 0.75em;
+    color: #777;
+    font-weight: normal;
+    opacity: 0.8;
+}
+
+.quality-options label:hover .quality-cost {
+    opacity: 1;
+}
+
+/* Add styles to make coin cost text white when the quality option is selected */
+.quality-options input[type="radio"]:nth-of-type(1):checked ~ label:nth-of-type(1) .quality-cost,
+.quality-options input[type="radio"]:nth-of-type(2):checked ~ label:nth-of-type(2) .quality-cost,
+.quality-options input[type="radio"]:nth-of-type(3):checked ~ label:nth-of-type(3) .quality-cost {
+    color: white;
+    opacity: 0.9;
+}
 
 /* High quality sparkle animation */
 .high-quality-sparkle {
@@ -1486,38 +1673,6 @@ button i, .download-button i {
     position: static;
     transform: none;
     margin: 0;
-}
-
-@media (max-width: 768px) {
-    .header-content {
-        flex-direction: column;
-        padding: 10px 0;
-    }
-    
-    .header-left, .header-right {
-        width: 100%;
-        margin-bottom: 10px;
-        justify-content: center;
-    }
-    
-    .header-left {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 10px;
-    }
-    
-    .library-page-btn {
-        font-size: 0.8rem;
-        padding: 10px 15px;
-    }
-    
-    .logo-container {
-        margin: 15px 0;
-    }
-    
-    .header-right {
-        justify-content: center;
-    }
 }
 
 /* Coupon Styles */
