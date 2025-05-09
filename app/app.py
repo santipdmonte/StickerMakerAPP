@@ -100,7 +100,7 @@ def index():
     
     # Initialize coins if not exists in session
     if 'coins' not in session:
-        session['coins'] = 100  # Start with 100 coins for new users
+        session['coins'] = 85  # Start with 85 coins for new users
     
     # Initialize coupon uses if not exists
     if 'coupon_uses' not in session:
