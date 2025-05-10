@@ -776,9 +776,9 @@
                 emptyLibrary.style.display = 'none';
                 
                 // Si usamos paginación del servidor, configuramos los parámetros
-                let url = '/get-library';
+                let url = '/get-history';
                 if (useServerPagination) {
-                    url = `/get-library?page=${page}&items_per_page=${ITEMS_PER_PAGE}`;
+                    url = `/get-history?page=${page}&items_per_page=${ITEMS_PER_PAGE}`;
                 }
                 
                 fetch(url)

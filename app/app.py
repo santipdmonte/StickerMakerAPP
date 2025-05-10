@@ -5,6 +5,7 @@ import json
 from dotenv import load_dotenv
 import tempfile
 from io import BytesIO
+import uuid  # Add import for uuid
 
 # Added Mercado Pago
 import mercadopago 
@@ -15,7 +16,8 @@ from s3_utils import (
     upload_file_to_s3, 
     upload_bytes_to_s3, 
     get_s3_client, 
-    list_files_in_s3_folder, 
+    list_files_in_s3_folder,
+    list_files_by_user_id,
     S3_STICKERS_FOLDER, 
     S3_TEMPLATES_FOLDER
 )
@@ -106,6 +108,10 @@ def index():
     if 'coupon_uses' not in session:
         session['coupon_uses'] = 0
     
+    # Initialize user_id if not exists in session
+    if 'user_id' not in session:
+        session['user_id'] = str(uuid.uuid4())
+    
     # Get the Mercado Pago public key from environment variables
     mp_public_key = os.getenv('MP_PUBLIC_KEY', '')
     
@@ -131,13 +137,19 @@ def generate():
     if not prompt:
         return jsonify({"error": "No prompt provided"}), 400
     
-    # Generate a unique filename based on timestamp
+    # Get user_id from session, create if doesn't exist
+    user_id = session.get('user_id')
+    if not user_id:
+        user_id = str(uuid.uuid4())
+        session['user_id'] = user_id
+    
+    # Generate a unique filename based on user_id and timestamp
     timestamp = int(time.time())
-    filename = f"sticker_{timestamp}.png"
+    filename = f"sticker_{user_id}_{timestamp}.png"
     img_path = os.path.join(folder_path, filename)
     
     try:
-        image_b64, s3_url = generate_sticker(prompt, img_path, quality)
+        image_b64, s3_url = generate_sticker(prompt, img_path, quality, user_id=user_id)
         
         # Store S3 URL in session for later use
         if s3_url:
@@ -163,13 +175,19 @@ def generate_with_reference():
     if not reference_image:
         return jsonify({"error": "No reference image provided"}), 400
     
-    # Generate a unique filename based on timestamp
+    # Get user_id from session, create if doesn't exist
+    user_id = session.get('user_id')
+    if not user_id:
+        user_id = str(uuid.uuid4())
+        session['user_id'] = user_id
+    
+    # Generate a unique filename based on user_id and timestamp
     timestamp = int(time.time())
-    filename = f"sticker_{timestamp}.png"
+    filename = f"sticker_{user_id}_{timestamp}.png"
     img_path = os.path.join(folder_path, filename)
     
     try:
-        image_b64, s3_url = generate_sticker_with_reference(prompt, img_path, reference_image, quality)
+        image_b64, s3_url = generate_sticker_with_reference(prompt, img_path, reference_image, quality, user_id=user_id)
         
         # Store S3 URL in session for later use
         if s3_url:
@@ -337,6 +355,112 @@ def get_library():
     try:
         for file in os.listdir(folder_path):
             if file.endswith('.png'):
+                sticker_files.append(file)
+        
+        if sticker_files:
+            # Ordenar por fecha descendente (asumiendo que el nombre del archivo contiene timestamp)
+            try:
+                sticker_files.sort(key=lambda x: os.path.basename(x), reverse=True)
+            except:
+                pass
+                
+            total_items = len(sticker_files)
+            
+            # Aplicar paginación si se solicitó
+            if items_per_page > 0:
+                start_idx = (page - 1) * items_per_page
+                end_idx = start_idx + items_per_page
+                paginated_files = sticker_files[start_idx:end_idx]
+            else:
+                paginated_files = sticker_files
+            
+            return jsonify({
+                "success": True,
+                "stickers": paginated_files,
+                "total_items": total_items,
+                "page": page,
+                "items_per_page": items_per_page,
+                "total_pages": (total_items + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
+                "source": "local"
+            })
+        else:
+            return jsonify({
+                "success": True,
+                "stickers": [],
+                "total_items": 0,
+                "page": 1,
+                "items_per_page": items_per_page,
+                "total_pages": 0,
+                "source": "local"
+            })
+            
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "success": False,
+            "stickers": []
+        }), 500
+
+@app.route('/get-history', methods=['GET'])
+def get_history():
+    # Get the current user ID from session
+    user_id = session.get('user_id')
+    if not user_id:
+        user_id = str(uuid.uuid4())
+        session['user_id'] = user_id
+    
+    # Permitir solicitud de tamaño específico de página para paginación
+    page = request.args.get('page', 1, type=int)
+    items_per_page = request.args.get('items_per_page', 0, type=int)  # 0 = todos los items
+    
+    # Get sticker files - check S3 first if enabled, fall back to local files
+    sticker_files = []
+    
+    if USE_S3:
+        try:
+            # Get files from S3 stickers folder filtered by user_id
+            s3_files = list_files_by_user_id(user_id, S3_STICKERS_FOLDER)
+            
+            # Extract just the filenames without folder prefix
+            for file_key in s3_files:
+                filename = os.path.basename(file_key)
+                if filename.endswith('.png'):
+                    sticker_files.append(filename)
+                    
+            if sticker_files:
+                # Ordenar por fecha descendente (asumiendo que el nombre del archivo contiene timestamp)
+                try:
+                    sticker_files.sort(key=lambda x: os.path.basename(x), reverse=True)
+                except:
+                    pass
+                    
+                total_items = len(sticker_files)
+                
+                # Aplicar paginación si se solicitó
+                if items_per_page > 0:
+                    start_idx = (page - 1) * items_per_page
+                    end_idx = start_idx + items_per_page
+                    paginated_files = sticker_files[start_idx:end_idx]
+                else:
+                    paginated_files = sticker_files
+                
+                return jsonify({
+                    "success": True,
+                    "stickers": paginated_files,
+                    "total_items": total_items,
+                    "page": page,
+                    "items_per_page": items_per_page,
+                    "total_pages": (total_items + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
+                    "source": "s3"
+                })
+        except Exception as e:
+            print(f"Error listing S3 files: {e}")
+            # Fall back to local files
+    
+    # If S3 failed or is disabled, check local files
+    try:
+        for file in os.listdir(folder_path):
+            if file.endswith('.png') and file.startswith(f"sticker_{user_id}_"):
                 sticker_files.append(file)
         
         if sticker_files:
