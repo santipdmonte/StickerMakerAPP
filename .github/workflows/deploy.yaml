@@ -25,10 +25,5 @@ jobs:
     - name: Deploy to EC2
       run: |
         ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} -p ${{ secrets.SSH_PORT }} '
-          cd ~/TheStickerHouse-WebApp &&
-          git pull origin main &&
-          source ~/venv/bin/activate &&
-          pip install -r requirements.txt &&
-          sudo systemctl restart thestickerapp &&
-          echo "Deployment completed at $(date)"
+          ~/deploy.sh
         '
