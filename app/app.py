@@ -5,6 +5,7 @@ import json
 from dotenv import load_dotenv
 import tempfile
 from io import BytesIO
+import uuid  # Add import for uuid
 
 # Added Mercado Pago
 import mercadopago 
@@ -106,6 +107,10 @@ def index():
     if 'coupon_uses' not in session:
         session['coupon_uses'] = 0
     
+    # Initialize user_id if not exists in session
+    if 'user_id' not in session:
+        session['user_id'] = str(uuid.uuid4())
+    
     # Get the Mercado Pago public key from environment variables
     mp_public_key = os.getenv('MP_PUBLIC_KEY', '')
     
@@ -131,13 +136,19 @@ def generate():
     if not prompt:
         return jsonify({"error": "No prompt provided"}), 400
     
-    # Generate a unique filename based on timestamp
+    # Get user_id from session, create if doesn't exist
+    user_id = session.get('user_id')
+    if not user_id:
+        user_id = str(uuid.uuid4())
+        session['user_id'] = user_id
+    
+    # Generate a unique filename based on user_id and timestamp
     timestamp = int(time.time())
-    filename = f"sticker_{timestamp}.png"
+    filename = f"sticker_{user_id}_{timestamp}.png"
     img_path = os.path.join(folder_path, filename)
     
     try:
-        image_b64, s3_url = generate_sticker(prompt, img_path, quality)
+        image_b64, s3_url = generate_sticker(prompt, img_path, quality, user_id=user_id)
         
         # Store S3 URL in session for later use
         if s3_url:
@@ -163,13 +174,19 @@ def generate_with_reference():
     if not reference_image:
         return jsonify({"error": "No reference image provided"}), 400
     
-    # Generate a unique filename based on timestamp
+    # Get user_id from session, create if doesn't exist
+    user_id = session.get('user_id')
+    if not user_id:
+        user_id = str(uuid.uuid4())
+        session['user_id'] = user_id
+    
+    # Generate a unique filename based on user_id and timestamp
     timestamp = int(time.time())
-    filename = f"sticker_{timestamp}.png"
+    filename = f"sticker_{user_id}_{timestamp}.png"
     img_path = os.path.join(folder_path, filename)
     
     try:
-        image_b64, s3_url = generate_sticker_with_reference(prompt, img_path, reference_image, quality)
+        image_b64, s3_url = generate_sticker_with_reference(prompt, img_path, reference_image, quality, user_id=user_id)
         
         # Store S3 URL in session for later use
         if s3_url:

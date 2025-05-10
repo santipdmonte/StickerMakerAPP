@@ -7,7 +7,7 @@ from openai import OpenAI
 from PIL import Image
 
 
-def generate_sticker(prompt, img_path, quality='low'):
+def generate_sticker(prompt, img_path, quality='low', user_id=None):
     client = OpenAI()
     result = client.images.generate(
         model="gpt-image-1",
@@ -22,7 +22,7 @@ def generate_sticker(prompt, img_path, quality='low'):
     return image_data
 
 
-def generate_sticker_with_reference(prompt, img_path, img_base64, quality='low'):
+def generate_sticker_with_reference(prompt, img_path, img_base64, quality='low', user_id=None):
     client = OpenAI()
     
     # Convert base64 to image file
