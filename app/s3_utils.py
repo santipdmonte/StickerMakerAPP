@@ -199,4 +199,46 @@ def list_files_in_s3_folder(folder=S3_STICKERS_FOLDER, bucket_name=None):
         return files
     except ClientError as e:
         logger.error(f"Error listing files in S3 folder: {e}")
+        return []
+
+def list_files_by_user_id(user_id, folder=S3_STICKERS_FOLDER, bucket_name=None):
+    """
+    List all files for a specific user_id in the S3 bucket
+    
+    Args:
+        user_id (str): The user ID to filter files by
+        folder (str): The folder path in S3 to list
+        bucket_name (str, optional): Override the default bucket name
+        
+    Returns:
+        list: List of file keys for the user
+    """
+    bucket = bucket_name or os.getenv('AWS_S3_BUCKET_NAME')
+    if not bucket:
+        return []
+    
+    s3_client = get_s3_client()
+    try:
+        # Ensure folder ends with a slash
+        if not folder.endswith('/'):
+            folder = f"{folder}/"
+        
+        response = s3_client.list_objects_v2(
+            Bucket=bucket,
+            Prefix=folder
+        )
+        
+        files = []
+        if 'Contents' in response:
+            for obj in response['Contents']:
+                key = obj['Key']
+                # Skip the folder itself and filter by user_id in filename
+                if key != folder:
+                    filename = os.path.basename(key)
+                    if filename.startswith(f"sticker_{user_id}_"):
+                        files.append(key)
+        
+        return files
+    except ClientError as e:
+        logger.error(f"Error listing files by user_id in S3 folder: {e}")
         return [] 
