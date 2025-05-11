@@ -1398,6 +1398,95 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedPackage = null;
     });
     
+    // Function to handle coin purchase submission
+    async function handleCoinsPurchase(e) {
+        e.preventDefault();
+        
+        if (!selectedPackage) {
+            showError('Please select a coin package first.');
+            return;
+        }
+        
+        if (!mp) {
+            showError("Payment system is not available. Please check configuration.");
+            return;
+        }
+        
+        const name = coinsNameInput.value.trim();
+        const email = coinsEmailInput.value.trim();
+        
+        // Frontend validation
+        let isValid = true;
+        if (!name) {
+            showError("Please enter your name.");
+            shakElement(coinsNameInput);
+            isValid = false;
+        }
+        
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            showError("Please enter a valid email address.");
+            shakElement(coinsEmailInput);
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            return;
+        }
+        
+        // Disable button and show loading state
+        finalizeCoinsBtn.disabled = true;
+        finalizeCoinsBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Processing...';
+        
+        try {
+            // Get any coupon code from the form
+            const couponCode = coinsCouponDirectInput.value.trim();
+            
+            // Call backend to create preference
+            const response = await fetch('/purchase-coins', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: name,
+                    email: email,
+                    package: selectedPackage,
+                    coupon: couponCode
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to create coin purchase preference.');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success && data.preference_id) {
+                // Hide modal before redirecting
+                hideCoinsModal();
+                
+                // Redirect to Mercado Pago Checkout
+                mp.checkout({
+                    preference: {
+                        id: data.preference_id
+                    },
+                    autoOpen: true
+                });
+            } else {
+                throw new Error('Could not process payment at this time.');
+            }
+            
+        } catch (error) {
+            console.error("Coin purchase error:", error);
+            showError(`Purchase failed: ${error.message}`);
+            
+            // Re-enable button
+            finalizeCoinsBtn.disabled = false;
+            finalizeCoinsBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Purchase Coins';
+        }
+    }
+    
     // Coins purchase form submission
     coinsForm.addEventListener('submit', handleCoinsPurchase);
     
