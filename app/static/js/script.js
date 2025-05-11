@@ -780,6 +780,85 @@ document.addEventListener('DOMContentLoaded', () => {
     clearTemplateBtn.addEventListener('click', clearTemplate);
     downloadTemplateBtn.addEventListener('click', downloadTemplateAsImage);
     
+    // Modal de imagen ampliada
+    const imagePreviewModal = document.getElementById('image-preview-modal');
+    const enlargedImage = document.getElementById('enlarged-image');
+    const imageModalCloseBtn = document.getElementById('image-modal-close-btn');
+    
+    // Función para mostrar la imagen ampliada
+    function showEnlargedImage(imgSrc) {
+        // Asegurarnos de que no haya eventos previos registrados
+        enlargedImage.onload = null;
+        enlargedImage.onerror = null;
+        
+        // Agregar clase de carga
+        const imageContainer = imagePreviewModal.querySelector('.image-container');
+        imageContainer.classList.add('loading');
+        
+        // Configurar la imagen para mostrar el indicador de carga hasta que esté lista
+        enlargedImage.onload = function() {
+            imageContainer.classList.remove('loading');
+        };
+        
+        enlargedImage.onerror = function() {
+            imageContainer.classList.remove('loading');
+            // Usar un timeout para evitar mostrar errores si el modal está cerrándose
+            if (!imagePreviewModal.classList.contains('hidden')) {
+                showError('Error loading image');
+                closeImagePreviewModal();
+            }
+        };
+        
+        // Establecer la fuente de la imagen y mostrar el modal
+        enlargedImage.src = imgSrc;
+        imagePreviewModal.classList.remove('hidden');
+        
+        // Pequeño delay para iniciar la animación
+        requestAnimationFrame(() => {
+            imagePreviewModal.classList.add('visible');
+        });
+        
+        // Deshabilitar scroll en el body mientras el modal está abierto
+        document.body.style.overflow = 'hidden';
+    }
+    
+    // Función para cerrar el modal de imagen ampliada
+    function closeImagePreviewModal() {
+        imagePreviewModal.classList.remove('visible');
+        
+        // Esperar a que termine la animación antes de ocultar completamente
+        setTimeout(() => {
+            imagePreviewModal.classList.add('hidden');
+            
+            // Eliminar los event handlers antes de limpiar la fuente de la imagen
+            // para evitar que se dispare el onerror
+            enlargedImage.onload = null;
+            enlargedImage.onerror = null;
+            enlargedImage.src = '';
+            
+            // Restaurar scroll
+            document.body.style.overflow = '';
+        }, 300);
+    }
+    
+    // Evento para cerrar el modal cuando se hace clic en el botón de cerrar
+    imageModalCloseBtn.addEventListener('click', closeImagePreviewModal);
+    
+    // Evento para cerrar el modal cuando se hace clic en el fondo
+    imagePreviewModal.addEventListener('click', (e) => {
+        // Solo cerramos si el clic fue en el backdrop o en el contenedor del modal, no en la imagen
+        if (e.target === imagePreviewModal || e.target.classList.contains('modal-backdrop') || e.target.classList.contains('modern-image-modal')) {
+            closeImagePreviewModal();
+        }
+    });
+    
+    // Evento para cerrar el modal con la tecla ESC
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !imagePreviewModal.classList.contains('hidden')) {
+            closeImagePreviewModal();
+        }
+    });
+    
     // Add reference image button handler
     addReferenceBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -788,6 +867,17 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Reference image input change handler
     referenceImageInput.addEventListener('change', handleFileSelect);
+    
+    // Hacer clic en la miniatura para ver la imagen ampliada
+    referenceImagePreview.addEventListener('click', (e) => {
+        // Solo activar si se hizo clic en la imagen, no en el botón de cerrar
+        if (!e.target.closest('.remove-thumbnail-btn')) {
+            const img = referenceImagePreview.querySelector('img');
+            if (img && img.src) {
+                showEnlargedImage(img.src);
+            }
+        }
+    });
     
     // Remove reference image handler
     referenceImagePreview.querySelector('.remove-thumbnail-btn').addEventListener('click', () => {

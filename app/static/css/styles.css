@@ -2201,3 +2201,215 @@ body.modal-open {
 .reference-image-inline-preview {
     display: none;
 }
+
+/* Estilos para el modal de la imagen ampliada */
+.image-preview-content {
+    background-color: transparent;
+    box-shadow: none;
+    max-width: 90vw;
+    max-height: 90vh;
+    width: auto;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.image-preview-content img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+}
+
+.image-preview-content .modal-close-btn {
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    background-color: white;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 30;
+}
+
+/* Hacer que la miniatura de referencia tenga un cursor de tipo pointer */
+.reference-image-thumbnail {
+    cursor: pointer;
+}
+
+.reference-image-thumbnail img:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+}
+
+/* Nuevo diseño del modal de la imagen maximizada */
+#image-preview-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+}
+
+#image-preview-modal.visible {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease;
+}
+
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(5px);
+}
+
+.modern-image-modal {
+    position: relative;
+    z-index: 2001;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 30px;
+    box-sizing: border-box;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#image-preview-modal.visible .modern-image-modal {
+    opacity: 1;
+    transform: scale(1);
+    transition-delay: 0.1s;
+}
+
+.image-container {
+    position: relative;
+    width: auto;
+    height: auto;
+    max-width: 90%;
+    max-height: 90%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #000;
+    animation: modal-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation-delay: 0.1s;
+    opacity: 0;
+}
+
+@keyframes modal-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.image-container img {
+    display: block;
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+}
+
+.modern-close-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    backdrop-filter: blur(10px);
+    z-index: 2002;
+}
+
+.modern-close-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke: white;
+    stroke-width: 2px;
+}
+
+.modern-close-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+}
+
+/* Media queries para el modal de imagen en dispositivos móviles */
+@media (max-width: 768px) {
+    .modern-close-btn {
+        top: 15px;
+        right: 15px;
+        width: 36px;
+        height: 36px;
+    }
+    
+    .modern-close-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .image-container {
+        max-width: 95%;
+        max-height: 95%;
+    }
+    
+    .image-container img {
+        max-height: 85vh;
+    }
+    
+    .modern-image-modal {
+        padding: 15px;
+    }
+}
+
+/* Estilo para cuando la imagen está cargando */
+.image-container.loading {
+    min-width: 200px;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.image-container.loading::after {
+    content: "";
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+}
