@@ -2013,3 +2013,422 @@ body.modal-open {
         gap: 20px;
     }
 }
+
+/* New styles for unified input interface */
+.prompt-input-container {
+    position: relative;
+    margin-top: 20px;
+}
+
+.reference-image-controls {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 10;
+}
+
+.add-reference-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    box-shadow: 0 4px 10px rgba(124, 93, 250, 0.25);
+    margin: 0;
+}
+
+.add-reference-btn i {
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.add-reference-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 12px rgba(124, 93, 250, 0.35);
+}
+
+.reference-image-inline-preview {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 50px;
+    padding: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--input-border);
+}
+
+.reference-image-inline-preview img {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.reference-image-inline-preview .remove-btn {
+    width: 24px;
+    height: 24px;
+    min-width: auto;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.1);
+    margin: 0 0 0 5px;
+}
+
+.reference-image-inline-preview .remove-btn i {
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* Media queries for mobile */
+@media (max-width: 768px) {
+    .reference-image-controls {
+        bottom: 10px;
+        right: 10px;
+    }
+    
+    .add-reference-btn {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .add-reference-btn i {
+        font-size: 1.3rem;
+    }
+}
+
+/* Nuevos estilos para la miniatura de imagen de referencia */
+.reference-image-thumbnail {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    overflow: visible;
+    z-index: 15;
+    background-color: #f0f4ff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.reference-image-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.remove-thumbnail-btn {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background-color: #ff4757;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+    min-width: unset;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    font-size: 0.8rem;
+    cursor: pointer;
+    z-index: 30;
+    border: 2px solid white;
+    transition: all 0.2s ease;
+}
+
+.remove-thumbnail-btn i {
+    font-size: 0.85rem;
+    margin: 0;
+    line-height: 1;
+}
+
+.remove-thumbnail-btn:hover {
+    background-color: #ff4757;
+    transform: scale(1.1);
+    color: white;
+    box-shadow: 0 2px 6px rgba(255, 71, 87, 0.4);
+}
+
+/* Estilos normales para el textarea (sin imagen) */
+.prompt-input-container textarea {
+    padding: 20px;
+    transition: all 0.3s ease;
+    min-height: 100px;
+    resize: none;
+}
+
+/* Ajustes para el input con imagen de referencia visible */
+.reference-image-thumbnail:not(.hidden) + textarea {
+    padding-top: 90px;
+    padding-left: 20px;
+    min-height: 160px;
+}
+
+@media (max-width: 768px) {
+    .prompt-input-container textarea {
+        padding: 15px;
+        min-height: 100px;
+        font-size: 0.9rem;
+    }
+    
+    .reference-image-thumbnail {
+        width: 48px;
+        height: 48px;
+        top: 12px;
+        left: 12px;
+    }
+    
+    .reference-image-thumbnail:not(.hidden) + textarea {
+        padding-top: 70px;
+        padding-left: 16px;
+        min-height: 160px;
+    }
+}
+
+/* Eliminamos los estilos anteriores que ya no necesitamos */
+.reference-image-inline-preview {
+    display: none;
+}
+
+/* Estilos para el modal de la imagen ampliada */
+.image-preview-content {
+    background-color: transparent;
+    box-shadow: none;
+    max-width: 90vw;
+    max-height: 90vh;
+    width: auto;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.image-preview-content img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+}
+
+.image-preview-content .modal-close-btn {
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    background-color: white;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 30;
+}
+
+/* Hacer que la miniatura de referencia tenga un cursor de tipo pointer */
+.reference-image-thumbnail {
+    cursor: pointer;
+}
+
+.reference-image-thumbnail img:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+}
+
+/* Nuevo diseño del modal de la imagen maximizada */
+#image-preview-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+}
+
+#image-preview-modal.visible {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease;
+}
+
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(5px);
+}
+
+.modern-image-modal {
+    position: relative;
+    z-index: 2001;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 30px;
+    box-sizing: border-box;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#image-preview-modal.visible .modern-image-modal {
+    opacity: 1;
+    transform: scale(1);
+    transition-delay: 0.1s;
+}
+
+.image-container {
+    position: relative;
+    width: auto;
+    height: auto;
+    max-width: 90%;
+    max-height: 90%;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #000;
+    animation: modal-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation-delay: 0.1s;
+    opacity: 0;
+}
+
+@keyframes modal-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.image-container img {
+    display: block;
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+}
+
+.modern-close-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    backdrop-filter: blur(10px);
+    z-index: 2002;
+}
+
+.modern-close-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke: white;
+    stroke-width: 2px;
+}
+
+.modern-close-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+}
+
+/* Media queries para el modal de imagen en dispositivos móviles */
+@media (max-width: 768px) {
+    .modern-close-btn {
+        top: 15px;
+        right: 15px;
+        width: 36px;
+        height: 36px;
+    }
+    
+    .modern-close-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .image-container {
+        max-width: 95%;
+        max-height: 95%;
+    }
+    
+    .image-container img {
+        max-height: 85vh;
+    }
+    
+    .modern-image-modal {
+        padding: 15px;
+    }
+}
+
+/* Estilo para cuando la imagen está cargando */
+.image-container.loading {
+    min-width: 200px;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.image-container.loading::after {
+    content: "";
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+}
+
+/* Estilos para arrastrar y soltar */
+.prompt-input-container textarea.drag-over {
+    border-color: var(--primary-color);
+    background-color: rgba(124, 93, 250, 0.05);
+    box-shadow: 0 0 0 4px rgba(124, 93, 250, 0.15);
+}
+
+/* Mensaje de ayuda para indicar que se puede pegar o arrastrar imágenes */
+.prompt-input-container::after {
+    content: "";
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .prompt-input-container::after {
+        display: none;
+    }
+}

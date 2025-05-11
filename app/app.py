@@ -130,9 +130,28 @@ def index():
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    data = request.json
-    prompt = data.get('prompt', '')
-    quality = data.get('quality', 'low')
+    # Handle both form data and JSON input for flexibility
+    if request.is_json:
+        data = request.json
+        prompt = data.get('prompt', '')
+        quality = data.get('quality', 'low')
+        mode = data.get('mode', 'simple')
+        reference_image_data = data.get('reference_image', None)
+    else:
+        # Handle form data with file upload
+        prompt = request.form.get('prompt', '')
+        quality = request.form.get('quality', 'low')
+        mode = request.form.get('mode', 'simple')
+        reference_image_data = None
+        
+        # Check if a reference image file was uploaded
+        if 'reference_image' in request.files:
+            ref_file = request.files['reference_image']
+            if ref_file and ref_file.filename:
+                # Convert file to base64 for processing
+                ref_file_data = ref_file.read()
+                import base64
+                reference_image_data = f"data:image/{ref_file.content_type.split('/')[-1]};base64,{base64.b64encode(ref_file_data).decode('utf-8')}"
     
     if not prompt:
         return jsonify({"error": "No prompt provided"}), 400
@@ -149,45 +168,12 @@ def generate():
     img_path = os.path.join(folder_path, filename)
     
     try:
-        image_b64, s3_url = generate_sticker(prompt, img_path, quality, user_id=user_id)
-        
-        # Store S3 URL in session for later use
-        if s3_url:
-            s3_urls = session.get('s3_urls', {})
-            s3_urls[filename] = s3_url
-            session['s3_urls'] = s3_urls
-        
-        return jsonify({"success": True, "filename": filename, "image": image_b64})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route('/generate-with-reference', methods=['POST'])
-def generate_with_reference():
-    data = request.json
-    prompt = data.get('prompt', '')
-    reference_image = data.get('referenceImage', '')
-    quality = data.get('quality', 'low')
-    
-    if not prompt:
-        return jsonify({"error": "No prompt provided"}), 400
-    
-    if not reference_image:
-        return jsonify({"error": "No reference image provided"}), 400
-    
-    # Get user_id from session, create if doesn't exist
-    user_id = session.get('user_id')
-    if not user_id:
-        user_id = str(uuid.uuid4())
-        session['user_id'] = user_id
-    
-    # Generate a unique filename based on user_id and timestamp
-    timestamp = int(time.time())
-    filename = f"sticker_{user_id}_{timestamp}.png"
-    img_path = os.path.join(folder_path, filename)
-    
-    try:
-        image_b64, s3_url = generate_sticker_with_reference(prompt, img_path, reference_image, quality, user_id=user_id)
+        if mode == 'reference' and reference_image_data:
+            # Use reference-mode function if reference image is provided
+            image_b64, s3_url = generate_sticker_with_reference(prompt, img_path, reference_image_data, quality, user_id=user_id)
+        else:
+            # Use simple mode if no reference image or mode is 'simple'
+            image_b64, s3_url = generate_sticker(prompt, img_path, quality, user_id=user_id)
         
         # Store S3 URL in session for later use
         if s3_url:
@@ -200,6 +186,33 @@ def generate_with_reference():
         return jsonify({"error": f"Invalid image format: {str(e)}"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/generate-with-reference', methods=['POST'])
+def generate_with_reference():
+    # For backward compatibility, redirect to the unified generate endpoint
+    data = request.json
+    prompt = data.get('prompt', '')
+    reference_image = data.get('referenceImage', '')
+    quality = data.get('quality', 'low')
+    
+    if not prompt:
+        return jsonify({"error": "No prompt provided"}), 400
+    
+    if not reference_image:
+        return jsonify({"error": "No reference image provided"}), 400
+    
+    # Create a new request to the unified endpoint
+    modified_data = {
+        "prompt": prompt,
+        "quality": quality,
+        "mode": "reference",
+        "reference_image": reference_image
+    }
+    
+    # Pass the modified data to the unified generate endpoint
+    request.json = modified_data
+    return generate()
 
 @app.route('/add-to-template', methods=['POST'])
 def add_to_template():

@@ -37,7 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // UI Elements
     const promptInput = document.getElementById('prompt-input');
-    const referencePromptInput = document.getElementById('reference-prompt-input');
     const generateBtn = document.getElementById('generate-btn');
     const resultsSection = document.getElementById('results-section');
     const loadingSpinner = document.getElementById('loading-spinner');
@@ -125,21 +124,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Quality selectors
     const qualityRadios = document.querySelectorAll('input[name="quality"]');
-    const qualityRefRadios = document.querySelectorAll('input[name="quality-ref"]');
     
-    // Mode switching elements
-    const modeBtns = document.querySelectorAll('.mode-btn');
-    const simpleMode = document.getElementById('simple-mode');
-    const referenceMode = document.getElementById('reference-mode');
-    
-    // Image upload elements
+    // Reference image elements
+    const addReferenceBtn = document.getElementById('add-reference-btn');
     const referenceImageInput = document.getElementById('reference-image-input');
     const referenceImagePreview = document.getElementById('reference-image-preview');
-    const referenceImageUpload = document.getElementById('reference-image-upload');
     
     // Image data storage
     let referenceImageData = null;
-    let currentMode = 'simple';
     let currentGeneratedSticker = null;
     let templateStickers = [];
     
@@ -788,320 +780,362 @@ document.addEventListener('DOMContentLoaded', () => {
     clearTemplateBtn.addEventListener('click', clearTemplate);
     downloadTemplateBtn.addEventListener('click', downloadTemplateAsImage);
     
-    // Sync quality settings between modes
-    function syncQualitySettings(fromMode, toMode) {
-        const fromRadios = fromMode === 'simple' ? qualityRadios : qualityRefRadios;
-        const toRadios = toMode === 'simple' ? qualityRadios : qualityRefRadios;
+    // Modal de imagen ampliada
+    const imagePreviewModal = document.getElementById('image-preview-modal');
+    const enlargedImage = document.getElementById('enlarged-image');
+    const imageModalCloseBtn = document.getElementById('image-modal-close-btn');
+    
+    // Función para mostrar la imagen ampliada
+    function showEnlargedImage(imgSrc) {
+        // Asegurarnos de que no haya eventos previos registrados
+        enlargedImage.onload = null;
+        enlargedImage.onerror = null;
         
-        // Find selected quality in current mode
-        let selectedQuality = 'low'; // Default
-        let selectedRadio = null;
+        // Agregar clase de carga
+        const imageContainer = imagePreviewModal.querySelector('.image-container');
+        imageContainer.classList.add('loading');
         
-        for (const radio of fromRadios) {
-            if (radio.checked) {
-                selectedQuality = radio.value;
-                break;
+        // Configurar la imagen para mostrar el indicador de carga hasta que esté lista
+        enlargedImage.onload = function() {
+            imageContainer.classList.remove('loading');
+        };
+        
+        enlargedImage.onerror = function() {
+            imageContainer.classList.remove('loading');
+            // Usar un timeout para evitar mostrar errores si el modal está cerrándose
+            if (!imagePreviewModal.classList.contains('hidden')) {
+                showError('Error loading image');
+                closeImagePreviewModal();
             }
-        }
+        };
         
-        // Set the same quality in target mode
-        for (const radio of toRadios) {
-            if (radio.value === selectedQuality) {
-                radio.checked = true;
-                selectedRadio = radio;
-                break;
-            }
-        }
+        // Establecer la fuente de la imagen y mostrar el modal
+        enlargedImage.src = imgSrc;
+        imagePreviewModal.classList.remove('hidden');
         
-        // Explicitly update the slider position for the target mode
-        if (selectedRadio) {
-            updateQualitySlider(selectedRadio, toMode);
-        }
+        // Pequeño delay para iniciar la animación
+        requestAnimationFrame(() => {
+            imagePreviewModal.classList.add('visible');
+        });
+        
+        // Deshabilitar scroll en el body mientras el modal está abierto
+        document.body.style.overflow = 'hidden';
     }
     
-    // Mode switching
-    modeBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const mode = btn.dataset.mode;
-            const previousMode = currentMode;
+    // Función para cerrar el modal de imagen ampliada
+    function closeImagePreviewModal() {
+        imagePreviewModal.classList.remove('visible');
+        
+        // Esperar a que termine la animación antes de ocultar completamente
+        setTimeout(() => {
+            imagePreviewModal.classList.add('hidden');
             
-            // Update active button
-            modeBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            // Eliminar los event handlers antes de limpiar la fuente de la imagen
+            // para evitar que se dispare el onerror
+            enlargedImage.onload = null;
+            enlargedImage.onerror = null;
+            enlargedImage.src = '';
             
-            // Sync the prompt text between modes
-            if (mode === 'simple') {
-                // Save the reference prompt text and copy it to simple mode
-                if (referencePromptInput.value.trim()) {
-                    promptInput.value = referencePromptInput.value;
-                }
-                
-                simpleMode.classList.remove('hidden');
-                referenceMode.classList.add('hidden');
-                currentMode = 'simple';
-                setTimeout(() => promptInput.focus(), 100);
-            } else {
-                // Save the simple prompt text and copy it to reference mode
-                if (promptInput.value.trim()) {
-                    referencePromptInput.value = promptInput.value;
-                }
-                
-                simpleMode.classList.add('hidden');
-                referenceMode.classList.remove('hidden');
-                currentMode = 'reference';
-                setTimeout(() => referencePromptInput.focus(), 100);
-            }
-            
-            // Sync quality settings
-            syncQualitySettings(previousMode, mode);
-        });
+            // Restaurar scroll
+            document.body.style.overflow = '';
+        }, 300);
+    }
+    
+    // Evento para cerrar el modal cuando se hace clic en el botón de cerrar
+    imageModalCloseBtn.addEventListener('click', closeImagePreviewModal);
+    
+    // Evento para cerrar el modal cuando se hace clic en el fondo
+    imagePreviewModal.addEventListener('click', (e) => {
+        // Solo cerramos si el clic fue en el backdrop o en el contenedor del modal, no en la imagen
+        if (e.target === imagePreviewModal || e.target.classList.contains('modal-backdrop') || e.target.classList.contains('modern-image-modal')) {
+            closeImagePreviewModal();
+        }
     });
     
-    // Handle file uploads and previews
+    // Evento para cerrar el modal con la tecla ESC
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !imagePreviewModal.classList.contains('hidden')) {
+            closeImagePreviewModal();
+        }
+    });
+    
+    // Add reference image button handler
+    addReferenceBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        referenceImageInput.click();
+    });
+    
+    // Reference image input change handler
     referenceImageInput.addEventListener('change', handleFileSelect);
     
+    // Hacer clic en la miniatura para ver la imagen ampliada
+    referenceImagePreview.addEventListener('click', (e) => {
+        // Solo activar si se hizo clic en la imagen, no en el botón de cerrar
+        if (!e.target.closest('.remove-thumbnail-btn')) {
+            const img = referenceImagePreview.querySelector('img');
+            if (img && img.src) {
+                showEnlargedImage(img.src);
+            }
+        }
+    });
+    
+    // Remove reference image handler
+    referenceImagePreview.querySelector('.remove-thumbnail-btn').addEventListener('click', () => {
+        referenceImagePreview.classList.add('hidden');
+        referenceImageData = null;
+        // Reiniciar el input de archivo para permitir la selección del mismo archivo nuevamente
+        referenceImageInput.value = '';
+    });
+    
+    // Agregar soporte para pegar imágenes desde el portapapeles
+    promptInput.addEventListener('paste', function(e) {
+        // Verificar si hay imágenes en el contenido pegado
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        let imageFound = false;
+        
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                // Evitar que se pegue el texto en el input
+                e.preventDefault();
+                
+                // Extraer la imagen
+                const blob = items[i].getAsFile();
+                
+                // Validar tamaño de la imagen
+                if (blob.size > 5 * 1024 * 1024) {
+                    showError('La imagen es demasiado grande (máximo 5MB)');
+                    return;
+                }
+                
+                // Convertir a data URL para mostrar y procesar
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = referenceImagePreview.querySelector('img');
+                    img.src = event.target.result;
+                    referenceImageData = event.target.result;
+                    
+                    // Mostrar la vista previa
+                    referenceImagePreview.classList.remove('hidden');
+                    
+                    // Mostrar un mensaje de éxito
+                    showSuccess('Imagen pegada correctamente');
+                };
+                
+                reader.onerror = function() {
+                    showError('Error al procesar la imagen');
+                };
+                
+                reader.readAsDataURL(blob);
+                imageFound = true;
+                break;
+            }
+        }
+        
+        // Si no se encontró una imagen, permitir el comportamiento normal de pegado
+    });
+    
+    // Agregar soporte para arrastrar y soltar imágenes
+    promptInput.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        promptInput.classList.add('drag-over');
+    });
+    
+    promptInput.addEventListener('dragleave', function() {
+        promptInput.classList.remove('drag-over');
+    });
+    
+    promptInput.addEventListener('drop', function(e) {
+        e.preventDefault();
+        promptInput.classList.remove('drag-over');
+        
+        // Verificar si hay archivos en el evento drop
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const file = e.dataTransfer.files[0];
+            
+            // Verificar si es una imagen
+            if (file.type.match('image.*')) {
+                // Validar tamaño de la imagen
+                if (file.size > 5 * 1024 * 1024) {
+                    showError('La imagen es demasiado grande (máximo 5MB)');
+                    return;
+                }
+                
+                // Procesar la imagen de la misma manera que en handleFileSelect
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    const img = referenceImagePreview.querySelector('img');
+                    img.src = event.target.result;
+                    referenceImageData = event.target.result;
+                    
+                    // Mostrar la vista previa
+                    referenceImagePreview.classList.remove('hidden');
+                    
+                    // Mostrar un mensaje de éxito
+                    showSuccess('Imagen añadida correctamente');
+                };
+                
+                reader.onerror = function() {
+                    showError('Error al procesar la imagen');
+                };
+                
+                reader.readAsDataURL(file);
+            } else {
+                showError('Por favor, arrastra un archivo de imagen');
+            }
+        }
+    });
+    
+    // Function to handle file selection for reference image
     function handleFileSelect(e) {
         const file = e.target.files[0];
         if (!file) return;
         
+        // Only process image files
+        if (!file.type.match('image.*')) {
+            showError('Please select an image file');
+            return;
+        }
+        
+        // Check file size - limit to 5MB
+        if (file.size > 5 * 1024 * 1024) {
+            showError('Image size must be less than 5MB');
+            return;
+        }
+        
         const reader = new FileReader();
-        const previewElement = referenceImagePreview;
-        const uploadBox = referenceImageUpload;
         
         reader.onload = function(event) {
-            const img = previewElement.querySelector('img');
+            const img = referenceImagePreview.querySelector('img');
             img.src = event.target.result;
             referenceImageData = event.target.result;
             
-            previewElement.classList.remove('hidden');
-            uploadBox.classList.add('hidden');
+            // Show the preview
+            referenceImagePreview.classList.remove('hidden');
+            // El CSS ajustará automáticamente los paddings
         };
         
         reader.readAsDataURL(file);
     }
     
-    // Handle remove buttons for uploaded images
-    document.querySelectorAll('.remove-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const previewContainer = this.parentElement;
-            referenceImageUpload.classList.remove('hidden');
-            
-            previewContainer.classList.add('hidden');
-            previewContainer.querySelector('img').src = '';
-            
-            referenceImageData = null;
-            referenceImageInput.value = '';
-        });
-    });
-    
-    // Add special effects when selecting high quality
-    qualityRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            updateQualitySlider(this, 'simple');
-        });
-    });
-    
-    qualityRefRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            updateQualitySlider(this, 'reference');
-        });
-    });
-    
-    // Initialize slider positions
-    updateQualitySlider(document.querySelector('input[name="quality"]:checked'), 'simple');
-    updateQualitySlider(document.querySelector('input[name="quality-ref"]:checked'), 'reference');
-    
-    // Function to update the quality slider indicator position
-    function updateQualitySlider(radio, mode) {
-        const optionsContainer = radio.closest('.quality-options');
-        const position = radio.value === 'low' ? 0 : 
-                         radio.value === 'medium' ? 1 : 2;
-        
-        const slider = optionsContainer;
-        // Calculate the position based on index
-        const leftPosition = position === 0 ? '5px' : 
-                            position === 1 ? 'calc(33.33% + 5px)' : 
-                            'calc(66.66% + 5px)';
-                            
-        // Update the ::after pseudo-element position using a style tag
-        let styleId = `quality-style-${mode}`;
-        let styleTag = document.getElementById(styleId);
-        
-        if (!styleTag) {
-            styleTag = document.createElement('style');
-            styleTag.id = styleId;
-            document.head.appendChild(styleTag);
-        }
-        
-        const selector = mode === 'simple' ? 
-            '.quality-options:first-of-type::after' : 
-            '#reference-mode .quality-options::after';
-            
-        styleTag.textContent = `${selector} { left: ${leftPosition}; }`;
-    }
-    
-    // Add placeholder animation
-    const placeholders = [
-        "a cute cat with a crown on a transparent background",
-        "a colorful robot sticker with rainbow colors",
-        "a watercolor landscape with mountains",
-        "a cartoon pizza character with sunglasses",
-        "an astronaut floating in space with stars"
-    ];
-    
-    let placeholderIndex = 0;
-    setInterval(() => {
-        if (document.activeElement !== promptInput) {
-            promptInput.setAttribute('placeholder', `Describe your sticker... (e.g., '${placeholders[placeholderIndex]}')`)
-            placeholderIndex = (placeholderIndex + 1) % placeholders.length;
-        }
-    }, 3000);
-    
-    // Generate sticker when button is clicked
-    generateBtn.addEventListener('click', generateSticker);
-    
-    // Also generate when Enter key is pressed while holding Ctrl
-    promptInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.ctrlKey) {
-            e.preventDefault(); // Prevent newline
-            generateSticker();
-        }
-    });
-    
-    referencePromptInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.ctrlKey) {
-            e.preventDefault(); // Prevent newline
-            generateSticker();
-        }
-    });
-    
-    // Function to get selected quality based on current mode
+    // Get selected quality
     function getSelectedQuality() {
-        const radios = currentMode === 'simple' ? qualityRadios : qualityRefRadios;
-        for (const radio of radios) {
-            if (radio.checked) {
-                return radio.value;
-            }
-        }
-        return 'low'; // Default fallback
+        const qualityValue = document.querySelector('input[name="quality"]:checked').value;
+        return qualityValue;
     }
     
-    // Function to generate the sticker
+    // Generate sticker
     async function generateSticker() {
-        let prompt = '';
+        // Get prompt and check if reference image is present
+        const prompt = promptInput.value.trim();
+        const hasReferenceImage = referenceImageData !== null;
         
-        // Validate inputs based on current mode
-        if (currentMode === 'simple') {
-            prompt = promptInput.value.trim();
-            if (!prompt) {
-                showError('Please enter a description for your sticker.');
-                shakElement(promptInput);
-                return;
-            }
-        } else {
-            prompt = referencePromptInput.value.trim();
-            if (!referenceImageData) {
-                showError('Please upload a reference image.');
-                shakElement(referenceImageUpload);
-                return;
-            }
-            if (!prompt) {
-                showError('Please enter a description for your sticker.');
-                shakElement(referencePromptInput);
-                return;
-            }
-        }
-        
-        // Get selected quality and determine cost
-        const quality = getSelectedQuality();
-        const qualityCost = {
-            'low': 10,
-            'medium': 25,
-            'high': 100
-        };
-        
-        const coinCost = qualityCost[quality] || 10;
-        
-        // Check if user has enough coins
-        if (currentCoins < coinCost) {
-            showError(`Not enough coins! You need ${coinCost} coins for a ${quality} quality sticker. Buy more coins.`);
-            setTimeout(() => {
-                showCoinsModal();
-            }, 1500);
+        // Validate input
+        if (!prompt) {
+            showError('Please enter a description for your sticker');
+            shakElement(promptInput);
             return;
         }
         
-        // Show loading spinner
+        // Get quality level and determine coin cost
+        const quality = getSelectedQuality();
+        let coinCost = 10;  // Default for low quality
+        
+        if (quality === 'medium') {
+            coinCost = 25;
+        } else if (quality === 'high') {
+            coinCost = 100;
+        }
+        
+        // Check if user has enough coins
+        if (currentCoins < coinCost) {
+            showError(`Not enough coins. You need ${coinCost} coins. Current: ${currentCoins}`);
+            return;
+        }
+        
+        // Show loading state
         loadingSpinner.classList.remove('hidden');
-        stickerResult.style.display = 'none';
         generateBtn.disabled = true;
-        generateBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Generating...';
+        stickerResult.style.display = 'none';
         
         try {
-            let endpoint = currentMode === 'simple' ? '/generate' : '/generate-with-reference';
-            let requestData = { 
-                prompt,
-                quality 
-            };
+            // Prepare form data for API request
+            const formData = new FormData();
+            formData.append('prompt', prompt);
+            formData.append('quality', quality);
             
-            // Add reference image data if in reference mode
-            if (currentMode === 'reference') {
-                requestData.referenceImage = referenceImageData;
+            // Add reference image if available
+            if (hasReferenceImage) {
+                formData.append('mode', 'reference');
+                formData.append('reference_image', dataURItoBlob(referenceImageData));
+            } else {
+                formData.append('mode', 'simple');
             }
             
-            const response = await fetch(endpoint, {
+            // Make API request
+            const response = await fetch('/generate', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
+                body: formData
             });
             
-            if (response.ok) {
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Deduct coins
-                    await deductCoins(coinCost);
-                    
-                    // Update the current sticker reference
-                    currentGeneratedSticker = data.filename;
-                    
-                    // Display the result
-                    loadingSpinner.classList.add('hidden');
-                    stickerResult.style.display = 'flex';
-                    stickerResult.classList.add('pulse');
-                    
-                    // Set the image source
-                    stickerImage.src = `/img/${data.filename}`;
-                    
-                    // Enable download button
-                    downloadBtn.href = `/img/${data.filename}`;
-                    downloadBtn.download = data.filename;
-                    
-                    // Remove animation class after animation completes
-                    setTimeout(() => {
-                        stickerResult.classList.remove('pulse');
-                    }, 600);
-                    
-                    // Scroll to results section
-                    resultsSection.scrollIntoView({behavior: 'smooth'});
-                    
-                    // Show success message with cost
-                    showSuccess(`Sticker generated! Used ${coinCost} coins.`);
-                } else {
-                    throw new Error(data.error || 'Failed to generate sticker');
-                }
-            } else {
+            if (!response.ok) {
                 throw new Error('Failed to generate sticker');
             }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update UI with generated sticker
+                currentGeneratedSticker = data.filename;
+                stickerImage.src = getImageUrl(data.filename);
+                downloadBtn.href = getImageUrl(data.filename);
+                downloadBtn.download = 'sticker-' + data.filename;
+                
+                // Show result
+                stickerResult.style.display = 'flex';
+                
+                // Deduct coins
+                await deductCoins(coinCost);
+                
+                // Scroll to result
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+                
+                // Show success message
+                if (hasReferenceImage) {
+                    showSuccess('Sticker generated with reference image!');
+                } else {
+                    showSuccess('Sticker generated successfully!');
+                }
+                
+                // Update UI if no coins left
+                if (currentCoins <= 0) {
+                    generateBtn.disabled = true;
+                }
+            } else {
+                showError(data.error || 'Failed to generate sticker');
+            }
         } catch (error) {
-            showError(error.message);
-            loadingSpinner.classList.add('hidden');
+            console.error('Error generating sticker:', error);
+            showError('Error generating sticker. Please try again.');
         } finally {
+            // Hide loading state
+            loadingSpinner.classList.add('hidden');
             generateBtn.disabled = false;
-            generateBtn.innerHTML = '<i class="ri-magic-line"></i> Generate Sticker';
         }
+    }
+    
+    // Helper function to convert Data URI to Blob
+    function dataURItoBlob(dataURI) {
+        const byteString = atob(dataURI.split(',')[1]);
+        const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        
+        return new Blob([ab], {type: mimeString});
     }
     
     // Function to deduct coins
@@ -1155,12 +1189,6 @@ document.addEventListener('DOMContentLoaded', () => {
         element.classList.add('shake');
         setTimeout(() => element.classList.remove('shake'), 600);
     }
-    
-    // Add confetti effect to download button
-    downloadBtn.addEventListener('click', () => {
-        // Simple confetti effect (assuming we're just showing feedback)
-        showSuccess('Sticker downloaded successfully!');
-    });
     
     // Function to show success messages
     function showSuccess(message) {
@@ -1353,147 +1381,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 throw new Error('Failed to apply coupon.');
             }
-            
         } catch (error) {
-            console.error("Error validating coupon:", error);
-            couponDirectStatus.textContent = error.message || "Error applying coupon. Please try again.";
-            couponDirectStatus.className = 'coupon-status error';
-            
+            console.error('Error validating coupon:', error);
+            showError('Error validating coupon. Please try again.');
+        } finally {
             // Re-enable the input and button
             coinsCouponDirectInput.disabled = false;
             applyCouponDirectBtn.disabled = false;
             applyCouponDirectBtn.innerHTML = 'Apply';
         }
     }
-    
-    // Event Listeners for Coins
-    buyCoinsHeaderBtn.addEventListener('click', showCoinsModal);
-    coinsModalCloseBtn.addEventListener('click', hideCoinsModal);
-    
-    // Event listeners for package selection
-    packageSelectBtns.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const packageType = this.closest('.coins-package').dataset.package;
-            selectPackage(packageType);
-        });
-    });
-    
-    // Coupon validation
-    applyCouponDirectBtn.addEventListener('click', validateDirectCoupon);
-    
-    // Make the entire package card clickable
-    coinsPackages.forEach(pkg => {
-        pkg.addEventListener('click', function() {
-            const packageType = this.dataset.package;
-            selectPackage(packageType);
-        });
-    });
-    
-    // Back button
-    backToPackagesBtn.addEventListener('click', () => {
-        document.querySelector('.coins-packages').classList.remove('hidden');
-        document.querySelector('.coupon-section').classList.remove('hidden');
-        coinsForm.classList.add('hidden');
-        selectedPackage = null;
-    });
-    
-    // Function to handle coin purchase submission
-    async function handleCoinsPurchase(e) {
-        e.preventDefault();
-        
-        if (!selectedPackage) {
-            showError('Please select a coin package first.');
-            return;
-        }
-        
-        if (!mp) {
-            showError("Payment system is not available. Please check configuration.");
-            return;
-        }
-        
-        const name = coinsNameInput.value.trim();
-        const email = coinsEmailInput.value.trim();
-        
-        // Frontend validation
-        let isValid = true;
-        if (!name) {
-            showError("Please enter your name.");
-            shakElement(coinsNameInput);
-            isValid = false;
-        }
-        
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            showError("Please enter a valid email address.");
-            shakElement(coinsEmailInput);
-            isValid = false;
-        }
-        
-        if (!isValid) {
-            return;
-        }
-        
-        // Disable button and show loading state
-        finalizeCoinsBtn.disabled = true;
-        finalizeCoinsBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Processing...';
-        
-        try {
-            // Get any coupon code from the form
-            const couponCode = coinsCouponDirectInput.value.trim();
-            
-            // Call backend to create preference
-            const response = await fetch('/purchase-coins', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: name,
-                    email: email,
-                    package: selectedPackage,
-                    coupon: couponCode
-                })
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to create coin purchase preference.');
-            }
-            
-            const data = await response.json();
-            
-            if (data.success && data.preference_id) {
-                // Hide modal before redirecting
-                hideCoinsModal();
-                
-                // Redirect to Mercado Pago Checkout
-                mp.checkout({
-                    preference: {
-                        id: data.preference_id
-                    },
-                    autoOpen: true
-                });
-            } else {
-                throw new Error('Could not process payment at this time.');
-            }
-            
-        } catch (error) {
-            console.error("Coin purchase error:", error);
-            showError(`Purchase failed: ${error.message}`);
-            
-            // Re-enable button
-            finalizeCoinsBtn.disabled = false;
-            finalizeCoinsBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Purchase Coins';
-        }
-    }
-    
-    // Coins purchase form submission
-    coinsForm.addEventListener('submit', handleCoinsPurchase);
-    
-    // Click outside to close the modal
-    coinsModal.addEventListener('click', (e) => {
-        if (e.target === coinsModal) {
-            hideCoinsModal();
-        }
-    });
-}); 
+});
