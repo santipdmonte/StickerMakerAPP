@@ -38,12 +38,7 @@
             <!-- Main Card: Sticker Generator -->
             <div class="card main-card">
                 <div class="input-section">
-                    <div class="mode-selector">
-                        <button class="mode-btn active" data-mode="simple"><i class="ri-magic-line"></i> Simple Mode</button>
-                        <button class="mode-btn" data-mode="reference"><i class="ri-image-line"></i> Reference Image</button>
-                    </div>
-                    
-                    <div id="simple-mode" class="generation-mode">
+                    <div id="unified-input-mode" class="generation-mode">
                         <div class="quality-selector">
                             <label>Quality:</label>
                             <div class="quality-options">
@@ -55,36 +50,23 @@
                                 <label for="quality-high">High <span class="high-quality-sparkle">✨</span> <span class="quality-cost">(100 coins)</span></label>
                             </div>
                         </div>
-                        <textarea id="prompt-input" placeholder="Describe your sticker... (e.g., 'a cute panda eating bamboo on a transparent background')"></textarea>
-                    </div>
-                    
-                    <div id="reference-mode" class="generation-mode hidden">
-                        <div class="image-upload-container">
-                            <div class="upload-box" id="reference-image-upload">
-                                <i class="ri-image-add-line"></i>
-                                <p>Upload Reference Image</p>
-                                <span class="upload-hint">Upload an image to help guide the sticker generation</span>
-                                <input type="file" id="reference-image-input" accept="image/*" class="file-input">
+                        
+                        <div class="prompt-input-container">
+                            <div id="reference-image-preview" class="reference-image-thumbnail hidden">
+                                <img src="" alt="Reference image">
+                                <button type="button" class="remove-thumbnail-btn" title="Remove image">
+                                    <i class="ri-close-line"></i>
+                                </button>
                             </div>
-                            <div class="upload-preview hidden" id="reference-image-preview">
-                                <img src="" alt="Reference image preview">
-                                <button class="remove-btn"><i class="ri-close-circle-line"></i></button>
+                            <textarea id="prompt-input" placeholder="Describe your sticker... (e.g., 'a cute panda eating bamboo on a transparent background')"></textarea>
+                            
+                            <div class="reference-image-controls">
+                                <button id="add-reference-btn" class="add-reference-btn" title="Add reference image">
+                                    <i class="ri-add-line"></i>
+                                </button>
+                                <input type="file" id="reference-image-input" accept="image/*" class="file-input hidden">
                             </div>
                         </div>
-                        
-                        <div class="quality-selector">
-                            <label>Quality:</label>
-                            <div class="quality-options">
-                                <input type="radio" id="quality-low-ref" name="quality-ref" value="low" checked>
-                                <label for="quality-low-ref">Low <span class="quality-cost">(10 coins)</span></label>
-                                <input type="radio" id="quality-medium-ref" name="quality-ref" value="medium">
-                                <label for="quality-medium-ref">Medium <span class="quality-cost">(25 coins)</span></label>
-                                <input type="radio" id="quality-high-ref" name="quality-ref" value="high">
-                                <label for="quality-high-ref">High <span class="high-quality-sparkle">✨</span> <span class="quality-cost">(100 coins)</span></label>
-                            </div>
-                        </div>
-                        
-                        <textarea id="reference-prompt-input" placeholder="Describe what you want in your sticker based on this reference... (e.g., 'create a cartoon sticker of this dog')"></textarea>
                     </div>
                     
                     <button id="generate-btn"><i class="ri-magic-line"></i> Generate Sticker</button>
