@@ -625,7 +625,7 @@
 
             // Function to show the sticker modal
             function showStickerModal(imageUrl, filename) {
-                // Mostrar el modal primero con un indicador de carga
+                // Mostrar el modal primero
                 stickerViewModal.classList.remove('modal-hidden');
                 stickerViewModal.offsetHeight; 
                 stickerViewModal.classList.add('modal-visible');
@@ -633,6 +633,15 @@
 
                 // Obtener el contenedor de la imagen del modal
                 const modalImageContainer = document.querySelector('.modal-image-container');
+                
+                // Limpiar completamente el contenedor de cualquier elemento anterior
+                // (excepto la imagen principal que reutilizaremos)
+                const elementsToRemove = modalImageContainer.querySelectorAll(':not(#modal-sticker-image)');
+                elementsToRemove.forEach(el => el.remove());
+                
+                // Resetear cualquier mensaje de error o spinner anterior
+                const existingErrorMsgs = modalImageContainer.querySelectorAll('.error-message');
+                existingErrorMsgs.forEach(el => el.remove());
                 
                 // Añadir indicador de carga
                 const modalSpinner = document.createElement('div');
@@ -653,7 +662,10 @@
                 
                 // Función para cuando la imagen se cargue
                 modalStickerImage.onload = function() {
-                    modalSpinner.remove();
+                    // Eliminar el spinner de carga
+                    const spinners = modalImageContainer.querySelectorAll('.spinner');
+                    spinners.forEach(spinner => spinner.remove());
+                    
                     modalStickerImage.style.display = 'block';
                     
                     // Create Add to Template button
@@ -681,10 +693,14 @@
                 // Manejar errores de carga
                 modalStickerImage.onerror = function() {
                     console.error(`Error loading image in modal: ${imageUrl}`);
-                    modalSpinner.remove();
+                    
+                    // Eliminar el spinner de carga
+                    const spinners = modalImageContainer.querySelectorAll('.spinner');
+                    spinners.forEach(spinner => spinner.remove());
                     
                     // Mostrar un mensaje de error
                     const errorMsg = document.createElement('div');
+                    errorMsg.className = 'error-message'; // Añadir una clase para facilitar la selección
                     errorMsg.innerHTML = `<i class="ri-error-warning-line" style="font-size: 40px; color: #ff6b6b;"></i>
                                         <p style="color: #666;">Failed to load image</p>`;
                     errorMsg.style.textAlign = 'center';
@@ -710,6 +726,11 @@
                 setTimeout(() => {
                     stickerViewModal.classList.add('modal-hidden');
                     modalStickerImage.src = ''; // Clear image src
+                    
+                    // También limpiar mensajes de error y spinners
+                    const modalImageContainer = document.querySelector('.modal-image-container');
+                    const elementsToRemove = modalImageContainer.querySelectorAll(':not(#modal-sticker-image)');
+                    elementsToRemove.forEach(el => el.remove());
                 }, 300); // Match transition duration
             }
 
@@ -791,6 +812,9 @@
                     })
                     .then(data => {
                         if (data.success && data.stickers && data.stickers.length > 0) {
+                            // Filtrar las imágenes de alta resolución (con sufijo _high)
+                            const filteredStickers = data.stickers.filter(filename => !filename.includes('_high'));
+                            
                             // Actualizar la información de paginación si viene del servidor
                             if (useServerPagination && data.total_pages) {
                                 currentPage = data.page;
@@ -807,10 +831,10 @@
                                 existingStickers.forEach(item => item.remove());
                                 
                                 // Renderizar stickers de esta página
-                                renderStickers(data.stickers);
+                                renderStickers(filteredStickers);
                             } else {
                                 // Usar paginación del cliente (el método anterior)
-                                allStickers = data.stickers;
+                                allStickers = filteredStickers;
                                 currentPage = 1;
                                 renderStickersPage();
                             }
