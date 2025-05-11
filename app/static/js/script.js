@@ -887,6 +887,105 @@ document.addEventListener('DOMContentLoaded', () => {
         referenceImageInput.value = '';
     });
     
+    // Agregar soporte para pegar imágenes desde el portapapeles
+    promptInput.addEventListener('paste', function(e) {
+        // Verificar si hay imágenes en el contenido pegado
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        let imageFound = false;
+        
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                // Evitar que se pegue el texto en el input
+                e.preventDefault();
+                
+                // Extraer la imagen
+                const blob = items[i].getAsFile();
+                
+                // Validar tamaño de la imagen
+                if (blob.size > 5 * 1024 * 1024) {
+                    showError('La imagen es demasiado grande (máximo 5MB)');
+                    return;
+                }
+                
+                // Convertir a data URL para mostrar y procesar
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = referenceImagePreview.querySelector('img');
+                    img.src = event.target.result;
+                    referenceImageData = event.target.result;
+                    
+                    // Mostrar la vista previa
+                    referenceImagePreview.classList.remove('hidden');
+                    
+                    // Mostrar un mensaje de éxito
+                    showSuccess('Imagen pegada correctamente');
+                };
+                
+                reader.onerror = function() {
+                    showError('Error al procesar la imagen');
+                };
+                
+                reader.readAsDataURL(blob);
+                imageFound = true;
+                break;
+            }
+        }
+        
+        // Si no se encontró una imagen, permitir el comportamiento normal de pegado
+    });
+    
+    // Agregar soporte para arrastrar y soltar imágenes
+    promptInput.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        promptInput.classList.add('drag-over');
+    });
+    
+    promptInput.addEventListener('dragleave', function() {
+        promptInput.classList.remove('drag-over');
+    });
+    
+    promptInput.addEventListener('drop', function(e) {
+        e.preventDefault();
+        promptInput.classList.remove('drag-over');
+        
+        // Verificar si hay archivos en el evento drop
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            const file = e.dataTransfer.files[0];
+            
+            // Verificar si es una imagen
+            if (file.type.match('image.*')) {
+                // Validar tamaño de la imagen
+                if (file.size > 5 * 1024 * 1024) {
+                    showError('La imagen es demasiado grande (máximo 5MB)');
+                    return;
+                }
+                
+                // Procesar la imagen de la misma manera que en handleFileSelect
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    const img = referenceImagePreview.querySelector('img');
+                    img.src = event.target.result;
+                    referenceImageData = event.target.result;
+                    
+                    // Mostrar la vista previa
+                    referenceImagePreview.classList.remove('hidden');
+                    
+                    // Mostrar un mensaje de éxito
+                    showSuccess('Imagen añadida correctamente');
+                };
+                
+                reader.onerror = function() {
+                    showError('Error al procesar la imagen');
+                };
+                
+                reader.readAsDataURL(file);
+            } else {
+                showError('Por favor, arrastra un archivo de imagen');
+            }
+        }
+    });
+    
     // Function to handle file selection for reference image
     function handleFileSelect(e) {
         const file = e.target.files[0];
@@ -1282,150 +1381,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 throw new Error('Failed to apply coupon.');
             }
-            
         } catch (error) {
-            console.error("Error validating coupon:", error);
-            couponDirectStatus.textContent = error.message || "Error applying coupon. Please try again.";
-            couponDirectStatus.className = 'coupon-status error';
-            
+            console.error('Error validating coupon:', error);
+            showError('Error validating coupon. Please try again.');
+        } finally {
             // Re-enable the input and button
             coinsCouponDirectInput.disabled = false;
             applyCouponDirectBtn.disabled = false;
             applyCouponDirectBtn.innerHTML = 'Apply';
         }
     }
-    
-    // Event Listeners for Coins
-    buyCoinsHeaderBtn.addEventListener('click', showCoinsModal);
-    coinsModalCloseBtn.addEventListener('click', hideCoinsModal);
-    
-    // Event listeners for package selection
-    packageSelectBtns.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const packageType = this.closest('.coins-package').dataset.package;
-            selectPackage(packageType);
-        });
-    });
-    
-    // Coupon validation
-    applyCouponDirectBtn.addEventListener('click', validateDirectCoupon);
-    
-    // Make the entire package card clickable
-    coinsPackages.forEach(pkg => {
-        pkg.addEventListener('click', function() {
-            const packageType = this.dataset.package;
-            selectPackage(packageType);
-        });
-    });
-    
-    // Back button
-    backToPackagesBtn.addEventListener('click', () => {
-        document.querySelector('.coins-packages').classList.remove('hidden');
-        document.querySelector('.coupon-section').classList.remove('hidden');
-        coinsForm.classList.add('hidden');
-        selectedPackage = null;
-    });
-    
-    // Function to handle coin purchase submission
-    async function handleCoinsPurchase(e) {
-        e.preventDefault();
-        
-        if (!selectedPackage) {
-            showError('Please select a coin package first.');
-            return;
-        }
-        
-        if (!mp) {
-            showError("Payment system is not available. Please check configuration.");
-            return;
-        }
-        
-        const name = coinsNameInput.value.trim();
-        const email = coinsEmailInput.value.trim();
-        
-        // Frontend validation
-        let isValid = true;
-        if (!name) {
-            showError("Please enter your name.");
-            shakElement(coinsNameInput);
-            isValid = false;
-        }
-        
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            showError("Please enter a valid email address.");
-            shakElement(coinsEmailInput);
-            isValid = false;
-        }
-        
-        if (!isValid) {
-            return;
-        }
-        
-        // Disable button and show loading state
-        finalizeCoinsBtn.disabled = true;
-        finalizeCoinsBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Processing...';
-        
-        try {
-            // Get any coupon code from the form
-            const couponCode = coinsCouponDirectInput.value.trim();
-            
-            // Call backend to create preference
-            const response = await fetch('/purchase-coins', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: name,
-                    email: email,
-                    package: selectedPackage,
-                    coupon: couponCode
-                })
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to create coin purchase preference.');
-            }
-            
-            const data = await response.json();
-            
-            if (data.success && data.preference_id) {
-                // Hide modal before redirecting
-                hideCoinsModal();
-                
-                // Redirect to Mercado Pago Checkout
-                mp.checkout({
-                    preference: {
-                        id: data.preference_id
-                    },
-                    autoOpen: true
-                });
-            } else {
-                throw new Error('Could not process payment at this time.');
-            }
-            
-        } catch (error) {
-            console.error("Coin purchase error:", error);
-            showError(`Purchase failed: ${error.message}`);
-            
-            // Re-enable button
-            finalizeCoinsBtn.disabled = false;
-            finalizeCoinsBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Purchase Coins';
-        }
-    }
-    
-    // Coins purchase form submission
-    coinsForm.addEventListener('submit', handleCoinsPurchase);
-    
-    // Click outside to close the modal
-    coinsModal.addEventListener('click', (e) => {
-        if (e.target === coinsModal) {
-            hideCoinsModal();
-        }
-    });
-
-    // Generate button event listener
-    generateBtn.addEventListener('click', generateSticker);
-}); 
+});

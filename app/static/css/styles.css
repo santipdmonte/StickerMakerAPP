@@ -2413,3 +2413,22 @@ body.modal-open {
     border-top-color: white;
     animation: spin 1s ease-in-out infinite;
 }
+
+/* Estilos para arrastrar y soltar */
+.prompt-input-container textarea.drag-over {
+    border-color: var(--primary-color);
+    background-color: rgba(124, 93, 250, 0.05);
+    box-shadow: 0 0 0 4px rgba(124, 93, 250, 0.15);
+}
+
+/* Mensaje de ayuda para indicar que se puede pegar o arrastrar imágenes */
+.prompt-input-container::after {
+    content: "";
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .prompt-input-container::after {
+        display: none;
+    }
+}
