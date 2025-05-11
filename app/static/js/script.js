@@ -793,8 +793,8 @@ document.addEventListener('DOMContentLoaded', () => {
     referenceImagePreview.querySelector('.remove-thumbnail-btn').addEventListener('click', () => {
         referenceImagePreview.classList.add('hidden');
         referenceImageData = null;
-        // Al eliminar la imagen, el CSS se encargará automáticamente de restablecer el padding
-        // gracias al selector :not(.hidden) que hemos añadido
+        // Reiniciar el input de archivo para permitir la selección del mismo archivo nuevamente
+        referenceImageInput.value = '';
     });
     
     // Function to handle file selection for reference image
