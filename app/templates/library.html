@@ -682,8 +682,13 @@
                     const downloadBtn = document.createElement('a');
                     downloadBtn.className = 'download-button-link'; // Use specific class for styling link
                     downloadBtn.innerHTML = '<i class="ri-download-line"></i> Download';
-                    downloadBtn.href = imageUrl; // Use the direct image URL
+                    
+                    // Establecer href temporal mientras se verifica la versión de alta resolución
+                    downloadBtn.href = imageUrl;
                     downloadBtn.download = filename;
+                    
+                    // Verificar y actualizar a versión de alta resolución si existe
+                    handleHighResDownload(downloadBtn, imageUrl, filename);
                     
                     // Append buttons to modal
                     modalActionsContainer.appendChild(addBtn);
@@ -971,8 +976,14 @@
                     downloadBtn.className = 'library-action-btn download-btn-link';
                     downloadBtn.title = 'Download';
                     downloadBtn.innerHTML = '<i class="ri-download-2-line"></i>';
+                    
+                    // Establecer href temporal mientras se verifica la versión de alta resolución
                     downloadBtn.href = `/img/${filename}`;
                     downloadBtn.download = filename;
+                    
+                    // Verificar y actualizar a versión de alta resolución si existe
+                    handleHighResDownload(downloadBtn, `/img/${filename}`, filename);
+                    
                     downloadBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
                     });
@@ -1056,6 +1067,67 @@
 
             // Load stickers when page loads (página 1 con paginación del servidor)
             loadLibraryStickers(1, true);
+
+            // Función para obtener la URL de alta resolución
+            function getHighResUrl(url, filename) {
+                // Si ya es una URL de alta resolución, devolverla tal cual
+                if (filename.includes('_high')) {
+                    return url;
+                }
+                
+                // Obtener el nombre de archivo sin extensión y la extensión
+                const filenameWithoutExt = filename.substring(0, filename.lastIndexOf('.'));
+                const ext = filename.substring(filename.lastIndexOf('.'));
+                const highResFilename = `${filenameWithoutExt}_high${ext}`;
+                
+                // Generar URL para versión de alta resolución
+                let highResUrl;
+                if (url.startsWith('/img/')) {
+                    highResUrl = `/img/${highResFilename}`;
+                } else if (url.startsWith('/direct-s3-img/')) {
+                    highResUrl = `/direct-s3-img/${highResFilename}`;
+                } else if (url.startsWith('/static/imgs/')) {
+                    highResUrl = `/static/imgs/${highResFilename}`;
+                } else {
+                    // Si es una URL completamente diferente, intentar construir la versión de alta resolución
+                    const urlParts = url.split('/');
+                    const oldFilename = urlParts.pop();
+                    urlParts.push(highResFilename);
+                    highResUrl = urlParts.join('/');
+                }
+                
+                // Verificar si la imagen de alta resolución existe
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    
+                    img.onload = function() {
+                        // La imagen de alta resolución existe
+                        resolve(highResUrl);
+                    };
+                    
+                    img.onerror = function() {
+                        // La imagen de alta resolución no existe, usar la versión estándar
+                        console.log(`Imagen de alta resolución no encontrada: ${highResFilename}, usando versión estándar`);
+                        resolve(url);
+                    };
+                    
+                    // Intentar cargar la imagen de alta resolución
+                    img.src = highResUrl;
+                });
+            }
+            
+            // Función para manejar las descargas con alta resolución
+            async function handleHighResDownload(downloadBtn, url, filename) {
+                try {
+                    const highResUrl = await getHighResUrl(url, filename);
+                    downloadBtn.href = highResUrl;
+                    downloadBtn.download = filename;
+                } catch (error) {
+                    console.error('Error al verificar imagen de alta resolución:', error);
+                    downloadBtn.href = url; // Usar URL original como fallback
+                    downloadBtn.download = filename;
+                }
+            }
         });
     </script>
 </body>
