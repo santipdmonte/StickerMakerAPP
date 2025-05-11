@@ -1140,7 +1140,7 @@ body.modal-open {
     margin-bottom: 20px;
 }
 
-#checkout-form label {
+#checkout-form label, #coins-form label {
     display: block;
     margin-bottom: 8px;
     font-weight: 500;
@@ -1150,7 +1150,9 @@ body.modal-open {
 
 #checkout-form input[type="text"],
 #checkout-form input[type="email"],
-#checkout-form textarea {
+#checkout-form textarea,
+#coins-form input[type="text"],
+#coins-form input[type="email"] {
     width: 100%;
     padding: 14px;
     border: 2px solid var(--input-border);
@@ -1161,7 +1163,9 @@ body.modal-open {
 
 #checkout-form input[type="text"]:focus,
 #checkout-form input[type="email"]:focus,
-#checkout-form textarea:focus {
+#checkout-form textarea:focus,
+#coins-form input[type="text"]:focus,
+#coins-form input[type="email"]:focus {
     outline: none;
     border-color: var(--secondary-color);
     box-shadow: 0 0 0 3px rgba(124, 93, 250, 0.1);
@@ -1170,6 +1174,10 @@ body.modal-open {
 #checkout-form textarea {
     resize: vertical;
     min-height: 80px;
+}
+
+#coins-form .form-group {
+    margin-bottom: 20px;
 }
 
 .finalize-button {
@@ -1411,8 +1419,6 @@ body.modal-open {
     margin: 0;
 }
 
-
-
 /* Coupon Styles */
 .coupon-container {
     display: flex;
@@ -1421,6 +1427,17 @@ body.modal-open {
 
 .coupon-container input {
     flex: 1;
+    padding: 14px;
+    border: 2px solid var(--input-border);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    transition: var(--transition);
+}
+
+.coupon-container input:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(124, 93, 250, 0.1);
 }
 
 .apply-coupon-button {
