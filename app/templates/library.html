@@ -625,7 +625,7 @@
 
             // Function to show the sticker modal
             function showStickerModal(imageUrl, filename) {
-                // Mostrar el modal primero con un indicador de carga
+                // Mostrar el modal primero
                 stickerViewModal.classList.remove('modal-hidden');
                 stickerViewModal.offsetHeight; 
                 stickerViewModal.classList.add('modal-visible');
@@ -633,6 +633,15 @@
 
                 // Obtener el contenedor de la imagen del modal
                 const modalImageContainer = document.querySelector('.modal-image-container');
+                
+                // Limpiar completamente el contenedor de cualquier elemento anterior
+                // (excepto la imagen principal que reutilizaremos)
+                const elementsToRemove = modalImageContainer.querySelectorAll(':not(#modal-sticker-image)');
+                elementsToRemove.forEach(el => el.remove());
+                
+                // Resetear cualquier mensaje de error o spinner anterior
+                const existingErrorMsgs = modalImageContainer.querySelectorAll('.error-message');
+                existingErrorMsgs.forEach(el => el.remove());
                 
                 // Añadir indicador de carga
                 const modalSpinner = document.createElement('div');
@@ -653,7 +662,10 @@
                 
                 // Función para cuando la imagen se cargue
                 modalStickerImage.onload = function() {
-                    modalSpinner.remove();
+                    // Eliminar el spinner de carga
+                    const spinners = modalImageContainer.querySelectorAll('.spinner');
+                    spinners.forEach(spinner => spinner.remove());
+                    
                     modalStickerImage.style.display = 'block';
                     
                     // Create Add to Template button
@@ -670,8 +682,13 @@
                     const downloadBtn = document.createElement('a');
                     downloadBtn.className = 'download-button-link'; // Use specific class for styling link
                     downloadBtn.innerHTML = '<i class="ri-download-line"></i> Download';
-                    downloadBtn.href = imageUrl; // Use the direct image URL
+                    
+                    // Establecer href temporal mientras se verifica la versión de alta resolución
+                    downloadBtn.href = imageUrl;
                     downloadBtn.download = filename;
+                    
+                    // Verificar y actualizar a versión de alta resolución si existe
+                    handleHighResDownload(downloadBtn, imageUrl, filename);
                     
                     // Append buttons to modal
                     modalActionsContainer.appendChild(addBtn);
@@ -681,10 +698,14 @@
                 // Manejar errores de carga
                 modalStickerImage.onerror = function() {
                     console.error(`Error loading image in modal: ${imageUrl}`);
-                    modalSpinner.remove();
+                    
+                    // Eliminar el spinner de carga
+                    const spinners = modalImageContainer.querySelectorAll('.spinner');
+                    spinners.forEach(spinner => spinner.remove());
                     
                     // Mostrar un mensaje de error
                     const errorMsg = document.createElement('div');
+                    errorMsg.className = 'error-message'; // Añadir una clase para facilitar la selección
                     errorMsg.innerHTML = `<i class="ri-error-warning-line" style="font-size: 40px; color: #ff6b6b;"></i>
                                         <p style="color: #666;">Failed to load image</p>`;
                     errorMsg.style.textAlign = 'center';
@@ -710,6 +731,11 @@
                 setTimeout(() => {
                     stickerViewModal.classList.add('modal-hidden');
                     modalStickerImage.src = ''; // Clear image src
+                    
+                    // También limpiar mensajes de error y spinners
+                    const modalImageContainer = document.querySelector('.modal-image-container');
+                    const elementsToRemove = modalImageContainer.querySelectorAll(':not(#modal-sticker-image)');
+                    elementsToRemove.forEach(el => el.remove());
                 }, 300); // Match transition duration
             }
 
@@ -791,6 +817,9 @@
                     })
                     .then(data => {
                         if (data.success && data.stickers && data.stickers.length > 0) {
+                            // Filtrar las imágenes de alta resolución (con sufijo _high)
+                            const filteredStickers = data.stickers.filter(filename => !filename.includes('_high'));
+                            
                             // Actualizar la información de paginación si viene del servidor
                             if (useServerPagination && data.total_pages) {
                                 currentPage = data.page;
@@ -807,10 +836,10 @@
                                 existingStickers.forEach(item => item.remove());
                                 
                                 // Renderizar stickers de esta página
-                                renderStickers(data.stickers);
+                                renderStickers(filteredStickers);
                             } else {
                                 // Usar paginación del cliente (el método anterior)
-                                allStickers = data.stickers;
+                                allStickers = filteredStickers;
                                 currentPage = 1;
                                 renderStickersPage();
                             }
@@ -947,8 +976,14 @@
                     downloadBtn.className = 'library-action-btn download-btn-link';
                     downloadBtn.title = 'Download';
                     downloadBtn.innerHTML = '<i class="ri-download-2-line"></i>';
+                    
+                    // Establecer href temporal mientras se verifica la versión de alta resolución
                     downloadBtn.href = `/img/${filename}`;
                     downloadBtn.download = filename;
+                    
+                    // Verificar y actualizar a versión de alta resolución si existe
+                    handleHighResDownload(downloadBtn, `/img/${filename}`, filename);
+                    
                     downloadBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
                     });
@@ -1032,6 +1067,67 @@
 
             // Load stickers when page loads (página 1 con paginación del servidor)
             loadLibraryStickers(1, true);
+
+            // Función para obtener la URL de alta resolución
+            function getHighResUrl(url, filename) {
+                // Si ya es una URL de alta resolución, devolverla tal cual
+                if (filename.includes('_high')) {
+                    return url;
+                }
+                
+                // Obtener el nombre de archivo sin extensión y la extensión
+                const filenameWithoutExt = filename.substring(0, filename.lastIndexOf('.'));
+                const ext = filename.substring(filename.lastIndexOf('.'));
+                const highResFilename = `${filenameWithoutExt}_high${ext}`;
+                
+                // Generar URL para versión de alta resolución
+                let highResUrl;
+                if (url.startsWith('/img/')) {
+                    highResUrl = `/img/${highResFilename}`;
+                } else if (url.startsWith('/direct-s3-img/')) {
+                    highResUrl = `/direct-s3-img/${highResFilename}`;
+                } else if (url.startsWith('/static/imgs/')) {
+                    highResUrl = `/static/imgs/${highResFilename}`;
+                } else {
+                    // Si es una URL completamente diferente, intentar construir la versión de alta resolución
+                    const urlParts = url.split('/');
+                    const oldFilename = urlParts.pop();
+                    urlParts.push(highResFilename);
+                    highResUrl = urlParts.join('/');
+                }
+                
+                // Verificar si la imagen de alta resolución existe
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    
+                    img.onload = function() {
+                        // La imagen de alta resolución existe
+                        resolve(highResUrl);
+                    };
+                    
+                    img.onerror = function() {
+                        // La imagen de alta resolución no existe, usar la versión estándar
+                        console.log(`Imagen de alta resolución no encontrada: ${highResFilename}, usando versión estándar`);
+                        resolve(url);
+                    };
+                    
+                    // Intentar cargar la imagen de alta resolución
+                    img.src = highResUrl;
+                });
+            }
+            
+            // Función para manejar las descargas con alta resolución
+            async function handleHighResDownload(downloadBtn, url, filename) {
+                try {
+                    const highResUrl = await getHighResUrl(url, filename);
+                    downloadBtn.href = highResUrl;
+                    downloadBtn.download = filename;
+                } catch (error) {
+                    console.error('Error al verificar imagen de alta resolución:', error);
+                    downloadBtn.href = url; // Usar URL original como fallback
+                    downloadBtn.download = filename;
+                }
+            }
         });
     </script>
 </body>

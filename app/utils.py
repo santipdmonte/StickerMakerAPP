@@ -15,7 +15,9 @@ logger = logging.getLogger(__name__)
 
 def save_image(result, img_path, use_s3=True):
     """
-    Process image and upload exclusively to S3
+    Process image and upload exclusively to S3 in two resolutions:
+    1. Original high resolution (1024x1024)
+    2. Compressed low resolution (250x250)
     
     Args:
         result: The image generation result with b64_json data
@@ -23,24 +25,50 @@ def save_image(result, img_path, use_s3=True):
         use_s3: Parameter kept for backward compatibility, ignored (always True)
         
     Returns:
-        tuple: (image_base64, s3_url)
+        tuple: (image_base64, s3_url, high_res_s3_url)
     """
     image_base64 = result.data[0].b64_json
     image_bytes = base64.b64decode(image_base64)
-
-    # Process image for optimal size
-    image = Image.open(BytesIO(image_bytes))
-    image = image.resize((250, 250), Image.LANCZOS)
+    
+    # Get original high-resolution image
+    original_image = Image.open(BytesIO(image_bytes))
+    
+    # Create high-resolution version filename
+    filename = os.path.basename(img_path)
+    filename_without_ext, ext = os.path.splitext(filename)
+    high_res_filename = f"{filename_without_ext}_high{ext}"
+    
+    # Save high-resolution version to S3
+    high_res_buffered = BytesIO()
+    original_image.save(high_res_buffered, format="PNG")
+    high_res_buffered.seek(0)
+    
+    success_high, result_high = upload_bytes_to_s3(
+        high_res_buffered, 
+        high_res_filename, 
+        content_type='image/png',
+        folder=S3_STICKERS_FOLDER
+    )
+    
+    if success_high:
+        high_res_s3_url = result_high
+        logger.info(f"Successfully uploaded high resolution image to S3: {high_res_filename}")
+    else:
+        error_msg = f"Failed to upload high resolution image to S3: {result_high}"
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
+    
+    # Process image for lower resolution version
+    compressed_image = original_image.resize((250, 250), Image.LANCZOS)
     
     # Convert to bytes for upload
-    buffered = BytesIO()
-    image.save(buffered, format="PNG")
-    buffered.seek(0)
+    low_res_buffered = BytesIO()
+    compressed_image.save(low_res_buffered, format="PNG")
+    low_res_buffered.seek(0)
 
-    # Upload to S3
-    filename = os.path.basename(img_path)
+    # Upload compressed version to S3
     success, result = upload_bytes_to_s3(
-        buffered, 
+        low_res_buffered, 
         filename, 
         content_type='image/png',
         folder=S3_STICKERS_FOLDER
@@ -48,49 +76,88 @@ def save_image(result, img_path, use_s3=True):
     
     if success:
         s3_url = result
-        logger.info(f"Successfully uploaded image to S3: {filename}")
+        logger.info(f"Successfully uploaded compressed image to S3: {filename}")
     else:
-        error_msg = f"Failed to upload image to S3: {result}"
+        error_msg = f"Failed to upload compressed image to S3: {result}"
         logger.error(error_msg)
         raise RuntimeError(error_msg)
     
-    return image_base64, s3_url
+    return image_base64, s3_url, high_res_s3_url
 
 
 def create_placeholder_image(img_path, use_s3=True):
     """
-    Create a placeholder image and upload exclusively to S3
+    Create a placeholder image and upload exclusively to S3 in two resolutions:
+    1. Original high resolution (1024x1024)
+    2. Compressed low resolution (250x250)
     
     Args:
         img_path: Path used only for filename reference, file not saved locally
         use_s3: Parameter kept for backward compatibility, ignored (always True)
         
     Returns:
-        tuple: (image_base64, s3_url)
+        tuple: (image_base64, s3_url, high_res_s3_url)
     """
     time.sleep(2)
 
     # Use a specific image as placeholder
     placeholder_path = 'app/static/imgs/sticker_1745521616.png'
     
-    # If placeholder doesn't exist, create a simple colored square
-    if not os.path.exists(placeholder_path):
-        img = Image.new('RGB', (250, 250), color=(73, 109, 137))
-    else:
-        img = Image.open(placeholder_path)
-        img = img.resize((250, 250), Image.LANCZOS)
+    # Create high-resolution version filename
+    filename = os.path.basename(img_path)
+    filename_without_ext, ext = os.path.splitext(filename)
+    high_res_filename = f"{filename_without_ext}_high{ext}"
     
-    # Convert to bytes for upload and base64 for response
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    img_bytes = buffered.getvalue()
+    # If placeholder doesn't exist, create a simple colored square for both versions
+    if not os.path.exists(placeholder_path):
+        # Create high resolution version (1024x1024)
+        high_res_img = Image.new('RGB', (1024, 1024), color=(73, 109, 137))
+        
+        # Create low resolution version (250x250)
+        low_res_img = Image.new('RGB', (250, 250), color=(73, 109, 137))
+    else:
+        # Open the placeholder image
+        original_img = Image.open(placeholder_path)
+        
+        # Create high resolution version (keep original size or resize to 1024x1024)
+        if max(original_img.width, original_img.height) > 1024:
+            high_res_img = original_img.resize((1024, 1024), Image.LANCZOS)
+        else:
+            high_res_img = original_img.copy()
+        
+        # Create low resolution version (250x250)
+        low_res_img = original_img.resize((250, 250), Image.LANCZOS)
+    
+    # Save high resolution version to S3
+    high_res_buffered = BytesIO()
+    high_res_img.save(high_res_buffered, format="PNG")
+    high_res_buffered.seek(0)
+    
+    success_high, result_high = upload_bytes_to_s3(
+        high_res_buffered,
+        high_res_filename,
+        content_type='image/png',
+        folder=S3_STICKERS_FOLDER
+    )
+    
+    if success_high:
+        high_res_s3_url = result_high
+        logger.info(f"Successfully uploaded high resolution placeholder to S3: {high_res_filename}")
+    else:
+        error_msg = f"Failed to upload high resolution placeholder to S3: {result_high}"
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
+    
+    # Convert low resolution to bytes for upload and base64 for response
+    low_res_buffered = BytesIO()
+    low_res_img.save(low_res_buffered, format="PNG")
+    img_bytes = low_res_buffered.getvalue()
     img_str = base64.b64encode(img_bytes).decode()
     
-    # Upload to S3
-    filename = os.path.basename(img_path)
-    buffered.seek(0)  # Reset buffer position
+    # Upload low resolution to S3
+    low_res_buffered.seek(0)  # Reset buffer position
     success, result = upload_bytes_to_s3(
-        buffered,
+        low_res_buffered,
         filename,
         content_type='image/png',
         folder=S3_STICKERS_FOLDER
@@ -98,13 +165,13 @@ def create_placeholder_image(img_path, use_s3=True):
     
     if success:
         s3_url = result
-        logger.info(f"Successfully uploaded placeholder to S3: {filename}")
+        logger.info(f"Successfully uploaded compressed placeholder to S3: {filename}")
     else:
-        error_msg = f"Failed to upload placeholder to S3: {result}"
+        error_msg = f"Failed to upload compressed placeholder to S3: {result}"
         logger.error(error_msg)
         raise RuntimeError(error_msg)
     
-    return img_str, s3_url
+    return img_str, s3_url, high_res_s3_url
 
 
 def create_template_zip(sticker_files, output_path):

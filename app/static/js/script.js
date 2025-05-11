@@ -180,6 +180,9 @@ document.addEventListener('DOMContentLoaded', () => {
         promptInput.focus();
     }, 500);
     
+    // Add click event listener for generate button
+    generateBtn.addEventListener('click', generateSticker);
+    
     // Load template stickers on page load
     loadTemplate();
     
@@ -679,27 +682,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const y = padding + row * (stickerHeight + padding);
             
             try {
-                // Primero intentamos usar la URL en caché, pero pasando por fetch para evitar CORS
-                const cachedSrc = localStorage.getItem(`img_cache_${filename}`);
-                let blobUrl;
+                // Intentar primero usar la versión de alta resolución
+                const filenameWithoutExt = filename.substring(0, filename.lastIndexOf('.'));
+                const ext = filename.substring(filename.lastIndexOf('.'));
+                const highResFilename = `${filenameWithoutExt}_high${ext}`;
                 
-                if (cachedSrc) {
-                    // Intentar usar la URL cacheada pero obteniéndola como blob
-                    blobUrl = await fetchImageAsBlob(cachedSrc);
-                }
+                // Intentar cargar la versión de alta resolución primero
+                let blobUrl = await fetchImageAsBlob(`/img/${highResFilename}`);
                 
-                // Si no hay URL en caché o falló, intentar con la ruta directa
+                // Si no se encuentra la versión de alta resolución, usar la versión normal
                 if (!blobUrl) {
+                    console.log(`High resolution image not found for ${filename}, using standard resolution`);
                     blobUrl = await fetchImageAsBlob(`/img/${filename}`);
-                    
-                    // Si se obtuvo la URL, guardarla en caché
-                    if (blobUrl) {
-                        try {
-                            localStorage.setItem(`img_cache_${filename}`, `/img/${filename}`);
-                        } catch (e) {
-                            console.warn('Error caching image URL:', e);
-                        }
-                    }
                 }
                 
                 if (blobUrl) {
@@ -795,6 +789,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const imageContainer = imagePreviewModal.querySelector('.image-container');
         imageContainer.classList.add('loading');
         
+        // Try to use high resolution version if available
+        // First check if the URL is using the /img/ endpoint
+        if (imgSrc.startsWith('/img/')) {
+            // Extract the filename
+            const filename = imgSrc.split('/').pop();
+            
+            // Check if this is already a high resolution version
+            if (!filename.includes('_high')) {
+                // Create high resolution filename
+                const filenameWithoutExt = filename.substring(0, filename.lastIndexOf('.'));
+                const ext = filename.substring(filename.lastIndexOf('.'));
+                const highResFilename = `${filenameWithoutExt}_high${ext}`;
+                
+                // Use high resolution URL
+                imgSrc = `/img/${highResFilename}`;
+            }
+        }
+        
         // Configurar la imagen para mostrar el indicador de carga hasta que esté lista
         enlargedImage.onload = function() {
             imageContainer.classList.remove('loading');
@@ -802,10 +814,18 @@ document.addEventListener('DOMContentLoaded', () => {
         
         enlargedImage.onerror = function() {
             imageContainer.classList.remove('loading');
-            // Usar un timeout para evitar mostrar errores si el modal está cerrándose
-            if (!imagePreviewModal.classList.contains('hidden')) {
-                showError('Error loading image');
-                closeImagePreviewModal();
+            // If high resolution image fails, try with standard resolution
+            if (imgSrc.includes('_high')) {
+                console.log('High resolution image failed to load, trying standard resolution');
+                // Revert to standard resolution
+                imgSrc = imgSrc.replace('_high', '');
+                enlargedImage.src = imgSrc;
+            } else {
+                // Usar un timeout para evitar mostrar errores si el modal está cerrándose
+                if (!imagePreviewModal.classList.contains('hidden')) {
+                    showError('Error loading image');
+                    closeImagePreviewModal();
+                }
             }
         };
         
@@ -1087,9 +1107,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success) {
                 // Update UI with generated sticker
                 currentGeneratedSticker = data.filename;
+                // Store high resolution filename for download
+                currentHighResSticker = data.high_res_filename;
+                
+                // Use low resolution for display
                 stickerImage.src = getImageUrl(data.filename);
-                downloadBtn.href = getImageUrl(data.filename);
-                downloadBtn.download = 'sticker-' + data.filename;
+                
+                // Use high resolution for download
+                downloadBtn.href = getImageUrl(data.high_res_filename);
+                downloadBtn.download = 'sticker-' + data.high_res_filename;
                 
                 // Show result
                 stickerResult.style.display = 'flex';

@@ -17,7 +17,7 @@ def generate_sticker(prompt, img_path, quality='low', user_id=None):
         size="1024x1024"
     )
 
-    # save_image now returns a tuple (image_b64, s3_url)
+    # save_image now returns a tuple (image_b64, s3_url, high_res_s3_url)
     image_data = save_image(result, img_path)
     return image_data
 
@@ -52,7 +52,7 @@ def generate_sticker_with_reference(prompt, img_path, img_base64, quality='low',
                 size="1024x1024",
             )
         
-        # save_image now returns a tuple (image_b64, s3_url)
+        # save_image now returns a tuple (image_b64, s3_url, high_res_s3_url)
         image_data = save_image(result, img_path)
         return image_data
     finally:

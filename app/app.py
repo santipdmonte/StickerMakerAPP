@@ -170,18 +170,28 @@ def generate():
     try:
         if mode == 'reference' and reference_image_data:
             # Use reference-mode function if reference image is provided
-            image_b64, s3_url = generate_sticker_with_reference(prompt, img_path, reference_image_data, quality, user_id=user_id)
+            image_b64, s3_url, high_res_s3_url = generate_sticker_with_reference(prompt, img_path, reference_image_data, quality, user_id=user_id)
         else:
             # Use simple mode if no reference image or mode is 'simple'
-            image_b64, s3_url = generate_sticker(prompt, img_path, quality, user_id=user_id)
+            image_b64, s3_url, high_res_s3_url = generate_sticker(prompt, img_path, quality, user_id=user_id)
         
-        # Store S3 URL in session for later use
-        if s3_url:
-            s3_urls = session.get('s3_urls', {})
-            s3_urls[filename] = s3_url
-            session['s3_urls'] = s3_urls
+        # Store S3 URLs in session for later use
+        s3_urls = session.get('s3_urls', {})
+        s3_urls[filename] = s3_url
         
-        return jsonify({"success": True, "filename": filename, "image": image_b64})
+        # Store the high resolution version URL
+        filename_without_ext, ext = os.path.splitext(filename)
+        high_res_filename = f"{filename_without_ext}_high{ext}"
+        s3_urls[high_res_filename] = high_res_s3_url
+        
+        session['s3_urls'] = s3_urls
+        
+        return jsonify({
+            "success": True, 
+            "filename": filename,
+            "high_res_filename": high_res_filename, 
+            "image": image_b64
+        })
     except ValueError as e:
         return jsonify({"error": f"Invalid image format: {str(e)}"}), 400
     except Exception as e:
