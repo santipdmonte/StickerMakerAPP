@@ -1483,11 +1483,15 @@ document.addEventListener('DOMContentLoaded', () => {
         stylesModal.classList.remove('hidden');
         setTimeout(() => {
             stylesModal.classList.add('visible');
+            // Disable scrolling on the background page
+            document.body.style.overflow = 'hidden';
         }, 10);
     }
     
     function hideStylesModal() {
         stylesModal.classList.remove('visible');
+        // Restore scrolling
+        document.body.style.overflow = '';
         setTimeout(() => {
             stylesModal.classList.add('hidden');
         }, 300);
