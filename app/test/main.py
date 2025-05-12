@@ -22,10 +22,33 @@ def save_image(result, img_path):
     image = image.resize((250, 250), Image.LANCZOS)
     image.save(img_path, format="PNG")
 
-def generate_sticker(prompt, img_path):
+def generate_sticker(prompt, img_path, style=None):
+    # Aplicar estilo específico si se selecciona uno
+    style_prompt = ""
+    if style:
+        if style == "Parche de hilo":
+            style_prompt = "Diseño estilo parche de hilo bordado con textura de bordado, relieve, y aspecto artesanal."
+        elif style == "Origami":
+            style_prompt = "Diseño estilo origami con pliegues de papel visibles, aspecto geométrico y texturas de papel doblado."
+        elif style == "Metalico":
+            style_prompt = "Diseño estilo metálico con acabado brillante, reflejos metálicos, aspecto de acero o aluminio pulido."
+        elif style == "Papel":
+            style_prompt = "Diseño estilo recorte de papel con textura de papel, sombras sutiles y aspecto artesanal de papel."
+    
+    # Format the prompt with the sticker style wrapper
+    formatted_prompt = f"""
+<style> 
+Genera estilo sticker 
+{style_prompt}
+</style>
+<User input>
+{prompt}
+</User input>
+"""
+    
     result = client.images.generate(
         model="gpt-image-1",
-        prompt=prompt,
+        prompt=formatted_prompt,
         quality="medium",
         output_format="png",
         size="1024x1024"

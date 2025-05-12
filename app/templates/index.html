@@ -61,6 +61,9 @@
                             <textarea id="prompt-input" placeholder="Describe your sticker... (e.g., 'a cute panda eating bamboo on a transparent background')"></textarea>
                             
                             <div class="reference-image-controls">
+                                <button id="styles-btn" class="styles-btn" title="Choose sticker style">
+                                    <i class="ri-brush-line"></i>
+                                </button>
                                 <button id="add-reference-btn" class="add-reference-btn" title="Add reference image">
                                     <i class="ri-add-line"></i>
                                 </button>
@@ -232,6 +235,19 @@
                     <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </button>
+        </div>
+    </div>
+    
+    <!-- Styles Selection Modal -->
+    <div id="styles-selection-modal" class="modal hidden">
+        <div class="modal-content styles-modal-content">
+            <button class="modal-close-btn" id="styles-modal-close-btn"><i class="ri-close-line"></i></button>
+            <h2>Estilos de Sticker</h2>
+            <p>Selecciona un estilo para tu sticker</p>
+            
+            <div class="styles-grid" id="styles-grid">
+                <!-- Los estilos se cargarán dinámicamente aquí -->
+            </div>
         </div>
     </div>
 </body>

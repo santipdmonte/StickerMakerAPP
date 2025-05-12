@@ -137,11 +137,13 @@ def generate():
         quality = data.get('quality', 'low')
         mode = data.get('mode', 'simple')
         reference_image_data = data.get('reference_image', None)
+        style = data.get('style', None)  # Obtener el estilo seleccionado
     else:
         # Handle form data with file upload
         prompt = request.form.get('prompt', '')
         quality = request.form.get('quality', 'low')
         mode = request.form.get('mode', 'simple')
+        style = request.form.get('style', None)  # Obtener el estilo seleccionado
         reference_image_data = None
         
         # Check if a reference image file was uploaded
@@ -170,10 +172,14 @@ def generate():
     try:
         if mode == 'reference' and reference_image_data:
             # Use reference-mode function if reference image is provided
-            image_b64, s3_url, high_res_s3_url = generate_sticker_with_reference(prompt, img_path, reference_image_data, quality, user_id=user_id)
+            image_b64, s3_url, high_res_s3_url = generate_sticker_with_reference(
+                prompt, img_path, reference_image_data, quality, user_id=user_id, style=style
+            )
         else:
             # Use simple mode if no reference image or mode is 'simple'
-            image_b64, s3_url, high_res_s3_url = generate_sticker(prompt, img_path, quality, user_id=user_id)
+            image_b64, s3_url, high_res_s3_url = generate_sticker(
+                prompt, img_path, quality, user_id=user_id, style=style
+            )
         
         # Store S3 URLs in session for later use
         s3_urls = session.get('s3_urls', {})
@@ -205,6 +211,7 @@ def generate_with_reference():
     prompt = data.get('prompt', '')
     reference_image = data.get('referenceImage', '')
     quality = data.get('quality', 'low')
+    style = data.get('style', None)  # Obtener el estilo seleccionado
     
     if not prompt:
         return jsonify({"error": "No prompt provided"}), 400
@@ -217,7 +224,8 @@ def generate_with_reference():
         "prompt": prompt,
         "quality": quality,
         "mode": "reference",
-        "reference_image": reference_image
+        "reference_image": reference_image,
+        "style": style  # Incluir el estilo en los datos modificados
     }
     
     # Pass the modified data to the unified generate endpoint
@@ -1544,6 +1552,44 @@ def setup_directories():
         }
     
     return jsonify(result)
+
+@app.route('/get-styles', methods=['GET'])
+def get_styles():
+    """
+    Proporciona información sobre los estilos de stickers disponibles
+    Incluye el nombre del estilo y la ruta a una imagen de ejemplo
+    """
+    styles = [
+        {
+            "id": "Parche de hilo",
+            "name": "Parche de hilo",
+            "description": "Stickers con apariencia de parche bordado con hilo",
+            "example_image": "/static/img/styles/placeholder.png"
+        },
+        {
+            "id": "Origami",
+            "name": "Origami",
+            "description": "Stickers con forma y textura de papel doblado estilo origami",
+            "example_image": "/static/img/styles/placeholder.png"
+        },
+        {
+            "id": "Metalico",
+            "name": "Metálico",
+            "description": "Stickers con apariencia metálica brillante",
+            "example_image": "/static/img/styles/placeholder.png"
+        },
+        {
+            "id": "Papel",
+            "name": "Papel",
+            "description": "Stickers con textura y aspecto de recortes de papel",
+            "example_image": "/static/img/styles/placeholder.png"
+        }
+    ]
+    
+    return jsonify({
+        "success": True,
+        "styles": styles
+    })
 
 if __name__ == '__main__':
     # Add host='0.0.0.0' to listen on all interfaces, necessary when using SERVER_NAME with dev server

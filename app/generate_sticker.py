@@ -7,11 +7,35 @@ from openai import OpenAI
 from PIL import Image
 
 
-def generate_sticker(prompt, img_path, quality='low', user_id=None):
+def generate_sticker(prompt, img_path, quality='low', user_id=None, style=None):
     client = OpenAI()
+    
+    # Aplicar estilo específico si se selecciona uno
+    style_prompt = ""
+    if style:
+        if style == "Parche de hilo":
+            style_prompt = "Diseño estilo parche de hilo bordado con textura de bordado, relieve, y aspecto artesanal."
+        elif style == "Origami":
+            style_prompt = "Diseño estilo origami con pliegues de papel visibles, aspecto geométrico y texturas de papel doblado."
+        elif style == "Metalico":
+            style_prompt = "Diseño estilo metálico con acabado brillante, reflejos metálicos, aspecto de acero o aluminio pulido."
+        elif style == "Papel":
+            style_prompt = "Diseño estilo recorte de papel con textura de papel, sombras sutiles y aspecto artesanal de papel."
+    
+    # Format the prompt with the sticker style wrapper
+    formatted_prompt = f"""
+<style> 
+Genera estilo sticker 
+{style_prompt}
+</style>
+<User input>
+{prompt}
+</User input>
+"""
+    
     result = client.images.generate(
         model="gpt-image-1",
-        prompt=prompt,
+        prompt=formatted_prompt,
         quality=quality,
         output_format="png",
         size="1024x1024"
@@ -22,8 +46,31 @@ def generate_sticker(prompt, img_path, quality='low', user_id=None):
     return image_data
 
 
-def generate_sticker_with_reference(prompt, img_path, img_base64, quality='low', user_id=None):
+def generate_sticker_with_reference(prompt, img_path, img_base64, quality='low', user_id=None, style=None):
     client = OpenAI()
+    
+    # Aplicar estilo específico si se selecciona uno
+    style_prompt = ""
+    if style:
+        if style == "Parche de hilo":
+            style_prompt = "Diseño estilo parche de hilo bordado con textura de bordado, relieve, y aspecto artesanal."
+        elif style == "Origami":
+            style_prompt = "Diseño estilo origami con pliegues de papel visibles, aspecto geométrico y texturas de papel doblado."
+        elif style == "Metalico":
+            style_prompt = "Diseño estilo metálico con acabado brillante, reflejos metálicos, aspecto de acero o aluminio pulido."
+        elif style == "Papel":
+            style_prompt = "Diseño estilo recorte de papel con textura de papel, sombras sutiles y aspecto artesanal de papel."
+    
+    # Format the prompt with the sticker style wrapper
+    formatted_prompt = f"""
+<style> 
+Genera estilo sticker 
+{style_prompt}
+</style>
+<User input>
+{prompt}
+</User input>
+"""
     
     # Convert base64 to image file
     if img_base64.startswith('data:image'):
@@ -47,7 +94,7 @@ def generate_sticker_with_reference(prompt, img_path, img_base64, quality='low',
             result = client.images.edit(
                 model="gpt-image-1",
                 image=img_file,
-                prompt=prompt,
+                prompt=formatted_prompt,
                 quality=quality,
                 size="1024x1024",
             )
