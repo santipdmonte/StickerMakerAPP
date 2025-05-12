@@ -1564,25 +1564,25 @@ def get_styles():
             "id": "Parche de hilo",
             "name": "Parche de hilo",
             "description": "Stickers con apariencia de parche bordado con hilo",
-            "example_image": "/static/img/styles/placeholder.png"
+            "example_image": "/static/img/styles/sticker_leon_bordado.png"
         },
         {
             "id": "Origami",
             "name": "Origami",
             "description": "Stickers con forma y textura de papel doblado estilo origami",
-            "example_image": "/static/img/styles/placeholder.png"
+            "example_image": "/static/img/styles/sticker_cohete_origami.png"
         },
         {
             "id": "Metalico",
             "name": "Metálico",
             "description": "Stickers con apariencia metálica brillante",
-            "example_image": "/static/img/styles/placeholder.png"
+            "example_image": "/static/img/styles/sticker_calavera_metalico.png"
         },
         {
             "id": "Papel",
             "name": "Papel",
             "description": "Stickers con textura y aspecto de recortes de papel",
-            "example_image": "/static/img/styles/placeholder.png"
+            "example_image": "/static/img/styles/sticker_perro_papel.png"
         }
     ]
     

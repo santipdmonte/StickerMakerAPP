@@ -1517,9 +1517,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         styleCard.dataset.styleId = style.id;
                         
-                        // Usar placeholder.png para todos los estilos
+                        // Usar la imagen específica para cada estilo
                         styleCard.innerHTML = `
-                            <img src="/static/img/styles/placeholder.png" alt="${style.name}" class="style-card-image">
+                            <img src="${style.example_image}" alt="${style.name}" class="style-card-image">
                             <div class="style-card-info">
                                 <div class="style-card-name">${style.name}</div>
                                 <div class="style-card-description">${style.description}</div>
