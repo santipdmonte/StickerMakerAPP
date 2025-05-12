@@ -130,10 +130,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const referenceImageInput = document.getElementById('reference-image-input');
     const referenceImagePreview = document.getElementById('reference-image-preview');
     
+    // Styles menu elements
+    const stylesBtn = document.getElementById('styles-btn');
+    const stylesMenu = document.getElementById('styles-menu');
+    const stylesModal = document.getElementById('styles-selection-modal');
+    const stylesGrid = document.getElementById('styles-grid');
+    const stylesModalCloseBtn = document.getElementById('styles-modal-close-btn');
+    
     // Image data storage
     let referenceImageData = null;
     let currentGeneratedSticker = null;
     let templateStickers = [];
+    let selectedStyle = null; // Variable para almacenar el estilo seleccionado
     
     // S3 state tracking
     let s3Enabled = true;  // Default assumption
@@ -189,6 +197,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load user's coins on page load
     loadCoins();
     
+    // Load available styles on page load
+    loadStyles();
+    
     // Buy Stickers button click handler
     buyStickersBtn.addEventListener('click', () => {
         if (templateStickers.length === 0) {
@@ -197,6 +208,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         handleBuyStickers();
+    });
+    
+    // Styles button click handler
+    stylesBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Evitar que el clic se propague al documento
+        showStylesModal();
+    });
+    
+    // Close styles modal button handler
+    stylesModalCloseBtn.addEventListener('click', hideStylesModal);
+    
+    // Close styles modal when clicking outside the content
+    stylesModal.addEventListener('click', (e) => {
+        if (e.target === stylesModal) {
+            hideStylesModal();
+        }
     });
     
     // Close modal listeners
@@ -1092,6 +1119,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 formData.append('mode', 'simple');
             }
             
+            // Add style if selected
+            if (selectedStyle) {
+                formData.append('style', selectedStyle);
+            }
+            
             // Make API request
             const response = await fetch('/generate', {
                 method: 'POST',
@@ -1416,5 +1448,118 @@ document.addEventListener('DOMContentLoaded', () => {
             applyCouponDirectBtn.disabled = false;
             applyCouponDirectBtn.innerHTML = 'Apply';
         }
+    }
+
+    // Styles Functions
+    function showStylesModal() {
+        // Asegurarse de que los estilos estén cargados
+        if (stylesGrid.children.length === 0) {
+            loadStyles();
+        }
+        
+        stylesModal.classList.remove('hidden');
+        setTimeout(() => {
+            stylesModal.classList.add('visible');
+        }, 10);
+    }
+    
+    function hideStylesModal() {
+        stylesModal.classList.remove('visible');
+        setTimeout(() => {
+            stylesModal.classList.add('hidden');
+        }, 300);
+    }
+    
+    function loadStyles() {
+        fetch('/get-styles')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.styles && data.styles.length > 0) {
+                    // Limpiar la cuadrícula antes de agregar los estilos
+                    stylesGrid.innerHTML = '';
+                    
+                    // Agregar opción "Sin estilo"
+                    const noStyleCard = document.createElement('div');
+                    noStyleCard.className = 'style-card';
+                    if (!selectedStyle) {
+                        noStyleCard.classList.add('selected');
+                    }
+                    noStyleCard.dataset.styleId = '';
+                    noStyleCard.innerHTML = `
+                        <div class="style-card-info">
+                            <div class="style-card-name">Sin estilo</div>
+                            <div class="style-card-description">Generación estándar sin estilo específico</div>
+                        </div>
+                        <div class="selected-badge">Seleccionado</div>
+                    `;
+                    noStyleCard.addEventListener('click', () => selectStyle(null, noStyleCard));
+                    stylesGrid.appendChild(noStyleCard);
+                    
+                    // Agregar cada estilo de la lista
+                    data.styles.forEach(style => {
+                        const styleCard = document.createElement('div');
+                        styleCard.className = 'style-card';
+                        if (selectedStyle === style.id) {
+                            styleCard.classList.add('selected');
+                        }
+                        styleCard.dataset.styleId = style.id;
+                        
+                        // Usar la imagen específica para cada estilo
+                        styleCard.innerHTML = `
+                            <img src="${style.example_image}" alt="${style.name}" class="style-card-image">
+                            <div class="style-card-info">
+                                <div class="style-card-name">${style.name}</div>
+                                <div class="style-card-description">${style.description}</div>
+                            </div>
+                            <div class="selected-badge">Seleccionado</div>
+                        `;
+                        styleCard.addEventListener('click', () => selectStyle(style.id, styleCard));
+                        stylesGrid.appendChild(styleCard);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading styles:', error);
+            });
+    }
+    
+    function selectStyle(styleId, element) {
+        // Actualizar variable global de estilo seleccionado
+        selectedStyle = styleId;
+        
+        // Actualizar UI - quitar selección de todos los elementos
+        const allOptions = stylesGrid.querySelectorAll('.style-card');
+        allOptions.forEach(option => option.classList.remove('selected'));
+        
+        // Marcar el elemento seleccionado
+        if (element) {
+            element.classList.add('selected');
+        }
+        
+        // Actualizar botón de estilos
+        const stylesButton = document.getElementById('styles-btn');
+        const styleNameElement = document.getElementById('selected-style-name');
+        
+        if (styleId) {
+            // Obtener el nombre del estilo seleccionado
+            const styleName = element.querySelector('.style-card-name').textContent;
+            
+            // Actualizar texto y clases del botón
+            styleNameElement.textContent = styleName;
+            stylesButton.classList.add('has-style');
+            
+            // Mostrar mensaje informativo
+            showSuccess(`Estilo "${styleName}" seleccionado`);
+        } else {
+            // Resetear botón cuando no hay estilo seleccionado
+            styleNameElement.textContent = 'Select style';
+            stylesButton.classList.remove('has-style');
+            
+            // Mostrar mensaje informativo
+            showSuccess('Sin estilo específico seleccionado');
+        }
+        
+        // Cerrar el menú
+        hideStylesModal();
     }
 });
