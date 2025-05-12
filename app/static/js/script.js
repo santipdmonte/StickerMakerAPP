@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Quality selectors
     const qualityRadios = document.querySelectorAll('input[name="quality"]');
+    const qualityOptionsContainer = document.querySelector('.quality-options'); // Get the container
     
     // Reference image elements
     const addReferenceBtn = document.getElementById('add-reference-btn');
@@ -1070,7 +1071,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const qualityValue = document.querySelector('input[name="quality"]:checked').value;
         return qualityValue;
     }
-    
+
+    // Function to update the quality selector UI based on the selected radio
+    function updateQualitySlider() {
+        if (!qualityOptionsContainer) return; // Safety check
+
+        const selectedRadio = document.querySelector('input[name="quality"]:checked');
+        const selectedValue = selectedRadio ? selectedRadio.value : 'low'; // Default to low if none checked
+
+        // Remove previous quality classes
+        qualityOptionsContainer.classList.remove('quality-low', 'quality-medium', 'quality-high');
+
+        // Add the current quality class
+        qualityOptionsContainer.classList.add(`quality-${selectedValue}`);
+    }
+
+    // Add event listeners to quality radio buttons
+    qualityRadios.forEach(radio => {
+        radio.addEventListener('change', updateQualitySlider);
+    });
+
+    // Initial update for the default checked quality
+    updateQualitySlider();
+
     // Generate sticker
     async function generateSticker() {
         // Get prompt and check if reference image is present

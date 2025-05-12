@@ -2700,3 +2700,25 @@ body.modal-open {
     font-size: 14px;
     margin-bottom: 20px;
 }
+
+/* Move slider based on selected quality */
+.quality-options input[type="radio"]:nth-of-type(1):checked ~ label:nth-of-type(1) {
+    color: white;
+}
+
+/* Move slider based on selected quality via JS-added classes */
+.quality-options.quality-low::after {
+    left: 5px; /* Position for Low */
+}
+
+.quality-options.quality-medium::after {
+    left: calc(5px + 33.33%); /* Position for Medium */
+}
+
+.quality-options.quality-high::after {
+    left: calc(5px + 66.66%); /* Position for High */
+}
+
+.quality-options input[type="radio"]:nth-of-type(1):checked ~ label:nth-of-type(1) {
+    color: white;
+}
