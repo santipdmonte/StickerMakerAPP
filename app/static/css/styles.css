@@ -2121,6 +2121,19 @@ body.modal-open {
     .add-reference-btn i {
         font-size: 1.3rem;
     }
+    
+    /* Fix the style button to be the same size as the add reference button */
+    .styles-btn, .styles-btn.has-style {
+        width: 36px;
+        min-width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 50%;
+    }
+    
+    .styles-btn.has-style .style-name {
+        display: none;
+    }
 }
 
 /* Nuevos estilos para la miniatura de imagen de referencia */
