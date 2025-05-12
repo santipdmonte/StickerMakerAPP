@@ -1054,16 +1054,78 @@ document.addEventListener('DOMContentLoaded', () => {
         const reader = new FileReader();
         
         reader.onload = function(event) {
-            const img = referenceImagePreview.querySelector('img');
-            img.src = event.target.result;
-            referenceImageData = event.target.result;
+            const imgSrc = event.target.result;
             
-            // Show the preview
-            referenceImagePreview.classList.remove('hidden');
-            // El CSS ajustará automáticamente los paddings
+            // Procesar la imagen para asegurar compatibilidad (especialmente en iOS)
+            processImageForUpload(imgSrc, function(processedImageData) {
+                const img = referenceImagePreview.querySelector('img');
+                img.src = processedImageData;
+                referenceImageData = processedImageData;
+                
+                // Show the preview
+                referenceImagePreview.classList.remove('hidden');
+                // El CSS ajustará automáticamente los paddings
+            });
         };
         
         reader.readAsDataURL(file);
+    }
+    
+    // Función para procesar y optimizar imágenes antes de subirlas
+    function processImageForUpload(imgSrc, callback) {
+        // Crear una imagen para obtener dimensiones
+        const img = new Image();
+        img.onload = function() {
+            // Crear un canvas para manipular la imagen
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            
+            // Redimensionar si la imagen es demasiado grande
+            // Tamaño máximo para cualquier dimensión: 1024px
+            const maxDimension = 1024;
+            if (width > maxDimension || height > maxDimension) {
+                if (width > height) {
+                    height = Math.round(height * (maxDimension / width));
+                    width = maxDimension;
+                } else {
+                    width = Math.round(width * (maxDimension / height));
+                    height = maxDimension;
+                }
+            }
+            
+            // Ajustar el tamaño del canvas
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Obtener contexto y dibujar la imagen redimensionada
+            const ctx = canvas.getContext('2d');
+            
+            // Dibujar la imagen manteniendo la transparencia
+            // NO se agrega fondo blanco para mantener transparencia
+            ctx.clearRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Convertir a formato compatible (siempre PNG para preservar transparencia)
+            let processedImageData = canvas.toDataURL('image/png');
+            
+            // Verificar si estamos en iOS
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            if (isIOS) {
+                console.log("Procesando imagen para dispositivo iOS");
+            }
+            
+            callback(processedImageData);
+        };
+        
+        // Manejar errores de carga
+        img.onerror = function() {
+            console.error('Error al cargar la imagen');
+            showError('Error al procesar la imagen. Intenta con otra imagen.');
+            callback(imgSrc); // Devolver la imagen original en caso de error
+        };
+        
+        img.src = imgSrc;
     }
     
     // Get selected quality
@@ -1129,6 +1191,9 @@ document.addEventListener('DOMContentLoaded', () => {
         stickerResult.style.display = 'none';
         
         try {
+            // Detectar si estamos en iOS
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            
             // Prepare form data for API request
             const formData = new FormData();
             formData.append('prompt', prompt);
@@ -1137,7 +1202,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add reference image if available
             if (hasReferenceImage) {
                 formData.append('mode', 'reference');
-                formData.append('reference_image', dataURItoBlob(referenceImageData));
+                
+                // Si es iOS, asegurarse de que la imagen esté procesada correctamente
+                if (isIOS && hasReferenceImage) {
+                    console.log("Usando imagen procesada específicamente para iOS");
+                    // La imagen ya está procesada por processImageForUpload
+                    formData.append('reference_image', dataURItoBlob(referenceImageData));
+                    formData.append('device_type', 'ios'); // Indicar que es un dispositivo iOS
+                } else {
+                    formData.append('reference_image', dataURItoBlob(referenceImageData));
+                }
             } else {
                 formData.append('mode', 'simple');
             }
