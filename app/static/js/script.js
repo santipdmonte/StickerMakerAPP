@@ -200,19 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load available styles on page load
     loadStyles();
     
-    // Comprobar si hay un estilo guardado en localStorage
-    const savedStyle = localStorage.getItem('selectedStyle');
-    if (savedStyle) {
-        selectedStyle = savedStyle;
-        
-        // Actualizar el botón con el estilo guardado
-        const stylesButton = document.getElementById('styles-btn');
-        const styleNameElement = document.getElementById('selected-style-name');
-        
-        styleNameElement.textContent = localStorage.getItem('selectedStyleName') || savedStyle;
-        stylesButton.classList.add('has-style');
-    }
-    
     // Buy Stickers button click handler
     buyStickersBtn.addEventListener('click', () => {
         if (templateStickers.length === 0) {
@@ -1561,20 +1548,12 @@ document.addEventListener('DOMContentLoaded', () => {
             styleNameElement.textContent = styleName;
             stylesButton.classList.add('has-style');
             
-            // Guardar el estilo seleccionado en localStorage
-            localStorage.setItem('selectedStyle', styleId);
-            localStorage.setItem('selectedStyleName', styleName);
-            
             // Mostrar mensaje informativo
             showSuccess(`Estilo "${styleName}" seleccionado`);
         } else {
             // Resetear botón cuando no hay estilo seleccionado
             styleNameElement.textContent = 'Select style';
             stylesButton.classList.remove('has-style');
-            
-            // Eliminar el estilo guardado
-            localStorage.removeItem('selectedStyle');
-            localStorage.removeItem('selectedStyleName');
             
             // Mostrar mensaje informativo
             showSuccess('Sin estilo específico seleccionado');
