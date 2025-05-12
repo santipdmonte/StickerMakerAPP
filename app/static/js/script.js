@@ -211,6 +211,115 @@ document.addEventListener('DOMContentLoaded', () => {
         handleBuyStickers();
     });
     
+    // Coins button click handler
+    buyCoinsHeaderBtn.addEventListener('click', showCoinsModal);
+    
+    // Coins modal close button handler
+    coinsModalCloseBtn.addEventListener('click', hideCoinsModal);
+    
+    // Close coins modal when clicking outside the content
+    coinsModal.addEventListener('click', (e) => {
+        if (e.target === coinsModal) {
+            hideCoinsModal();
+        }
+    });
+    
+    // Package select buttons click handler
+    packageSelectBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const packageType = btn.closest('.coins-package').dataset.package;
+            selectPackage(packageType);
+        });
+    });
+    
+    // Back to packages button click handler
+    if (backToPackagesBtn) {
+        backToPackagesBtn.addEventListener('click', () => {
+            document.querySelector('.coins-packages').classList.remove('hidden');
+            document.querySelector('.coupon-section').classList.remove('hidden');
+            coinsForm.classList.add('hidden');
+        });
+    }
+    
+    // Apply coupon button click handler
+    if (applyCouponDirectBtn) {
+        applyCouponDirectBtn.addEventListener('click', validateDirectCoupon);
+    }
+    
+    // Finalize coins purchase button click handler
+    if (finalizeCoinsBtn) {
+        finalizeCoinsBtn.addEventListener('click', async () => {
+            // Validate fields
+            const name = coinsNameInput.value.trim();
+            const email = coinsEmailInput.value.trim();
+            
+            let isValid = true;
+            if (!name) {
+                showError("Please enter your name.");
+                shakElement(coinsNameInput);
+                isValid = false;
+            }
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showError("Please enter a valid email address.");
+                shakElement(coinsEmailInput);
+                isValid = false;
+            }
+            if (!selectedPackage) {
+                showError("No package selected.");
+                isValid = false;
+            }
+            
+            if (!isValid) return;
+            
+            // Disable button and show loading state
+            finalizeCoinsBtn.disabled = true;
+            finalizeCoinsBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Processing...';
+            
+            try {
+                // Call backend to process purchase
+                const response = await fetch('/purchase-coins', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        package: selectedPackage,
+                        name,
+                        email
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Purchase failed.');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update coins
+                    currentCoins = data.coins;
+                    updateCoinsDisplay();
+                    
+                    // Show success message
+                    showSuccess('Coins purchase successful!');
+                    
+                    // Close modal
+                    hideCoinsModal();
+                } else {
+                    throw new Error('Purchase failed.');
+                }
+            } catch (error) {
+                console.error('Error purchasing coins:', error);
+                showError('Error processing payment. Please try again.');
+            } finally {
+                // Re-enable button
+                finalizeCoinsBtn.disabled = false;
+                finalizeCoinsBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Complete Purchase';
+            }
+        });
+    }
+    
     // Styles button click handler
     stylesBtn.addEventListener('click', (e) => {
         e.stopPropagation(); // Evitar que el clic se propague al documento
