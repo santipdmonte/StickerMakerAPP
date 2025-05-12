@@ -2121,6 +2121,19 @@ body.modal-open {
     .add-reference-btn i {
         font-size: 1.3rem;
     }
+    
+    /* Fix the style button to be the same size as the add reference button */
+    .styles-btn, .styles-btn.has-style {
+        width: 36px;
+        min-width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 50%;
+    }
+    
+    .styles-btn.has-style .style-name {
+        display: none;
+    }
 }
 
 /* Nuevos estilos para la miniatura de imagen de referencia */
@@ -2476,7 +2489,7 @@ body.modal-open {
 
 .styles-modal-content {
     padding: 30px;
-    max-width: 750px;
+    max-width: 800px;
     width: 90%;
 }
 
@@ -2591,7 +2604,7 @@ body.modal-open {
     .styles-modal-content {
         padding: 20px 15px;
         width: 95%;
-        max-width: 95%;
+        max-width: 600px;
         margin-top: 20px;
         position: relative;
     }
@@ -2686,7 +2699,7 @@ body.modal-open {
 .styles-modal-content {
     padding: 20px 15px;
     width: 95%;
-    max-width: 95%;
+    max-width: 800px;
     margin-top: 20px;
     position: relative;
 }
