@@ -7,6 +7,7 @@ import tempfile
 from io import BytesIO
 import uuid  # Add import for uuid
 from decimal import Decimal
+from datetime import datetime, timedelta
 
 # Custom JSON encoder for handling Decimal and other DynamoDB-specific types
 class CustomJSONEncoder(json.JSONEncoder):
@@ -64,6 +65,16 @@ app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
 # Set JSON encoder for Flask (compatible with older versions)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 app.json_encoder = CustomJSONEncoder
+
+# Configure session to be more persistent
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # Session lasts 30 days
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# Add these lines for better session persistence
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True
+
 # app.config['SERVER_NAME'] = os.getenv('FLASK_SERVER_NAME', None) # REMOVED: Let url_for infer from request
 
 # Determine if DynamoDB should be used
@@ -72,6 +83,11 @@ USE_DYNAMODB = os.getenv('USE_DYNAMODB', 'True').lower() == 'true'
 # Register blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(coin_bp)
+
+# Set session to be permanent by default before any request
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
 
 # TheStickerHouse - Sticker generation web application
 

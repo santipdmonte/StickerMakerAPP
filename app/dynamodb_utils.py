@@ -265,11 +265,14 @@ def get_user(user_id):
     dynamodb = get_dynamodb_resource()
     table = dynamodb.Table(USER_TABLE)
     
-    response = table.get_item(
-        Key={'user_id': user_id}
-    )
-    
-    return response.get('Item')
+    try:
+        response = table.get_item(
+            Key={'user_id': user_id}
+        )
+        
+        return response.get('Item')
+    except Exception:
+        return None
 
 def get_user_by_email(email):
     """

@@ -84,12 +84,16 @@ def verify_pin():
     # Convert any Decimal values before using in session
     user = sanitize_dynamodb_response(user)
     
+    # Set the session as permanent so it persists beyond browser close
+    session.permanent = True
+    
     # Set user in session
     session['user_id'] = user['user_id']
     session['email'] = user['email']
     session['coins'] = user.get('coins', 0)
     
-    return jsonify({
+    # Create response with session data
+    response = jsonify({
         "success": True,
         "user": {
             "user_id": user['user_id'],
@@ -97,6 +101,14 @@ def verify_pin():
             "coins": user.get('coins', 0)
         }
     })
+    
+    # Set additional cookies to ensure persistence
+    max_age = 30 * 24 * 60 * 60  # 30 days in seconds
+    # Store user info in cookie as backup
+    response.set_cookie('auth_user_id', user['user_id'], max_age=max_age, httponly=True, samesite='Lax')
+    response.set_cookie('auth_email', user['email'], max_age=max_age, httponly=True, samesite='Lax')
+    
+    return response
 
 @auth_bp.route('/api/auth/logout', methods=['POST'])
 def logout():
@@ -108,7 +120,12 @@ def logout():
     session.pop('email', None)
     session.pop('coins', None)
     
-    return jsonify({"success": True})
+    # Also clear cookies
+    response = jsonify({"success": True})
+    response.set_cookie('auth_user_id', '', expires=0)
+    response.set_cookie('auth_email', '', expires=0)
+    
+    return response
 
 @auth_bp.route('/api/auth/me', methods=['GET'])
 def get_current_user():
@@ -117,8 +134,19 @@ def get_current_user():
     """
     user_id = session.get('user_id')
     
+    # If no user_id in session, check the backup cookie
     if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
+        # Try to get user_id from cookie
+        cookie_user_id = request.cookies.get('auth_user_id')
+        if cookie_user_id:
+            user_id = cookie_user_id
+            # Restore session from cookie
+            cookie_email = request.cookies.get('auth_email')
+            session['user_id'] = user_id
+            if cookie_email:
+                session['email'] = cookie_email
+        else:
+            return jsonify({"error": "Not authenticated"}), 401
     
     # Get full user data from DynamoDB
     user = get_user(user_id)
@@ -128,12 +156,18 @@ def get_current_user():
         session.pop('user_id', None)
         session.pop('email', None)
         session.pop('coins', None)
-        return jsonify({"error": "User not found"}), 404
+        # Clear cookies too
+        response = jsonify({"error": "User not found"}), 404
+        response[0].set_cookie('auth_user_id', '', expires=0)
+        response[0].set_cookie('auth_email', '', expires=0)
+        return response
     
     # Convert any Decimal values to float
     user = sanitize_dynamodb_response(user)
     
     # Update session with latest data
+    session['user_id'] = user['user_id']
+    session['email'] = user['email']
     session['coins'] = user.get('coins', 0)
     
     return jsonify({
