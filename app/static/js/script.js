@@ -1402,8 +1402,51 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Blob([ab], {type: mimeString});
     }
     
-    // Function to deduct coins
+    // Function to deduct coins from user's balance
     async function deductCoins(amount) {
+        if (amount <= 0) return true; // Nothing to deduct
+        
+        try {
+            // First check if user has enough coins
+            const currentBalance = await checkCurrentCoins();
+            if (currentBalance < amount) {
+                showError(`Not enough coins. You need ${amount} coins, but only have ${currentBalance}.`);
+                shakElement(buyCoinsHeaderBtn);
+                return false;
+            }
+            
+            // Use coins for sticker generation
+            const response = await fetch('/api/coins/use', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    amount: amount,
+                    feature: 'sticker_generation'
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update local coins counter
+                currentCoins = data.new_balance;
+                updateCoinsDisplay();
+                return true;
+            } else {
+                // Fallback to legacy endpoint if API fails
+                return await legacyDeductCoins(amount);
+            }
+        } catch (error) {
+            console.error('Error deducting coins:', error);
+            // Try fallback endpoint
+            return await legacyDeductCoins(amount);
+        }
+    }
+    
+    // Fallback to legacy endpoint for deducting coins
+    async function legacyDeductCoins(amount) {
         try {
             const response = await fetch('/update-coins', {
                 method: 'POST',
@@ -1411,22 +1454,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    amount: -amount // Negative amount for deduction
+                    coins: -amount
                 })
             });
             
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    currentCoins = data.coins;
-                    updateCoinsDisplay();
-                    return true;
-                }
-            }
-            return false;
+            const data = await response.json();
+            currentCoins = data.coins;
+            updateCoinsDisplay();
+            return true;
         } catch (error) {
-            console.error('Error deducting coins:', error);
+            console.error('Error with fallback coin deduction:', error);
+            showError('Failed to process coin payment. Please try again.');
             return false;
+        }
+    }
+    
+    // Function to check current coin balance
+    async function checkCurrentCoins() {
+        try {
+            const response = await fetch('/api/coins/balance');
+            const data = await response.json();
+            return data.coins || 0;
+        } catch (error) {
+            console.error('Error checking coin balance:', error);
+            // Fallback to current local value
+            return currentCoins;
         }
     }
     
@@ -1505,16 +1557,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Coins Functions
     function loadCoins() {
-        fetch('/get-coins')
+        fetch('/api/coins/balance')
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    currentCoins = data.coins;
-                    updateCoinsDisplay();
-                }
+                currentCoins = data.coins || 0;
+                updateCoinsDisplay();
             })
             .catch(error => {
                 console.error('Error loading coins:', error);
+                // Default to 0 coins or try alternative endpoint
+                fetch('/get-coins')
+                    .then(response => response.json())
+                    .then(data => {
+                        currentCoins = data.coins || 0;
+                        updateCoinsDisplay();
+                    })
+                    .catch(err => {
+                        console.error('Error loading coins (fallback):', err);
+                        currentCoins = 0;
+                        updateCoinsDisplay();
+                    });
             });
     }
     

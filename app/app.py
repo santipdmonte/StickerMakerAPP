@@ -6,6 +6,14 @@ from dotenv import load_dotenv
 import tempfile
 from io import BytesIO
 import uuid  # Add import for uuid
+from decimal import Decimal
+
+# Custom JSON encoder for handling Decimal and other DynamoDB-specific types
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
 
 # Added Mercado Pago
 import mercadopago 
@@ -22,13 +30,48 @@ from s3_utils import (
     S3_TEMPLATES_FOLDER
 )
 
+# Import DynamoDB utils
+from dynamodb_utils import (
+    ensure_tables_exist,
+    create_user,
+    get_user,
+    update_user_coins,
+    create_transaction,
+    verify_email_index
+)
+
+# Import route blueprints
+from auth_routes import auth_bp
+from coin_routes import coin_bp
+
 # Load environment variables
 load_dotenv()
+
+# Initialize DynamoDB tables and indexes
+if os.getenv('USE_DYNAMODB', 'True').lower() == 'true':
+    try:
+        print("Initializing DynamoDB tables and indexes...")
+        ensure_tables_exist()
+        verify_email_index()
+        print("DynamoDB tables and indexes configured successfully")
+    except Exception as e:
+        print(f"WARNING: Error setting up DynamoDB: {e}")
+        print("The application will continue but DynamoDB operations may fail")
 
 app = Flask(__name__)
 # Configure Flask from environment variables
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'default_secret_key') 
+# Set JSON encoder for Flask (compatible with older versions)
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+app.json_encoder = CustomJSONEncoder
 # app.config['SERVER_NAME'] = os.getenv('FLASK_SERVER_NAME', None) # REMOVED: Let url_for infer from request
+
+# Determine if DynamoDB should be used
+USE_DYNAMODB = os.getenv('USE_DYNAMODB', 'True').lower() == 'true'
+
+# Register blueprints
+app.register_blueprint(auth_bp)
+app.register_blueprint(coin_bp)
 
 # TheStickerHouse - Sticker generation web application
 
@@ -84,8 +127,38 @@ except Exception as e:
         # En producción, no permitir que la aplicación inicie sin S3 configurado
         raise RuntimeError(error_msg)
 
+# Setup DynamoDB tables if enabled
+if USE_DYNAMODB:
+    try:
+        ensure_tables_exist()
+        verify_email_index()
+        print("DynamoDB tables successfully configured")
+    except Exception as e:
+        error_msg = f"ERROR: DynamoDB configuration is invalid or connection failed: {e}"
+        print(error_msg)
+        if os.environ.get('FLASK_ENV') == 'development':
+            print("Application will continue but DynamoDB operations will fail.")
+        else:
+            # In production, don't allow the app to start without DynamoDB configured
+            raise RuntimeError(error_msg)
+
 @app.route('/')
 def index():
+    # Initialize user if authenticated via DynamoDB
+    if USE_DYNAMODB:
+        user_id = session.get('user_id')
+        if user_id:
+            # Get user from DynamoDB
+            user = get_user(user_id)
+            if user:
+                # Update session with latest data
+                session['coins'] = user.get('coins', 0)
+            else:
+                # Clear invalid session
+                session.pop('user_id', None)
+                session.pop('email', None)
+                session.pop('coins', None)
+    
     # Initialize empty template if not exists in session or convert old format to new format
     if 'template_stickers' not in session:
         session['template_stickers'] = [{'filename': 'hat.png', 'quantity': 1}]
@@ -100,16 +173,16 @@ def index():
                 updated_stickers.append(sticker)
         session['template_stickers'] = updated_stickers
     
-    # Initialize coins if not exists in session
-    if 'coins' not in session:
+    # Initialize coins for legacy users (non-DynamoDB)
+    if 'coins' not in session and not USE_DYNAMODB:
         session['coins'] = 85  # Start with 85 coins for new users
     
     # Initialize coupon uses if not exists
     if 'coupon_uses' not in session:
         session['coupon_uses'] = 0
     
-    # Initialize user_id if not exists in session
-    if 'user_id' not in session:
+    # Initialize user_id for legacy users (non-DynamoDB)
+    if 'user_id' not in session and not USE_DYNAMODB:
         session['user_id'] = str(uuid.uuid4())
     
     # Get the Mercado Pago public key from environment variables
@@ -542,212 +615,157 @@ def get_history():
 
 @app.route('/get-coins', methods=['GET'])
 def get_coins():
-    # Return current coin balance
-    coins = session.get('coins', 0)
-    return jsonify({
-        "success": True,
-        "coins": coins
-    })
+    """
+    Return current coin balance from the session or DynamoDB
+    """
+    user_id = session.get('user_id')
+    
+    if USE_DYNAMODB and user_id:
+        # Get latest user data from DynamoDB
+        user = get_user(user_id)
+        if user:
+            # Update session with latest coins
+            session['coins'] = user.get('coins', 0)
+    
+    # Return current coin balance from session
+    return jsonify({"coins": session.get('coins', 0)})
 
 @app.route('/update-coins', methods=['POST'])
 def update_coins():
-    data = request.json
-    amount = data.get('amount', 0)
+    """
+    Update coin balance in the session and DynamoDB if enabled
+    """
+    coins_update = request.json.get('coins', 0)
     
-    # Get current coins from session
-    current_coins = session.get('coins', 0)
+    if coins_update == 0:
+        return jsonify({"coins": session.get('coins', 0)})
     
-    # Update coins
-    new_coins = max(0, current_coins + amount)
-    session['coins'] = new_coins
+    user_id = session.get('user_id')
     
-    return jsonify({
-        "success": True,
-        "coins": new_coins
-    })
+    if USE_DYNAMODB and user_id:
+        try:
+            # Record transaction
+            transaction_type = 'usage' if coins_update < 0 else 'bonus'
+            create_transaction(
+                user_id=user_id,
+                coins_amount=coins_update,
+                transaction_type=transaction_type,
+                details={'source': 'app', 'api_route': '/update-coins'}
+            )
+            
+            # Update session with latest coins
+            user = get_user(user_id)
+            if user:
+                session['coins'] = user.get('coins', 0)
+        except Exception as e:
+            print(f"Error updating coins in DynamoDB: {e}")
+            # Fall back to session-based coins
+            current_coins = session.get('coins', 0)
+            session['coins'] = max(0, current_coins + coins_update)
+    else:
+        # Legacy session-based coin handling
+        current_coins = session.get('coins', 0)
+        session['coins'] = max(0, current_coins + coins_update)
+    
+    return jsonify({"coins": session.get('coins', 0)})
 
 @app.route('/purchase-coins', methods=['POST'])
 def purchase_coins():
-    if not sdk:
-        return jsonify({"error": "Mercado Pago SDK not configured. Check Access Token."}), 500
-         
+    """
+    Process a coin purchase
+    """
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+    
     data = request.json
-    coupon = data.get('coupon', '').strip()
-    direct_apply = data.get('direct_apply', False)
+    amount = data.get('amount', 0)
+    payment_id = data.get('payment_id')
     
-    # Direct coupon application without purchase
-    if direct_apply:
-        if not coupon:
-            return jsonify({"error": "No coupon code provided"}), 400
+    if amount <= 0 or not payment_id:
+        return jsonify({"error": "Valid amount and payment_id are required"}), 400
+    
+    user_id = session.get('user_id')
+    
+    if USE_DYNAMODB and user_id:
+        try:
+            # Record transaction in DynamoDB
+            transaction = create_transaction(
+                user_id=user_id,
+                coins_amount=amount,
+                transaction_type='purchase',
+                details={
+                    'payment_id': payment_id,
+                    'payment_method': data.get('payment_method', 'mercadopago')
+                }
+            )
             
-        # Validate the coupon
-        if coupon != DISCOUNT_COUPON:
-            return jsonify({"error": "Invalid coupon code"}), 400
+            # Update session with latest coins
+            user = get_user(user_id)
+            if user:
+                session['coins'] = user.get('coins', 0)
             
-        # Check if coupon is disabled
-        if COUPON_LIMIT == 0:
-            return jsonify({"error": "This coupon is no longer valid."}), 400
-            
-        # Check usage limit for session
-        coupon_uses = session.get('coupon_uses', 0)
-        
-        # If there's a limit and it's reached, reject
-        if COUPON_LIMIT > 0 and coupon_uses >= COUPON_LIMIT:
-            return jsonify({"error": "You have reached the maximum number of uses for this coupon."}), 400
-            
-        # Apply coupon directly - add 500 coins to user's account
-        coins_added = 500
-        current_coins = session.get('coins', 0)
-        session['coins'] = current_coins + coins_added
-        
-        # Track coupon use
-        session['coupon_uses'] = coupon_uses + 1
-        
-        return jsonify({
-            "success": True,
-            "message": "Coupon applied successfully",
-            "coins_added": coins_added,
-            "current_coins": session.get('coins', 0)
-        })
-    
-    # Normal purchase flow
-    name = data.get('name')
-    email = data.get('email')
-    coin_package = data.get('package')
-    
-    if not all([name, email, coin_package]):
-        return jsonify({"error": "Missing required information for purchase."}), 400
-
-    # Define coin packages with their prices and amounts
-    coin_packages = {
-        "small": {"amount": 100, "price": 500.00},
-        "medium": {"amount": 300, "price": 1000.00},
-        "large": {"amount": 500, "price": 1500.00}
-    }
-    
-    if coin_package not in coin_packages:
-        return jsonify({"error": "Invalid coin package selected."}), 400
-    
-    package_info = coin_packages[coin_package]
-    coin_amount = package_info['amount']
-    price = package_info['price']
-    
-    # Apply coupon discount if valid
-    additional_coins = 0
-    if coupon and coupon == DISCOUNT_COUPON:
-        # Check if coupon is disabled
-        if COUPON_LIMIT == 0:
-            return jsonify({"error": "This coupon is no longer valid."}), 400
-            
-        # Check usage limit for session
-        coupon_uses = session.get('coupon_uses', 0)
-        
-        # If there's a limit and it's reached, reject
-        if COUPON_LIMIT > 0 and coupon_uses >= COUPON_LIMIT:
-            return jsonify({"error": "You have reached the maximum number of uses for this coupon."}), 400
-            
-        # Apply coupon - add 500 coins
-        additional_coins = 500
-        
-        # Track coupon use
-        session['coupon_uses'] = coupon_uses + 1
-    
-    items = [{
-        "title": f"{coin_amount + additional_coins} Coins Package" + (" with Discount" if additional_coins > 0 else ""),
-        "quantity": 1,
-        "unit_price": price,
-        "currency_id": "ARS" # Or your country's currency code
-    }]
-    
-    total_amount = price
-    
-    # Basic payer info
-    payer = {
-        "name": name,
-        "email": email
-    }
-
-    # Define back URLs dynamically using url_for
-    base_url = request.url_root
-    
-    try:
-        # Force HTTPS scheme for external URLs
-        success_url = url_for('coin_payment_feedback', _external=True, _scheme='https', package=coin_package, additional_coins=additional_coins)
-        failure_url = url_for('coin_payment_feedback', _external=True, _scheme='https', package=coin_package, additional_coins=0)
-        pending_url = url_for('coin_payment_feedback', _external=True, _scheme='https', package=coin_package, additional_coins=0)
-        
-        back_urls_data = {
-            "success": success_url,
-            "failure": failure_url,
-            "pending": pending_url
-        }
-        
-    except Exception as url_gen_err:
-        print(f"Error generating back URLs: {url_gen_err}")
-        return jsonify({"error": f"Failed to generate callback URLs: {str(url_gen_err)}"}), 500
-
-    preference_data = {
-        "items": items,
-        "payer": payer,
-        "back_urls": back_urls_data,
-        "auto_return": "approved",
-    }
-    
-    try:
-        preference_response = sdk.preference().create(preference_data)
-
-        if preference_response and isinstance(preference_response, dict) and preference_response.get("status") in [200, 201] and "response" in preference_response and "id" in preference_response["response"]:
-            preference = preference_response["response"]
             return jsonify({
                 "success": True,
-                "preference_id": preference['id'],
-                "package": coin_package,
-                "amount": coin_amount,
-                "additional_coins": additional_coins,
-                "coupon_applied": additional_coins > 0
+                "transaction_id": transaction['transaction_id'],
+                "coins": session.get('coins', 0)
             })
-        else:
-            error_message = "Failed to create payment preference due to unexpected response."
-            if preference_response and isinstance(preference_response, dict) and "response" in preference_response and "message" in preference_response["response"]:
-                error_message = f"Mercado Pago Error: {preference_response['response']['message']}"
-            elif preference_response and isinstance(preference_response, dict) and "message" in preference_response:
-                 error_message = f"Mercado Pago Error: {preference_response['message']}"
-                 
-            return jsonify({"error": error_message}), 500
-            
-    except Exception as e:
-        print(f"Error creating preference: {e}")
-        error_detail = str(e)
-        if hasattr(e, 'response') and e.response is not None:
-             try:
-                 error_detail = e.response.text
-             except:
-                 pass
-        return jsonify({"error": f"Failed to create payment preference: {error_detail}"}), 500
+        except Exception as e:
+            return jsonify({"error": f"Failed to process purchase: {str(e)}"}), 500
+    else:
+        # Legacy session-based coin handling
+        current_coins = session.get('coins', 0)
+        session['coins'] = current_coins + amount
+        return jsonify({"success": True, "coins": session.get('coins', 0)})
 
 @app.route('/coin_payment_feedback')
 def coin_payment_feedback():
-    # Handle the user returning from Mercado Pago
-    status = request.args.get('status')
-    payment_id = request.args.get('payment_id')
-    coin_package = request.args.get('package')
-    additional_coins = int(request.args.get('additional_coins', 0))
+    """
+    Handle the user returning from Mercado Pago after a coin purchase
+    """
+    payment_status = request.args.get('collection_status', '')
+    payment_id = request.args.get('collection_id', '')
+    external_reference = request.args.get('external_reference', '')
     
-    # Define coin packages with their amounts
-    coin_packages = {
-        "small": 100,
-        "medium": 300,
-        "large": 500
-    }
-    
-    if status == 'approved' and coin_package in coin_packages:
-        # Add coins to user's account
-        current_coins = session.get('coins', 0)
-        package_coins = coin_packages[coin_package]
-        total_coins = package_coins + additional_coins
-        session['coins'] = current_coins + total_coins
+    if payment_status == 'approved' and payment_id:
+        # Extract coin amount from external reference if available
+        coins_to_add = 100  # Default value
         
-    # Redirect back to index
+        if external_reference and external_reference.startswith('coins_'):
+            try:
+                coins_to_add = int(external_reference.split('_')[1])
+            except (IndexError, ValueError):
+                coins_to_add = 100
+        
+        user_id = session.get('user_id')
+        
+        if USE_DYNAMODB and user_id:
+            try:
+                # Record transaction in DynamoDB
+                create_transaction(
+                    user_id=user_id,
+                    coins_amount=coins_to_add,
+                    transaction_type='purchase',
+                    details={
+                        'payment_id': payment_id,
+                        'payment_method': 'mercadopago',
+                        'payment_status': payment_status
+                    }
+                )
+                
+                # Update session with latest coins
+                user = get_user(user_id)
+                if user:
+                    session['coins'] = user.get('coins', 0)
+            except Exception as e:
+                print(f"Error recording coin purchase: {e}")
+                # Fall back to session-based coins
+                current_coins = session.get('coins', 0)
+                session['coins'] = current_coins + coins_to_add
+        else:
+            # Legacy session-based coin handling
+            current_coins = session.get('coins', 0)
+            session['coins'] = current_coins + coins_to_add
+    
     return redirect(url_for('index'))
 
 # --- End Coins System Routes ---
