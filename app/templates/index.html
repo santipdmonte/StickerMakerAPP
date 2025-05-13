@@ -17,9 +17,9 @@
         <header>
             <div class="header-content">
                 <div class="header-left">
-                    <a href="/library" class="library-page-btn">
-                        <i class="ri-pages-line"></i> Library
-                    </a>
+                    <button id="buy-coins-btn-header" class="buy-coins-btn">
+                        <i class="ri-coin-line"></i> <span id="coins-count-header">0</span>
+                    </button>
                 </div>
                 
                 <div class="logo-container">
@@ -27,8 +27,11 @@
                 </div>
                 
                 <div class="header-right">
-                    <button id="buy-coins-btn-header" class="buy-coins-btn">
-                        <i class="ri-coin-line"></i> <span id="coins-count-header">0</span>
+                    <button id="library-page-btn" class="library-page-btn">
+                        <i class="ri-pages-line"></i> <span>Library</span>
+                    </button>
+                    <button id="login-btn" class="login-btn">
+                        <i class="ri-user-line"></i> <span>Login</span>
                     </button>
                 </div>
             </div>
@@ -251,5 +254,135 @@
             </div>
         </div>
     </div>
+    
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal hidden">
+        <div class="modal-overlay" id="login-modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close-btn" id="login-modal-close-btn"><i class="ri-close-line"></i></button>
+            <h2>Login</h2>
+            <p>Enter your email to receive a secure PIN code.</p>
+            
+            <div id="email-form-container">
+                <form id="email-form">
+                    <div class="form-group">
+                        <label for="login-email">Email:</label>
+                        <input type="email" id="login-email" name="email" required placeholder="Enter your email address" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
+                    </div>
+                    <button type="submit" id="send-pin-btn" class="login-button"><i class="ri-mail-send-line"></i> Send PIN</button>
+                </form>
+            </div>
+            
+            <div id="pin-form-container" class="hidden">
+                <p class="pin-sent-message">PIN code sent! Check your email.</p>
+                <form id="pin-form">
+                    <div class="form-group">
+                        <label for="login-pin">Enter PIN:</label>
+                        <input type="text" id="login-pin" name="pin" required placeholder="Enter the 6-digit PIN" maxlength="6" pattern="[0-9]{6}" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition); letter-spacing: 2px; text-align: center;">
+                    </div>
+                    <button type="submit" id="verify-pin-btn" class="login-button"><i class="ri-login-circle-line"></i> Login</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Login functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginBtn = document.getElementById('login-btn');
+            const loginModal = document.getElementById('login-modal');
+            const loginModalCloseBtn = document.getElementById('login-modal-close-btn');
+            const loginModalOverlay = document.getElementById('login-modal-overlay');
+            const emailForm = document.getElementById('email-form');
+            const pinForm = document.getElementById('pin-form');
+            const emailFormContainer = document.getElementById('email-form-container');
+            const pinFormContainer = document.getElementById('pin-form-container');
+            
+            // Library button redirection
+            const libraryBtn = document.getElementById('library-page-btn');
+            libraryBtn.addEventListener('click', function() {
+                window.location.href = '/library';
+            });
+            
+            // Function to open login modal
+            function openLoginModal() {
+                console.log('Login button clicked');
+                loginModal.classList.remove('hidden');
+                loginModal.style.display = 'flex';
+                loginModal.style.opacity = '1';
+                loginModal.style.visibility = 'visible';
+            }
+            
+            // Function to close login modal
+            function closeLoginModal() {
+                loginModal.classList.add('hidden');
+                loginModal.style.opacity = '0';
+                loginModal.style.visibility = 'hidden';
+                setTimeout(() => {
+                    loginModal.style.display = 'none';
+                }, 300);
+                
+                // Reset forms
+                emailForm.reset();
+                pinForm.reset();
+                emailFormContainer.classList.remove('hidden');
+                pinFormContainer.classList.add('hidden');
+            }
+            
+            // Open login modal when login button is clicked
+            loginBtn.addEventListener('click', openLoginModal);
+            
+            // Close login modal when close button is clicked
+            loginModalCloseBtn.addEventListener('click', closeLoginModal);
+            
+            // Close login modal when clicking outside of it (on the overlay)
+            loginModalOverlay.addEventListener('click', closeLoginModal);
+            
+            // Prevent clicks on the modal content from closing the modal
+            loginModal.querySelector('.modal-content').addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            // Handle email form submission (request PIN)
+            emailForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value;
+                
+                // Frontend validation
+                if (!email) {
+                    alert('Please enter your email address');
+                    return;
+                }
+                
+                // For now, just simulate PIN sending (frontend only)
+                // In a real implementation, this would make an API call to the backend
+                console.log('Sending PIN to email:', email);
+                
+                // Show PIN entry form
+                emailFormContainer.classList.add('hidden');
+                pinFormContainer.classList.remove('hidden');
+            });
+            
+            // Handle PIN form submission (verify PIN)
+            pinForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const pin = document.getElementById('login-pin').value;
+                
+                // Frontend validation
+                if (!pin || pin.length !== 6 || !/^\d+$/.test(pin)) {
+                    alert('Please enter a valid 6-digit PIN');
+                    return;
+                }
+                
+                // For now, just simulate PIN verification (frontend only)
+                // In a real implementation, this would make an API call to the backend
+                console.log('Verifying PIN:', pin);
+                
+                // Simulate successful login
+                alert('Login successful!');
+                closeLoginModal();
+            });
+        });
+    </script>
 </body>
 </html> 

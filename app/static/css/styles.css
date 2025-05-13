@@ -1063,18 +1063,15 @@ button i, .download-button i {
     cursor: pointer;
 }
 
-.modal.visible {
-    opacity: 1;
-    visibility: visible;
-    transition: opacity 0.3s ease;
-}
-
-/* Add this class to body when modal is open */
-body.modal-open {
-    overflow: hidden;
-    height: 100%;
-    position: fixed;
+/* Login modal overlay styles */
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
+    height: 100%;
+    z-index: 0;
+    cursor: pointer;
 }
 
 .modal-content {
@@ -1090,10 +1087,25 @@ body.modal-open {
     cursor: default;
     overflow-y: auto;
     max-height: 90vh;
+    z-index: 1;
+}
+
+.modal.visible {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease;
 }
 
 .modal.visible .modal-content {
     transform: scale(1);
+}
+
+/* Add this class to body when modal is open */
+body.modal-open {
+    overflow: hidden;
+    height: 100%;
+    position: fixed;
+    width: 100%;
 }
 
 .modal-close-btn {
@@ -1216,14 +1228,14 @@ body.modal-open {
     background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
     color: white;
     border: none;
-    padding: 12px 20px;
+    padding: 10px 18px;
     font-family: 'Poppins', sans-serif;
     font-size: 0.9rem;
     font-weight: 500;
-    border-radius: var(--border-radius);
+    border-radius: 50px;
     cursor: pointer;
     transition: var(--transition);
-    box-shadow: 0 5px 15px rgba(124, 93, 250, 0.2);
+    box-shadow: 0 6px 15px rgba(124, 93, 250, 0.2);
     display: flex;
     align-items: center;
     gap: 5px;
@@ -1232,8 +1244,8 @@ body.modal-open {
 }
 
 .library-page-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(124, 93, 250, 0.2);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(124, 93, 250, 0.3);
 }
 
 .library-page-btn i {
@@ -2734,4 +2746,195 @@ body.modal-open {
 
 .quality-options input[type="radio"]:nth-of-type(1):checked ~ label:nth-of-type(1) {
     color: white;
+}
+
+
+/* Login Button Styles */
+.login-btn {
+    background: linear-gradient(45deg, var(--accent-color), #ff8ab4);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 6px 15px rgba(255, 107, 155, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 10px;
+}
+
+.login-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(255, 107, 155, 0.3);
+}
+
+.login-btn i {
+    font-size: 1.1rem;
+    margin-right: 2px;
+}
+
+/* Login Modal Styles */
+#pin-form-container {
+    width: 100%;
+    padding-top: 10px;
+}
+
+.pin-sent-message {
+    color: var(--primary-color);
+    font-weight: 500;
+    margin-bottom: 20px;
+    padding: 12px;
+    background-color: rgba(124, 93, 250, 0.1);
+    border-radius: 8px;
+    text-align: center;
+}
+
+/* Login form input styles */
+#login-email:focus,
+#login-pin:focus {
+    outline: none;
+    border-color: var(--secondary-color) !important;
+    box-shadow: 0 0 0 3px rgba(124, 93, 250, 0.1) !important;
+}
+
+.login-button {
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border: none;
+    padding: 14px 24px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 500;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 8px 20px rgba(124, 93, 250, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20px auto 10px;
+    width: 100%;
+    max-width: 200px;
+    gap: 8px;
+}
+
+.login-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 25px rgba(124, 93, 250, 0.35);
+}
+
+.login-button i {
+    font-size: 1.1rem;
+}
+
+#login-pin {
+    letter-spacing: 2px;
+    font-size: 1.1rem;
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    .login-btn {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+    
+    .login-btn i {
+        font-size: 1rem;
+    }
+    
+    .login-button {
+        padding: 12px 20px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Login Button Styles */
+.login-btn {
+    background: linear-gradient(45deg, var(--accent-color), #ff8ab4);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 6px 15px rgba(255, 107, 155, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 10px;
+}
+
+.login-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(255, 107, 155, 0.3);
+}
+
+.login-btn i {
+    font-size: 1.1rem;
+    margin-right: 2px;
+}
+
+/* Library button styles */
+.library-page-btn {
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 6px 15px rgba(124, 93, 250, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    text-decoration: none;
+    margin-left: 10px;
+}
+
+.library-page-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(124, 93, 250, 0.3);
+}
+
+.library-page-btn i {
+    font-size: 1.2rem;
+}
+
+/* Mobile styles for circular buttons */
+@media (max-width: 768px) {
+    .login-btn,
+    .library-page-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 8px;
+    }
+    
+    .login-btn i,
+    .library-page-btn i {
+        margin-right: 0;
+        font-size: 1.3rem;
+    }
+    
+    /* Hide text on mobile */
+    .login-btn span,
+    .library-page-btn span {
+        display: none;
+    }
 }
