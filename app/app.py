@@ -138,6 +138,9 @@ if USE_DYNAMODB:
             # In production, don't allow the app to start without DynamoDB configured
             raise RuntimeError(error_msg)
 
+# Define cost (can be moved to config.py or made dynamic)
+STICKER_GENERATION_COST = 10
+
 @app.route('/')
 def index():
     # Initialize user if authenticated via DynamoDB
@@ -193,7 +196,6 @@ def index():
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    # Handle both form data and JSON input for flexibility
     if request.is_json:
         data = request.json
         prompt = data.get('prompt', '')
@@ -221,34 +223,78 @@ def generate():
     if not prompt:
         return jsonify({"error": "No prompt provided"}), 400
     
-    # Get user_id from session, create if doesn't exist
     user_id = session.get('user_id')
-    if not user_id:
-        user_id = str(uuid.uuid4())
-        session['user_id'] = user_id
-    
-    # Generate a unique filename based on user_id and timestamp
-    timestamp = int(time.time())
-    filename = f"sticker_{user_id}_{timestamp}.png"
-    img_path = os.path.join(folder_path, filename)
-    
+    is_logged_in = bool(user_id)
+    current_coins = 0
+
+    # --- BEGIN COIN VALIDATION AND DEDUCTION LOGIC ---
     try:
+        # STEP 1: Validate if the user has enough coins
+        if is_logged_in:
+            current_user_data = get_user(user_id)
+            if not current_user_data:
+                # This might happen if the user was deleted or session is stale
+                session.pop('user_id', None)
+                session.pop('email', None)
+                return jsonify({"error": "User session invalid. Please log in again."}), 401
+            current_coins = current_user_data.get('coins', 0)
+        else:
+            # Anonymous user, check session coins
+            current_coins = session.get('coins', INITIAL_COINS) # Use INITIAL_COINS as a fallback if not set
+
+        if current_coins < STICKER_GENERATION_COST:
+            return jsonify({"error": f"Insufficient coins. You need {STICKER_GENERATION_COST} coins. Your balance: {current_coins}"}), 402
+
+        # Generate a unique filename
+        # If user is not logged in, generate a temporary user_id for filename uniqueness for this session if desired
+        # However, for simplicity and as stickers are tied to session s3_urls, a simple timestamp might be enough if user_id is None
+        # For consistency, let's use a temporary id if user_id is None for filename generation part only.
+        filename_user_part = user_id if is_logged_in else str(uuid.uuid4()).split('-')[0] # short temp id
+        timestamp = int(time.time())
+        filename = f"sticker_{filename_user_part}_{timestamp}.png"
+        img_path = os.path.join(folder_path, filename)
+
+        # STEP 2: Proceed to the image generation
+        image_b64, s3_url, high_res_s3_url = None, None, None
         if mode == 'reference' and reference_image_data:
-            # Use reference-mode function if reference image is provided
             image_b64, s3_url, high_res_s3_url = generate_sticker_with_reference(
-                prompt, img_path, reference_image_data, quality, user_id=user_id, style=style
+                prompt, img_path, reference_image_data, quality, user_id=user_id, style=style # Pass actual user_id (can be None)
             )
         else:
-            # Use simple mode if no reference image or mode is 'simple'
             image_b64, s3_url, high_res_s3_url = generate_sticker(
-                prompt, img_path, quality, user_id=user_id, style=style
+                prompt, img_path, quality, user_id=user_id, style=style # Pass actual user_id (can be None)
             )
         
-        # Store S3 URLs in session for later use
+        # STEP 3: When the img generation is completed, deduct the coin cost
+        if is_logged_in:
+            create_transaction(
+                user_id=user_id,
+                coins_amount=-STICKER_GENERATION_COST,
+                transaction_type='sticker_generation_authenticated',
+                details={
+                    'prompt': prompt, 
+                    'quality': quality, 
+                    'mode': mode,
+                    'style': style or 'default',
+                    'filename': filename
+                }
+            )
+            user_after_deduction = get_user(user_id)
+            if user_after_deduction:
+                session['coins'] = user_after_deduction.get('coins', 0)
+            else:
+                # This should ideally not happen if previous checks passed and transaction succeeded
+                app.logger.warning(f"User {user_id} not found after successful transaction. Session coins might be stale.")
+        else:
+            # Anonymous user, deduct from session
+            session_coins_before_deduction = session.get('coins', INITIAL_COINS)
+            session['coins'] = max(0, session_coins_before_deduction - STICKER_GENERATION_COST)
+            # Optionally, log anonymous sticker generation if needed
+            app.logger.info(f"Anonymous user generated a sticker. Coins deducted from session. New session coins: {session['coins']}")
+
         s3_urls = session.get('s3_urls', {})
         s3_urls[filename] = s3_url
         
-        # Store the high resolution version URL
         filename_without_ext, ext = os.path.splitext(filename)
         high_res_filename = f"{filename_without_ext}_high{ext}"
         s3_urls[high_res_filename] = high_res_s3_url
@@ -261,10 +307,15 @@ def generate():
             "high_res_filename": high_res_filename, 
             "image": image_b64
         })
+
     except ValueError as e:
-        return jsonify({"error": f"Invalid image format: {str(e)}"}), 400
+        if f"Insufficient coins" in str(e) or f"Payment failed" in str(e):
+            return jsonify({"error": str(e)}), 402
+        return jsonify({"error": f"Invalid image format or input: {str(e)}"}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        app.logger.error(f"Error during sticker generation for user {user_id}: {str(e)}", exc_info=True)
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+    # --- END COIN VALIDATION AND DEDUCTION LOGIC ---
 
 @app.route('/add-to-template', methods=['POST'])
 def add_to_template():
@@ -1101,6 +1152,8 @@ def get_image(filename):
                     as_attachment=False,
                     download_name=filename
                 ))
+                
+                # Añadir cabeceras CORS y cache
                 response.headers['Access-Control-Allow-Origin'] = '*'
                 response.headers['Access-Control-Allow-Methods'] = 'GET'
                 response.headers['Cache-Control'] = 'public, max-age=86400'  # Cache por 24 horas
