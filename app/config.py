@@ -15,6 +15,9 @@ BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
 DISCOUNT_COUPON = os.getenv("CUPON", "")
 COUPON_LIMIT = int(os.getenv("CUPON_LIMITE", "-1"))
 
+# Development mode placeholder sticker
+USE_PLACEHOLDER_STICKER = os.getenv('USE_PLACEHOLDER_STICKER', 'False')
+
 # Flask app configuration
 FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
 FLASK_SERVER_NAME = os.getenv('FLASK_SERVER_NAME', None)

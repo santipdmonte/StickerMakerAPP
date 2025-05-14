@@ -3,14 +3,22 @@ import io
 import os
 import tempfile
 import logging
-from utils import save_image
+import time
+from utils import save_image, create_placeholder_image
 from openai import OpenAI
 from PIL import Image
+from config import USE_PLACEHOLDER_STICKER
 
 # Configurar logging
 logger = logging.getLogger(__name__)
 
 def generate_sticker(prompt, img_path, quality='low', user_id=None, style=None):
+    
+    # Check if we should use placeholder instead of actual generation
+    if USE_PLACEHOLDER_STICKER:
+        logger.info("Using placeholder sticker instead of actual generation")
+        return create_placeholder_image(img_path)
+        
     client = OpenAI()
     
     # Aplicar estilo específico si se selecciona uno
@@ -50,6 +58,12 @@ Genera estilo sticker
 
 
 def generate_sticker_with_reference(prompt, img_path, img_base64, quality='low', user_id=None, style=None):
+    # Check if we should use placeholder instead of actual generation
+    if USE_PLACEHOLDER_STICKER:
+        logger.info("Using placeholder sticker instead of actual generation with reference")
+        time.sleep(2)  # Add 2 second delay to simulate processing
+        return create_placeholder_image(img_path)
+        
     client = OpenAI()
     
     # Aplicar estilo específico si se selecciona uno
