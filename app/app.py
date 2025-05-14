@@ -296,35 +296,6 @@ def generate():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-@app.route('/generate-with-reference', methods=['POST'])
-def generate_with_reference():
-    # For backward compatibility, redirect to the unified generate endpoint
-    data = request.json
-    prompt = data.get('prompt', '')
-    reference_image = data.get('referenceImage', '')
-    quality = data.get('quality', 'low')
-    style = data.get('style', None)  # Obtener el estilo seleccionado
-    
-    if not prompt:
-        return jsonify({"error": "No prompt provided"}), 400
-    
-    if not reference_image:
-        return jsonify({"error": "No reference image provided"}), 400
-    
-    # Create a new request to the unified endpoint
-    modified_data = {
-        "prompt": prompt,
-        "quality": quality,
-        "mode": "reference",
-        "reference_image": reference_image,
-        "style": style  # Incluir el estilo en los datos modificados
-    }
-    
-    # Pass the modified data to the unified generate endpoint
-    request.json = modified_data
-    return generate()
-
 @app.route('/add-to-template', methods=['POST'])
 def add_to_template():
     data = request.json
