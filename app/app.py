@@ -9,6 +9,13 @@ import uuid  # Add import for uuid
 from decimal import Decimal
 from datetime import datetime, timedelta
 
+# Load environment variables
+load_dotenv()
+
+# Coin configuration from environment variables
+INITIAL_COINS = int(os.getenv('INITIAL_COINS', 15))
+BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
+
 # Custom JSON encoder for handling Decimal and other DynamoDB-specific types
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -44,9 +51,6 @@ from dynamodb_utils import (
 # Import route blueprints
 from auth_routes import auth_bp
 from coin_routes import coin_bp
-
-# Load environment variables
-load_dotenv()
 
 # Initialize DynamoDB tables and indexes
 if os.getenv('USE_DYNAMODB', 'True').lower() == 'true':
@@ -189,9 +193,9 @@ def index():
                 updated_stickers.append(sticker)
         session['template_stickers'] = updated_stickers
     
-    # Initialize coins for legacy users (non-DynamoDB)
-    if 'coins' not in session and not USE_DYNAMODB:
-        session['coins'] = 85  # Start with 85 coins for new users
+    # Initialize coins for new sessions without authentication (35 monedas)
+    if 'coins' not in session:
+        session['coins'] = INITIAL_COINS  # Start with default coins for new users
     
     # Initialize coupon uses if not exists
     if 'coupon_uses' not in session:
@@ -643,8 +647,12 @@ def get_coins():
             # Update session with latest coins
             session['coins'] = user.get('coins', 0)
     
+    # Make sure coins is set in the session (for non-authenticated users)
+    if 'coins' not in session:
+        session['coins'] = INITIAL_COINS  # Default for non-authenticated users
+    
     # Return current coin balance from session
-    return jsonify({"coins": session.get('coins', 0)})
+    return jsonify({"coins": session.get('coins', INITIAL_COINS)})
 
 @app.route('/update-coins', methods=['POST'])
 def update_coins():

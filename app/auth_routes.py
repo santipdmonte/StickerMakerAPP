@@ -16,6 +16,10 @@ from dynamodb_utils import (
 )
 from utils import send_login_email
 
+# Get coin configuration from environment variables
+INITIAL_COINS = int(os.getenv('INITIAL_COINS', 15))
+BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
+
 auth_bp = Blueprint('auth', __name__)
 
 # Helper function to convert DynamoDB Decimal values
@@ -84,6 +88,28 @@ def verify_pin():
     # Convert any Decimal values before using in session
     user = sanitize_dynamodb_response(user)
     
+    # Check if this is a newly created user (created during PIN verification)
+    is_new_user = user.get('is_new_user', False)
+    
+    # Handle coins based on whether this is a new user or existing user
+    if is_new_user:
+        # For a new user: add bonus coins from registration bonus to their current session coins
+        current_session_coins = int(session.get('coins', 0))
+        
+        # Ensure user coins is treated as an integer
+        user_current_coins = int(float(user.get('coins', 0)))
+        
+        # Compute coins to add (session coins + bonus - current coins)
+        # This ensures we add exactly enough to reach session coins + bonus
+        coins_to_add = (current_session_coins + BONUS_COINS) - user_current_coins
+        
+        # Update user in DynamoDB with the additional coins
+        try:
+            user = update_user_coins(user['user_id'], coins_to_add)
+            user = sanitize_dynamodb_response(user)
+        except Exception as e:
+            return jsonify({"error": f"Failed to update coins: {str(e)}"}), 500
+    
     # Set the session as permanent so it persists beyond browser close
     session.permanent = True
     
@@ -98,7 +124,8 @@ def verify_pin():
         "user": {
             "user_id": user['user_id'],
             "email": user['email'],
-            "coins": user.get('coins', 0)
+            "coins": user.get('coins', 0),
+            "is_new_user": is_new_user
         }
     })
     

@@ -10,6 +10,10 @@ from dynamodb_utils import (
     get_user_transactions
 )
 
+# Get coin configuration from environment variables
+INITIAL_COINS = int(os.getenv('INITIAL_COINS', 15))
+BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
+
 coin_bp = Blueprint('coin', __name__)
 
 # Helper function to convert DynamoDB Decimal values
@@ -32,8 +36,15 @@ def get_coin_balance():
     user_id = session.get('user_id')
     
     if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
+        # For non-authenticated users, ensure they have the default initial coins
+        if 'coins' not in session:
+            session['coins'] = INITIAL_COINS  # Default for non-authenticated users
+        
+        return jsonify({
+            "coins": session.get('coins', INITIAL_COINS)
+        })
     
+    # For authenticated users, get from DynamoDB
     # Get latest user data
     user = get_user(user_id)
     
@@ -107,9 +118,6 @@ def use_coins():
     """
     user_id = session.get('user_id')
     
-    if not user_id:
-        return jsonify({"error": "Not authenticated"}), 401
-    
     if not request.is_json:
         return jsonify({"error": "Request must be JSON"}), 400
     
@@ -123,6 +131,24 @@ def use_coins():
     # Convert amount to negative since we're spending coins
     amount = -abs(int(amount))
     
+    # Handle non-authenticated users (using session coins)
+    if not user_id:
+        # Check if there are enough coins in the session
+        current_coins = session.get('coins', 0)
+        
+        if current_coins < abs(amount):
+            return jsonify({"error": "Insufficient coins"}), 400
+        
+        # Update session coins
+        new_balance = current_coins + amount  # amount is negative
+        session['coins'] = new_balance
+        
+        return jsonify({
+            "success": True,
+            "new_balance": new_balance
+        })
+    
+    # Handle authenticated users (using DynamoDB)
     try:
         # Check if user has enough coins
         user = get_user(user_id)

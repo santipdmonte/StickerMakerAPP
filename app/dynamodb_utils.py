@@ -8,6 +8,10 @@ import random
 import string
 from datetime import datetime
 
+# Get coin configuration from environment variables
+INITIAL_COINS = int(os.getenv('INITIAL_COINS', 15))
+BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
+
 # DynamoDB table names from environment variables
 USER_TABLE = os.getenv('DYNAMODB_USER_TABLE', 'test-thestickerhouse-users')
 TRANSACTION_TABLE = os.getenv('DYNAMODB_TRANSACTION_TABLE', 'test-thestickerhouse-transactions')
@@ -217,13 +221,13 @@ def ensure_tables_exist():
         print(f"Created table {TRANSACTION_TABLE}")
 
 # User Management Functions
-def create_user(email, initial_coins=85):
+def create_user(email, initial_coins=None):
     """
     Create a new user with the provided email.
     
     Args:
         email (str): User's email address
-        initial_coins (int): Initial number of coins to assign
+        initial_coins (int): Initial number of coins to assign (defaults to BONUS_COINS env var)
         
     Returns:
         dict: User data including user_id
@@ -235,6 +239,10 @@ def create_user(email, initial_coins=85):
     existing_user = get_user_by_email(email)
     if existing_user:
         return existing_user
+    
+    # Use provided initial_coins or default to BONUS_COINS from env var
+    if initial_coins is None:
+        initial_coins = BONUS_COINS
     
     # Create new user
     user_id = str(uuid.uuid4())
@@ -398,21 +406,32 @@ def store_login_pin(email, pin, expiry_seconds=600):
     
     # Get user by email
     user = get_user_by_email(email)
+    is_new_user = False
+    
     if not user:
-        # Create user if doesn't exist
-        user = create_user(email)
+        # Create user if doesn't exist with default bonus coins value
+        user = create_user(email, BONUS_COINS)
+        is_new_user = True
     
     user_id = user['user_id']
     expiry_time = int(time.time()) + expiry_seconds
     
+    # Update user with PIN and new user flag if applicable
+    update_expression = 'SET login_pin = :pin, pin_expiry = :expiry'
+    expression_values = {
+        ':pin': pin,
+        ':expiry': expiry_time
+    }
+    
+    if is_new_user:
+        update_expression += ', is_new_user = :is_new'
+        expression_values[':is_new'] = True
+    
     # Update user with PIN
     response = table.update_item(
         Key={'user_id': user_id},
-        UpdateExpression='SET login_pin = :pin, pin_expiry = :expiry',
-        ExpressionAttributeValues={
-            ':pin': pin,
-            ':expiry': expiry_time
-        },
+        UpdateExpression=update_expression,
+        ExpressionAttributeValues=expression_values,
         ReturnValues='UPDATED_NEW'
     )
     
@@ -436,18 +455,31 @@ def verify_login_pin(email, pin):
     stored_pin = user.get('login_pin')
     pin_expiry = user.get('pin_expiry', 0)
     current_time = int(time.time())
+    is_new_user = user.get('is_new_user', False)
     
     if stored_pin == pin and current_time < pin_expiry:
         # Update last login time
         updated_user = update_user_last_login(user['user_id'])
         
-        # Remove the PIN after successful verification
+        # Remove the PIN after successful verification, but keep is_new_user if it exists
         dynamodb = get_dynamodb_resource()
         table = dynamodb.Table(USER_TABLE)
-        table.update_item(
-            Key={'user_id': user['user_id']},
-            UpdateExpression='REMOVE login_pin, pin_expiry'
-        )
+        
+        # Choose update expression based on whether this is a new user
+        if is_new_user:
+            table.update_item(
+                Key={'user_id': user['user_id']},
+                UpdateExpression='REMOVE login_pin, pin_expiry'
+            )
+            
+            # Ensure is_new_user is set in the updated user
+            if updated_user and 'is_new_user' not in updated_user:
+                updated_user['is_new_user'] = True
+        else:
+            table.update_item(
+                Key={'user_id': user['user_id']},
+                UpdateExpression='REMOVE login_pin, pin_expiry, is_new_user'
+            )
         
         return updated_user
     
