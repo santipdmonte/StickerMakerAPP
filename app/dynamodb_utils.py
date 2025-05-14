@@ -1,4 +1,4 @@
-import os
+
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
 import uuid
@@ -7,14 +7,15 @@ import json
 import random
 import string
 from datetime import datetime
+from config import (
+    INITIAL_COINS, BONUS_COINS,
+    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
+    DYNAMODB_USER_TABLE, DYNAMODB_TRANSACTION_TABLE
+)
 
-# Get coin configuration from environment variables
-INITIAL_COINS = int(os.getenv('INITIAL_COINS', 15))
-BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
-
-# DynamoDB table names from environment variables
-USER_TABLE = os.getenv('DYNAMODB_USER_TABLE', 'test-thestickerhouse-users')
-TRANSACTION_TABLE = os.getenv('DYNAMODB_TRANSACTION_TABLE', 'test-thestickerhouse-transactions')
+# Define table variables from config
+USER_TABLE = DYNAMODB_USER_TABLE
+TRANSACTION_TABLE = DYNAMODB_TRANSACTION_TABLE
 
 # Function to check if table is ready (not in CREATING or UPDATING state)
 def is_table_ready(table_name):
@@ -113,9 +114,9 @@ def get_dynamodb_client():
     """
     Returns a boto3 DynamoDB client using environment variables for credentials.
     """
-    aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
-    aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
-    aws_region = os.getenv('AWS_REGION', 'us-east-1')
+    aws_access_key = AWS_ACCESS_KEY_ID
+    aws_secret_key = AWS_SECRET_ACCESS_KEY
+    aws_region = AWS_REGION
     
     if not aws_access_key or not aws_secret_key:
         raise ValueError("AWS credentials not found in environment variables")
@@ -131,9 +132,9 @@ def get_dynamodb_resource():
     """
     Returns a boto3 DynamoDB resource using environment variables for credentials.
     """
-    aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
-    aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
-    aws_region = os.getenv('AWS_REGION', 'us-east-1')
+    aws_access_key = AWS_ACCESS_KEY_ID
+    aws_secret_key = AWS_SECRET_ACCESS_KEY
+    aws_region = AWS_REGION
     
     if not aws_access_key or not aws_secret_key:
         raise ValueError("AWS credentials not found in environment variables")

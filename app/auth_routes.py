@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify, session
-import os
 import json
 from decimal import Decimal
 from datetime import datetime
@@ -15,10 +14,7 @@ from dynamodb_utils import (
     get_user_transactions
 )
 from utils import send_login_email
-
-# Get coin configuration from environment variables
-INITIAL_COINS = int(os.getenv('INITIAL_COINS', 15))
-BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
+from config import INITIAL_COINS, BONUS_COINS
 
 auth_bp = Blueprint('auth', __name__)
 

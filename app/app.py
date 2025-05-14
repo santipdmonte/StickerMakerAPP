@@ -2,26 +2,23 @@ import os
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response, send_file
 import time
 import json
-from dotenv import load_dotenv
 import tempfile
 from io import BytesIO
-import uuid  # Add import for uuid
-from decimal import Decimal
-from datetime import datetime, timedelta
+import uuid
+from datetime import datetime
 
-# Load environment variables
-load_dotenv()
-
-# Coin configuration from environment variables
-INITIAL_COINS = int(os.getenv('INITIAL_COINS', 15))
-BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
-
-# Custom JSON encoder for handling Decimal and other DynamoDB-specific types
-class CustomJSONEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            return float(obj)
-        return super().default(obj)
+# Import configuration from config.py
+from config import (
+    INITIAL_COINS, BONUS_COINS, DISCOUNT_COUPON, COUPON_LIMIT,
+    FOLDER_PATH, TEMPLATES_PATH, REQUIRED_DIRECTORIES,
+    USE_DYNAMODB, USE_S3, MP_ACCESS_TOKEN, MP_PUBLIC_KEY,
+    AWS_S3_BUCKET_NAME, S3_STICKERS_FOLDER, S3_TEMPLATES_FOLDER,
+    CustomJSONEncoder, FLASK_ENV, FLASK_SECRET_KEY,
+    JSONIFY_PRETTYPRINT_REGULAR, SESSION_PERMANENT_LIFETIME,
+    SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE,
+    SESSION_USE_SIGNER, SESSION_REFRESH_EACH_REQUEST,
+    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+)
 
 # Added Mercado Pago
 import mercadopago 
@@ -33,9 +30,7 @@ from s3_utils import (
     upload_bytes_to_s3, 
     get_s3_client, 
     list_files_in_s3_folder,
-    list_files_by_user_id,
-    S3_STICKERS_FOLDER, 
-    S3_TEMPLATES_FOLDER
+    list_files_by_user_id
 )
 
 # Import DynamoDB utils
@@ -53,7 +48,7 @@ from auth_routes import auth_bp
 from coin_routes import coin_bp
 
 # Initialize DynamoDB tables and indexes
-if os.getenv('USE_DYNAMODB', 'True').lower() == 'true':
+if USE_DYNAMODB:
     try:
         print("Initializing DynamoDB tables and indexes...")
         ensure_tables_exist()
@@ -64,25 +59,19 @@ if os.getenv('USE_DYNAMODB', 'True').lower() == 'true':
         print("The application will continue but DynamoDB operations may fail")
 
 app = Flask(__name__)
-# Configure Flask from environment variables
-app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'default_secret_key') 
+# Configure Flask from configuration
+app.config['SECRET_KEY'] = FLASK_SECRET_KEY
 # Set JSON encoder for Flask (compatible with older versions)
-app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = JSONIFY_PRETTYPRINT_REGULAR
 app.json_encoder = CustomJSONEncoder
 
 # Configure session to be more persistent
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # Session lasts 30 days
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-# Add these lines for better session persistence
-app.config['SESSION_USE_SIGNER'] = True
-app.config['SESSION_REFRESH_EACH_REQUEST'] = True
-
-# app.config['SERVER_NAME'] = os.getenv('FLASK_SERVER_NAME', None) # REMOVED: Let url_for infer from request
-
-# Determine if DynamoDB should be used
-USE_DYNAMODB = os.getenv('USE_DYNAMODB', 'True').lower() == 'true'
+app.config['PERMANENT_SESSION_LIFETIME'] = SESSION_PERMANENT_LIFETIME
+app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE
+app.config['SESSION_COOKIE_HTTPONLY'] = SESSION_COOKIE_HTTPONLY
+app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
+app.config['SESSION_USE_SIGNER'] = SESSION_USE_SIGNER
+app.config['SESSION_REFRESH_EACH_REQUEST'] = SESSION_REFRESH_EACH_REQUEST
 
 # Register blueprints
 app.register_blueprint(auth_bp)
@@ -96,41 +85,28 @@ def make_session_permanent():
 # TheStickerHouse - Sticker generation web application
 
 # Configure Mercado Pago SDK
-mp_access_token = os.getenv("PROD_ACCESS_TOKEN")
-if not mp_access_token:
+if not MP_ACCESS_TOKEN:
     print("Error: PROD_ACCESS_TOKEN not found in .env file.")
     # Handle the error appropriately, maybe raise an exception or use a default test token
     # For demonstration, let's allow it to continue but it won't work without a token
-sdk = mercadopago.SDK(mp_access_token) if mp_access_token else None
-
-# Get discount coupon settings
-DISCOUNT_COUPON = os.getenv("CUPON", "")
-COUPON_LIMIT = int(os.getenv("CUPON_LIMITE", "-1"))
+sdk = mercadopago.SDK(MP_ACCESS_TOKEN) if MP_ACCESS_TOKEN else None
 
 # Create static directories if they don't exist
-folder_path = "app/static/imgs"
-templates_path = "app/static/templates"
+folder_path = FOLDER_PATH
+templates_path = TEMPLATES_PATH
 
 # Asegurar que todos los directorios existan
-required_directories = [
-    folder_path,
-    templates_path,
-    "app/static/stickers",  # Carpeta alternativa para stickers
-    "app/static/img"        # Para archivos estáticos como hat.png
-]
+required_directories = REQUIRED_DIRECTORIES
 
 for directory in required_directories:
     os.makedirs(directory, exist_ok=True)
     print(f"Ensured directory exists: {directory}")
 
-# Flag to determine if S3 should be used - Forzar a True para usar exclusivamente S3
-USE_S3 = True
-
 # Verify S3 configuration
 try:
     # Test S3 connection
     s3_client = get_s3_client()
-    bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
+    bucket_name = AWS_S3_BUCKET_NAME
     if not bucket_name:
         raise ValueError("AWS_S3_BUCKET_NAME is not set in environment variables")
     
@@ -141,7 +117,7 @@ except Exception as e:
     error_msg = f"ERROR: S3 configuration is invalid or connection failed: {e}"
     print(error_msg)
     # No usar fallback a almacenamiento local, lanzar una excepción para indicar el problema
-    if os.environ.get('FLASK_ENV') == 'development':
+    if FLASK_ENV == 'development':
         print("Application will continue but S3 operations will fail.")
     else:
         # En producción, no permitir que la aplicación inicie sin S3 configurado
@@ -156,7 +132,7 @@ if USE_DYNAMODB:
     except Exception as e:
         error_msg = f"ERROR: DynamoDB configuration is invalid or connection failed: {e}"
         print(error_msg)
-        if os.environ.get('FLASK_ENV') == 'development':
+        if FLASK_ENV == 'development':
             print("Application will continue but DynamoDB operations will fail.")
         else:
             # In production, don't allow the app to start without DynamoDB configured
@@ -205,21 +181,15 @@ def index():
     if 'user_id' not in session and not USE_DYNAMODB:
         session['user_id'] = str(uuid.uuid4())
     
-    # Get the Mercado Pago public key from environment variables
-    mp_public_key = os.getenv('MP_PUBLIC_KEY', '')
-    
     # Pass coupon info to the template
-    discount_coupon = os.getenv("CUPON", "")
-    coupon_limit = int(os.getenv("CUPON_LIMITE", "-1"))
-    coupon_enabled = coupon_limit != 0
+    coupon_enabled = COUPON_LIMIT != 0
     coupon_uses = session.get('coupon_uses', 0)
-    coupon_available = coupon_limit == -1 or coupon_uses < coupon_limit
+    coupon_available = COUPON_LIMIT == -1 or coupon_uses < COUPON_LIMIT
         
     return render_template('index.html', 
-                          mp_public_key=mp_public_key,
+                          mp_public_key=MP_PUBLIC_KEY,
                           coupon_enabled=coupon_enabled,
                           coupon_available=coupon_available)
-
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -948,7 +918,7 @@ def payment_feedback():
             try:
                 # Descargar archivos temporalmente para crear el ZIP
                 s3_client = get_s3_client()
-                bucket = os.getenv('AWS_S3_BUCKET_NAME')
+                bucket = AWS_S3_BUCKET_NAME
                 
                 for filename, url in sticker_s3_urls.items():
                     # Obtener key de S3 desde URL
@@ -1014,9 +984,7 @@ def payment_feedback():
 
 @app.route('/library')
 def library():
-    # Get the Mercado Pago public key from environment variables
-    mp_public_key = os.getenv('MP_PUBLIC_KEY', '')
-    return render_template('library.html', mp_public_key=mp_public_key)
+    return render_template('library.html', mp_public_key=MP_PUBLIC_KEY)
 
 @app.route('/img/<filename>')
 def get_image(filename):
@@ -1036,7 +1004,7 @@ def get_image(filename):
         # para evitar problemas de CORS cuando se usa en un canvas
         try:
             s3_client = get_s3_client()
-            bucket = os.getenv('AWS_S3_BUCKET_NAME')
+            bucket = AWS_S3_BUCKET_NAME
             key = f"{S3_STICKERS_FOLDER}/{filename}"
             
             # Descargar el archivo a memoria
@@ -1071,7 +1039,7 @@ def get_image(filename):
     # 2. Si no está en la sesión, verificar si existe en S3 y crear una URL firmada
     try:
         s3_client = get_s3_client()
-        bucket = os.getenv('AWS_S3_BUCKET_NAME')
+        bucket = AWS_S3_BUCKET_NAME
         
         if not bucket:
             error_msg = "S3 bucket name not specified in environment variables"
@@ -1156,12 +1124,12 @@ def debug_s3():
     Ruta de diagnóstico para verificar la conexión a S3 y listar archivos
     """
     debug_info = {
-        "s3_enabled": True,  # Siempre True
+        "s3_enabled": USE_S3,
         "environment_vars": {
-            "aws_access_key_present": bool(os.getenv('AWS_ACCESS_KEY_ID')),
-            "aws_secret_key_present": bool(os.getenv('AWS_SECRET_ACCESS_KEY')),
-            "bucket_name": os.getenv('AWS_S3_BUCKET_NAME'),
-            "region": os.getenv('AWS_REGION', 'us-east-1')
+            "aws_access_key_present": bool(AWS_ACCESS_KEY_ID),
+            "aws_secret_key_present": bool(AWS_SECRET_ACCESS_KEY),
+            "bucket_name": AWS_S3_BUCKET_NAME,
+            "region": AWS_REGION
         },
         "stickers_folder": S3_STICKERS_FOLDER,
         "files": [],
@@ -1174,7 +1142,7 @@ def debug_s3():
         debug_info["connection"] = "Success"
         
         # Verificar si el bucket existe
-        bucket = os.getenv('AWS_S3_BUCKET_NAME')
+        bucket = AWS_S3_BUCKET_NAME
         
         if not bucket:
             debug_info["errors"].append("AWS_S3_BUCKET_NAME not set in environment variables")
@@ -1242,7 +1210,7 @@ def direct_s3_image(filename):
         s3_client = get_s3_client()
         print("[DIRECT-S3] Got S3 client successfully")
         
-        bucket = os.getenv('AWS_S3_BUCKET_NAME')
+        bucket = AWS_S3_BUCKET_NAME
         print(f"[DIRECT-S3] Using bucket: {bucket}")
         
         if not bucket:
@@ -1372,11 +1340,11 @@ def debug_s3_bucket():
         "errors": []
     }
     
-    # Verificar que las variables de entorno estén configuradas
-    aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
-    aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
-    aws_region = os.getenv('AWS_REGION', 'us-east-1')
-    bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
+    # Use AWS configuration from config.py
+    aws_access_key = AWS_ACCESS_KEY_ID
+    aws_secret_key = AWS_SECRET_ACCESS_KEY
+    aws_region = AWS_REGION
+    bucket_name = AWS_S3_BUCKET_NAME
     
     debug_info["aws_check"] = {
         "aws_access_key_present": bool(aws_access_key),
