@@ -1,4 +1,3 @@
-
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
 import uuid
@@ -222,13 +221,14 @@ def ensure_tables_exist():
         print(f"Created table {TRANSACTION_TABLE}")
 
 # User Management Functions
-def create_user(email, initial_coins=None):
+def create_user(email, initial_coins=None, name=None):
     """
     Create a new user with the provided email.
     
     Args:
         email (str): User's email address
         initial_coins (int): Initial number of coins to assign (defaults to BONUS_COINS env var)
+        name (str): User's name
         
     Returns:
         dict: User data including user_id
@@ -257,6 +257,10 @@ def create_user(email, initial_coins=None):
         'updated_at': timestamp,
         'last_login': timestamp
     }
+    
+    # Add name if provided
+    if name:
+        user_data['name'] = name
     
     table.put_item(Item=user_data)
     return user_data
@@ -390,7 +394,7 @@ def generate_pin(length=6):
     """
     return ''.join(random.choices(string.digits, k=length))
 
-def store_login_pin(email, pin, expiry_seconds=600):
+def store_login_pin(email, pin, expiry_seconds=600, create_if_not_exists=False):
     """
     Store a login PIN for a user
     
@@ -398,9 +402,10 @@ def store_login_pin(email, pin, expiry_seconds=600):
         email (str): User's email
         pin (str): The PIN to store
         expiry_seconds (int): How long the PIN is valid for in seconds
+        create_if_not_exists (bool): Whether to create a user if one doesn't exist
         
     Returns:
-        bool: True if successful
+        tuple: (bool success, bool user_exists)
     """
     dynamodb = get_dynamodb_resource()
     table = dynamodb.Table(USER_TABLE)
@@ -410,6 +415,10 @@ def store_login_pin(email, pin, expiry_seconds=600):
     is_new_user = False
     
     if not user:
+        if not create_if_not_exists:
+            # Return success=True but user_exists=False
+            return True, False
+            
         # Create user if doesn't exist with default bonus coins value
         user = create_user(email, BONUS_COINS)
         is_new_user = True
@@ -436,7 +445,7 @@ def store_login_pin(email, pin, expiry_seconds=600):
         ReturnValues='UPDATED_NEW'
     )
     
-    return bool(response.get('Attributes'))
+    return bool(response.get('Attributes')), True
 
 def verify_login_pin(email, pin):
     """

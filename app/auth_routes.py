@@ -44,21 +44,37 @@ def request_login():
     if not email:
         return jsonify({"error": "Email is required"}), 400
     
+    # Check if user exists with this email
+    user = get_user_by_email(email)
+    
     # Generate a PIN
     pin = generate_pin()
     
     # Store PIN in DynamoDB with expiration
-    success = store_login_pin(email, pin, expiry_seconds=600)  # 10 minutes expiry
+    # If user exists, send the PIN; if not, return that user doesn't exist
+    success, user_exists = store_login_pin(email, pin, expiry_seconds=600)  # 10 minutes expiry
     
     if not success:
         return jsonify({"error": "Failed to store login PIN"}), 500
     
-    # Send PIN via email
-    try:
-        send_login_email(email, pin)
-        return jsonify({"success": True, "message": "Login PIN sent to your email"})
-    except Exception as e:
-        return jsonify({"error": f"Failed to send email: {str(e)}"}), 500
+    if user_exists:
+        # Existing user - send PIN via email
+        try:
+            send_login_email(email, pin)
+            return jsonify({
+                "success": True, 
+                "user_exists": True,
+                "message": "Login PIN sent to your email"
+            })
+        except Exception as e:
+            return jsonify({"error": f"Failed to send email: {str(e)}"}), 500
+    else:
+        # New user - ask for name
+        return jsonify({
+            "success": True,
+            "user_exists": False,
+            "message": "User not found. Please provide your name to create an account."
+        })
 
 @auth_bp.route('/api/auth/verify-pin', methods=['POST'])
 def verify_pin():
@@ -113,6 +129,8 @@ def verify_pin():
     session['user_id'] = user['user_id']
     session['email'] = user['email']
     session['coins'] = user.get('coins', 0)
+    if 'name' in user:
+        session['name'] = user['name']
     
     # Create response with session data
     response = jsonify({
@@ -120,6 +138,7 @@ def verify_pin():
         "user": {
             "user_id": user['user_id'],
             "email": user['email'],
+            "name": user.get('name', ''),
             "coins": user.get('coins', 0),
             "is_new_user": is_new_user
         }
@@ -142,6 +161,7 @@ def logout():
     session.pop('user_id', None)
     session.pop('email', None)
     session.pop('coins', None)
+    session.pop('name', None)
     
     # Also clear cookies
     response = jsonify({"success": True})
@@ -179,6 +199,7 @@ def get_current_user():
         session.pop('user_id', None)
         session.pop('email', None)
         session.pop('coins', None)
+        session.pop('name', None)
         # Clear cookies too
         response = jsonify({"error": "User not found"}), 404
         response[0].set_cookie('auth_user_id', '', expires=0)
@@ -192,13 +213,63 @@ def get_current_user():
     session['user_id'] = user['user_id']
     session['email'] = user['email']
     session['coins'] = user.get('coins', 0)
+    if 'name' in user:
+        session['name'] = user['name']
     
     return jsonify({
         "user": {
             "user_id": user['user_id'],
             "email": user['email'],
+            "name": user.get('name', ''),
             "coins": user.get('coins', 0),
             "created_at": user.get('created_at'),
             "last_login": user.get('last_login')
         }
-    }) 
+    })
+
+@auth_bp.route('/api/auth/create-account', methods=['POST'])
+def create_account():
+    """
+    Create a new user account with name and send login PIN
+    """
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+    
+    data = request.json
+    email = data.get('email')
+    name = data.get('name')
+    
+    if not email or not name:
+        return jsonify({"error": "Email and name are required"}), 400
+    
+    # Check if user already exists
+    existing_user = get_user_by_email(email)
+    if existing_user:
+        return jsonify({
+            "error": "User with this email already exists",
+            "user_exists": True
+        }), 400
+    
+    # Create new user with name
+    user = create_user(email, INITIAL_COINS + BONUS_COINS, name)
+    
+    # Generate and store PIN
+    pin = generate_pin()
+    success, _ = store_login_pin(email, pin, expiry_seconds=600, create_if_not_exists=False)  # User already created
+    
+    if not success:
+        return jsonify({"error": "Failed to store login PIN"}), 500
+    
+    # Send PIN via email
+    try:
+        send_login_email(email, pin, name)
+        return jsonify({
+            "success": True,
+            "message": "Account created successfully. Login PIN sent to your email.",
+            "user": {
+                "email": email,
+                "name": name
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": f"Failed to send email: {str(e)}"}), 500 

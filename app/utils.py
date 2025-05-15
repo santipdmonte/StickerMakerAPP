@@ -303,13 +303,14 @@ def send_sticker_email(customer_data, sticker_files=None, s3_urls=None):
         return False
 
 
-def send_login_email(email, pin):
+def send_login_email(email, pin, name=None):
     """
     Send a login PIN to the user's email
     
     Args:
         email (str): Recipient email address
         pin (str): Login PIN to send
+        name (str): User's name, if available
         
     Returns:
         bool: True if email was sent successfully
@@ -333,6 +334,9 @@ def send_login_email(email, pin):
     msg['To'] = email
     msg['Subject'] = "Your TheStickerHouse Login PIN"
     
+    # Greeting based on whether we have the user's name
+    greeting = f"Hello {name}," if name else "Hello,"
+    
     # Email body
     body = f"""
     <html>
@@ -352,7 +356,7 @@ def send_login_email(email, pin):
                 <h2>TheStickerHouse</h2>
             </div>
             <div class="content">
-                <p>Hello,</p>
+                <p>{greeting}</p>
                 <p>Here is your login PIN for TheStickerHouse:</p>
                 <p class="pin">{pin}</p>
                 <p>This PIN will expire in 10 minutes.</p>
