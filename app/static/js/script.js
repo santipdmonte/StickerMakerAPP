@@ -351,12 +351,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Handle checkout form submission
-    checkoutForm.addEventListener('submit', (e) => {
-        e.preventDefault(); // Prevent default form submission
-        handleFinalizePayment();
-    });
-    
     function showModal() {
         checkoutModal.classList.remove('hidden');
         // Use setTimeout to allow the display change to render before adding the class for transition
@@ -382,17 +376,62 @@ document.addEventListener('DOMContentLoaded', () => {
             return count + quantity;
         }, 0);
         
-        // Show the checkout modal instead of the success message
+        // Check if user is authenticated
+        const isUserLoggedIn = document.getElementById('login-btn').innerHTML.includes('ri-user-fill');
+        
+        if (!isUserLoggedIn) {
+            // User not logged in, show login modal first
+            if (typeof openLoginModal === 'function') {
+                openLoginModal();
+                
+                // Store that we need to continue with checkout after login
+                sessionStorage.setItem('pendingCheckout', 'true');
+                
+                return;
+            }
+        }
+        
+        // Continue with checkout process
+        continueCheckout();
+    }
+    
+    function continueCheckout() {
+        // Show the checkout modal
         showModal();
         
-        // You could pre-fill modal info if needed, e.g.:
-        // const modalInfo = checkoutModal.querySelector('.modal-info');
-        // modalInfo.textContent = `You are about to purchase ${totalStickers} stickers.`;
+        // Check if user is authenticated to hide/show name/email fields
+        const isUserLoggedIn = document.getElementById('login-btn').innerHTML.includes('ri-user-fill');
+        
+        // Get form fields directly instead of containers
+        const nameInput = document.getElementById('checkout-name');
+        const emailInput = document.getElementById('checkout-email');
+        const addressInput = document.getElementById('checkout-address');
+        
+        // Get their parent containers
+        const nameFieldContainer = nameInput?.parentElement;
+        const emailFieldContainer = emailInput?.parentElement;
+        const addressFieldContainer = addressInput?.parentElement;
+        
+        if (isUserLoggedIn) {
+            // Hide name and email fields for authenticated users
+            if (nameFieldContainer) nameFieldContainer.style.display = 'none';
+            if (emailFieldContainer) emailFieldContainer.style.display = 'none';
+            // Always show address field
+            if (addressFieldContainer) addressFieldContainer.style.display = '';
+        } else {
+            // Show all fields for non-authenticated users
+            if (nameFieldContainer) nameFieldContainer.style.display = '';
+            if (emailFieldContainer) emailFieldContainer.style.display = '';
+            if (addressFieldContainer) addressFieldContainer.style.display = '';
+        }
     }
     
     async function handleFinalizePayment() {
+        console.log("handleFinalizePayment called");
+        
         if (!mp) {
             showError("Payment system is not available. Please check configuration.");
+            console.error("Mercado Pago SDK not initialized");
             return;
         }
 
@@ -400,37 +439,79 @@ document.addEventListener('DOMContentLoaded', () => {
         const emailInput = document.getElementById('checkout-email');
         const addressInput = document.getElementById('checkout-address');
         
-        const name = nameInput.value.trim();
-        const email = emailInput.value.trim();
-        const address = addressInput.value.trim();
+        if (!nameInput || !emailInput || !addressInput) {
+            console.error("Form inputs not found:", { 
+                nameInput: !!nameInput, 
+                emailInput: !!emailInput, 
+                addressInput: !!addressInput 
+            });
+            showError("Form inputs not found. Please reload the page.");
+            return;
+        }
+        
+        // Check if user is authenticated
+        const isUserLoggedIn = document.getElementById('login-btn').innerHTML.includes('ri-user-fill');
+        console.log("User logged in:", isUserLoggedIn);
+        
+        // For authenticated users, use their account info instead of form fields
+        let name, email, address;
+        
+        if (isUserLoggedIn) {
+            name = 'authenticated';
+            email = 'authenticated';
+        } else {
+            name = nameInput.value.trim();
+            email = emailInput.value.trim();
+        }
+        
+        address = addressInput.value.trim();
+        
+        console.log("Form values:", { name, email, address });
         
         // Frontend validation
         let isValid = true;
-        if (!name) {
-            showError("Please enter your name.");
-            shakElement(nameInput);
-            isValid = false;
+        
+        // Only validate name/email for non-authenticated users
+        if (!isUserLoggedIn) {
+            if (!name) {
+                showError("Please enter your name.");
+                isValid = false;
+            }
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { // Simple email regex
+                showError("Please enter a valid email address.");
+                isValid = false;
+            }
         }
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { // Simple email regex
-            showError("Please enter a valid email address.");
-            shakElement(emailInput);
-             isValid = false;
-        }
+        
+        // Always validate address for all users
         if (!address) {
-             showError("Please enter your address.");
-             shakElement(addressInput);
+            showError("Please enter your shipping address.");
             isValid = false;
         }
         
         if (!isValid) {
+            console.log("Validation failed");
             return; // Stop if validation fails
         }
         
+        // Use the finalizePaymentBtn global variable
+        if (!window.finalizePaymentBtn) {
+            console.error("Finalize payment button not found (global variable)");
+            // Try to get it again
+            window.finalizePaymentBtn = document.getElementById('finalize-payment-btn');
+            if (!window.finalizePaymentBtn) {
+                showError("Payment button not found. Please reload the page.");
+                return;
+            }
+        }
+        
         // Disable button and show loading state
-        finalizePaymentBtn.disabled = true;
-        finalizePaymentBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Processing...';
+        window.finalizePaymentBtn.disabled = true;
+        window.finalizePaymentBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Processing...';
 
         try {
+            console.log("Creating payment preference with data:", { name, email, address });
+            
             // 1. Call backend to create the preference
             const response = await fetch('/create_preference', {
                 method: 'POST',
@@ -440,15 +521,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ name, email, address }) // Send user details
             });
 
+            const responseData = await response.json();
+            
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to create payment preference on server.');
+                console.error("Server error response:", responseData);
+                throw new Error(responseData.error || 'Failed to create payment preference on server.');
             }
 
-            const data = await response.json();
-            const preferenceId = data.preference_id;
+            const preferenceId = responseData.preference_id;
 
             if (!preferenceId) {
+                console.error("No preference ID in response:", responseData);
                 throw new Error('Preference ID not received from server.');
             }
             
@@ -458,32 +541,20 @@ document.addEventListener('DOMContentLoaded', () => {
             // 2. Hide the modal *before* redirecting
             hideModal(); 
 
-            // 3. Redirect to Mercado Pago Checkout using the preference ID
-            // The SDK handles the redirection
+            // 3. Initialize Mercado Pago checkout with the preference ID
+            console.log("Initializing MP checkout with preference ID:", preferenceId);
             mp.checkout({
                 preference: {
                     id: preferenceId
                 },
-                // Optional: Render the button in a container if you don't want immediate redirect
-                // render: {
-                //    container: '.checkout-btn-container', // Class name of the container where the payment button will be placed
-                //    label: 'Pagar com Mercado Pago'
-                // },
-                // Using autoOpen will redirect immediately after preference is loaded by SDK
-                 autoOpen: true, 
+                autoOpen: true
             });
-            
-             // Note: Execution stops here if autoOpen is true as the page redirects.
-             // If not using autoOpen, re-enable the button after SDK renders.
-             // finalizePaymentBtn.disabled = false;
-             // finalizePaymentBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Finalize Payment';
-
         } catch (error) {
             console.error("Checkout Error:", error);
             showError(`Checkout failed: ${error.message}`);
             // Re-enable button on error
-            finalizePaymentBtn.disabled = false;
-            finalizePaymentBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Finalize Payment';
+            window.finalizePaymentBtn.disabled = false;
+            window.finalizePaymentBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Finalize Payment';
         }
     }
     
@@ -1850,6 +1921,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Check for pending coin package from previous session
     checkPendingCoinPurchase();
+    
+    // Check for pending checkout from previous session
+    checkPendingCheckout();
+
+    // Check Mercado Pago SDK initialization on page load
+    if (typeof mp === 'undefined') {
+        console.error("Mercado Pago SDK not loaded or initialized");
+    } else {
+        console.log("Mercado Pago SDK initialized");
+    }
+    
+    // Make sure checkout form exists
+    if (!checkoutForm) {
+        console.error("Checkout form not found in the DOM");
+    } else {
+        console.log("Checkout form found in the DOM");
+    }
+
+    // Add event listener for checkout form
+    if (checkoutForm) {
+        console.log("Setting up checkout form submit handler");
+        checkoutForm.addEventListener('submit', function(e) {
+            console.log("Checkout form submitted");
+            e.preventDefault(); // Prevent default form submission
+            handleFinalizePayment();
+            return false;
+        });
+    } else {
+        console.error("Checkout form not found - cannot attach event listener");
+    }
+
+    // Also add a click handler for the finalize payment button as a fallback
+    if (finalizePaymentBtn) {
+        console.log("Setting up finalize payment button click handler");
+        finalizePaymentBtn.addEventListener('click', function(e) {
+            console.log("Finalize payment button clicked");
+            e.preventDefault();
+            handleFinalizePayment();
+            return false;
+        });
+    } else {
+        console.error("Finalize payment button not found");
+    }
+
+    // Store finalizePaymentBtn in global scope for other functions to use
+    window.finalizePaymentBtn = finalizePaymentBtn;
 });
 
 // Check if there's a pending coin package from a previous session
@@ -1870,5 +1987,22 @@ function checkPendingCoinPurchase() {
                 sessionStorage.removeItem('pendingCoinPackage');
             }, 500);
         }, 1000);
+    }
+}
+
+// Check if there's a pending checkout from a previous session
+function checkPendingCheckout() {
+    const pendingCheckout = sessionStorage.getItem('pendingCheckout');
+    const isUserLoggedIn = document.getElementById('login-btn').innerHTML.includes('ri-user-fill');
+    
+    if (pendingCheckout === 'true' && isUserLoggedIn) {
+        // Small delay to ensure the page is fully loaded
+        setTimeout(() => {
+            console.log("Found pending checkout - continuing checkout process");
+            // Continue with checkout process
+            continueCheckout();
+            // Remove from session storage
+            sessionStorage.removeItem('pendingCheckout');
+        }, 500);
     }
 }

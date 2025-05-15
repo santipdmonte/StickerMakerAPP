@@ -737,6 +737,17 @@
                                 }, 500);
                             }
                             
+                            // Check for pending checkout
+                            const pendingCheckout = sessionStorage.getItem('pendingCheckout');
+                            if (pendingCheckout === 'true' && typeof continueCheckout === 'function') {
+                                setTimeout(() => {
+                                    // Continue with checkout process
+                                    continueCheckout();
+                                    // Remove from session storage
+                                    sessionStorage.removeItem('pendingCheckout');
+                                }, 500);
+                            }
+                            
                             setTimeout(() => {
                                 successMessage.remove();
                             }, 300);

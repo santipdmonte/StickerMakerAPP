@@ -810,10 +810,28 @@ def create_preference():
     data = request.json
     name = data.get('name')
     email = data.get('email')
-    address = data.get('address', '') # Obtenemos la dirección aunque no se usaba antes
-
-    if not all([name, email]):
-         return jsonify({"error": "Missing name or email for checkout."}), 400
+    address = data.get('address', '') # Shipping address is required
+    
+    # Check if user is authenticated
+    user_id = session.get('user_id')
+    is_authenticated = user_id is not None
+    
+    # For authenticated users, get their info from the database
+    if is_authenticated and name == 'authenticated' and email == 'authenticated':
+        if USE_DYNAMODB:
+            try:
+                # Get user data from DynamoDB
+                user = get_user(user_id)
+                if user:
+                    name = user.get('name', '')
+                    email = user.get('email', '')
+            except Exception as e:
+                print(f"Error getting user data: {e}")
+                return jsonify({"error": f"Could not retrieve user data: {str(e)}"}), 500
+    
+    # Validate required fields
+    if not all([name, email, address]):
+         return jsonify({"error": "Name, email, and shipping address are required for checkout."}), 400
 
     # Guardar los datos del cliente en la sesión para tenerlos disponibles en la ruta de retroalimentación
     session['customer_data'] = {
