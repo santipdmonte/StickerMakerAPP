@@ -285,13 +285,13 @@
             </div>
             
             <div id="pin-form-container" class="hidden">
-                <p class="pin-sent-message">PIN code sent! Check your email.</p>
+                <p class="pin-sent-message">PIN sent! Check your email and enter the code below.</p>
                 <form id="pin-form">
                     <div class="form-group">
-                        <label for="login-pin">Enter PIN:</label>
-                        <input type="text" id="login-pin" name="pin" required placeholder="Enter the 6-digit PIN" maxlength="6" pattern="[0-9]{6}" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition); letter-spacing: 2px; text-align: center;">
+                        <label for="login-pin">PIN Code:</label>
+                        <input type="text" id="login-pin" name="pin" required placeholder="Enter 6-digit PIN" maxlength="6" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
                     </div>
-                    <button type="submit" id="verify-pin-btn" class="login-button"><i class="ri-login-circle-line"></i> Login</button>
+                    <button type="submit" id="verify-pin-btn" class="login-button"><i class="ri-shield-check-line"></i> Verify PIN</button>
                 </form>
             </div>
         </div>
@@ -317,17 +317,17 @@
                 window.location.href = '/library';
             });
             
-            // Function to open login modal
-            function openLoginModal() {
-                console.log('Login button clicked');
+            // Function to open login modal - make it globally accessible
+            window.openLoginModal = function() {
+                console.log('Login modal opened');
                 loginModal.classList.remove('hidden');
                 loginModal.style.display = 'flex';
                 loginModal.style.opacity = '1';
                 loginModal.style.visibility = 'visible';
             }
             
-            // Function to close login modal
-            function closeLoginModal() {
+            // Function to close login modal - make it globally accessible
+            window.closeLoginModal = function() {
                 loginModal.classList.add('hidden');
                 loginModal.style.opacity = '0';
                 loginModal.style.visibility = 'hidden';
@@ -725,6 +725,18 @@
                         setTimeout(() => {
                             successMessage.classList.remove('show');
                             closeLoginModal();
+                            
+                            // Check for pending coin purchase 
+                            const pendingCoinPackage = sessionStorage.getItem('pendingCoinPackage');
+                            if (pendingCoinPackage && typeof selectPackage === 'function') {
+                                setTimeout(() => {
+                                    // Select the package that was chosen before login
+                                    selectPackage(pendingCoinPackage);
+                                    // Remove from session storage
+                                    sessionStorage.removeItem('pendingCoinPackage');
+                                }, 500);
+                            }
+                            
                             setTimeout(() => {
                                 successMessage.remove();
                             }, 300);

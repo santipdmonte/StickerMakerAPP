@@ -249,21 +249,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Finalize coins purchase button click handler
     if (finalizeCoinsBtn) {
         finalizeCoinsBtn.addEventListener('click', async () => {
+            const isUserLoggedIn = document.getElementById('login-btn').innerHTML.includes('ri-user-fill');
+            
             // Validate fields
-            const name = coinsNameInput.value.trim();
-            const email = coinsEmailInput.value.trim();
+            const name = isUserLoggedIn ? 'authenticated' : coinsNameInput.value.trim();
+            const email = isUserLoggedIn ? 'authenticated' : coinsEmailInput.value.trim();
             
             let isValid = true;
-            if (!name) {
-                showError("Please enter your name.");
-                shakElement(coinsNameInput);
-                isValid = false;
+            if (!isUserLoggedIn) {
+                // Only validate name/email for non-authenticated users
+                if (!name) {
+                    showError("Please enter your name.");
+                    shakElement(coinsNameInput);
+                    isValid = false;
+                }
+                if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                    showError("Please enter a valid email address.");
+                    shakElement(coinsEmailInput);
+                    isValid = false;
+                }
             }
-            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                showError("Please enter a valid email address.");
-                shakElement(coinsEmailInput);
-                isValid = false;
-            }
+            
             if (!selectedPackage) {
                 showError("No package selected.");
                 isValid = false;
@@ -1576,12 +1582,73 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset coupon state when changing packages
         resetCouponState();
         
+        // Check if user is authenticated
+        const isUserLoggedIn = document.getElementById('login-btn').innerHTML.includes('ri-user-fill');
+        
+        if (!isUserLoggedIn) {
+            // User not logged in, show login modal first
+            if (typeof openLoginModal === 'function') {
+                openLoginModal();
+                
+                // Store selected package info to use after login
+                sessionStorage.setItem('pendingCoinPackage', packageType);
+                
+                // Add one-time event listener to check after login completes
+                const checkLoginStatusInterval = setInterval(() => {
+                    const isNowLoggedIn = document.getElementById('login-btn').innerHTML.includes('ri-user-fill');
+                    if (isNowLoggedIn) {
+                        clearInterval(checkLoginStatusInterval);
+                        
+                        // Remove stored package and continue with purchase
+                        const storedPackage = sessionStorage.getItem('pendingCoinPackage');
+                        if (storedPackage) {
+                            sessionStorage.removeItem('pendingCoinPackage');
+                            continueCoinsPurchase();
+                        }
+                    }
+                }, 1000);
+                
+                return;
+            }
+        }
+        
+        // User is logged in or no login function available, continue with purchase
+        continueCoinsPurchase();
+    }
+    
+    function continueCoinsPurchase() {
         // Hide packages and coupon section
         document.querySelector('.coins-packages').classList.add('hidden');
         document.querySelector('.coupon-section').classList.add('hidden');
         
         // Show form
         coinsForm.classList.remove('hidden');
+        
+        // Check if user is authenticated to hide/show name/email fields
+        const isUserLoggedIn = document.getElementById('login-btn').innerHTML.includes('ri-user-fill');
+        
+        // Fix: Find form groups directly by iterating through them
+        const formGroups = document.querySelectorAll('.form-group');
+        let nameFieldContainer = null;
+        let emailFieldContainer = null;
+        
+        formGroups.forEach(group => {
+            const nameInput = group.querySelector('#coins-name');
+            const emailInput = group.querySelector('#coins-email');
+            
+            if (nameInput) nameFieldContainer = group;
+            if (emailInput) emailFieldContainer = group;
+        });
+        
+        if (isUserLoggedIn) {
+            // Hide name and email fields for authenticated users
+            if (nameFieldContainer) nameFieldContainer.style.display = 'none';
+            if (emailFieldContainer) emailFieldContainer.style.display = 'none';
+        } else {
+            // Show name and email fields for non-authenticated users
+            if (nameFieldContainer) nameFieldContainer.style.display = '';
+            if (emailFieldContainer) emailFieldContainer.style.display = '';
+        }
     }
     
     function resetCouponState() {
@@ -1780,4 +1847,28 @@ document.addEventListener('DOMContentLoaded', () => {
         // Cerrar el menú
         hideStylesModal();
     }
+
+    // Check for pending coin package from previous session
+    checkPendingCoinPurchase();
 });
+
+// Check if there's a pending coin package from a previous session
+function checkPendingCoinPurchase() {
+    const pendingCoinPackage = sessionStorage.getItem('pendingCoinPackage');
+    const isUserLoggedIn = document.getElementById('login-btn').innerHTML.includes('ri-user-fill');
+    
+    if (pendingCoinPackage && isUserLoggedIn && typeof selectPackage === 'function') {
+        // Wait for the page to fully load before continuing with purchase
+        setTimeout(() => {
+            // Show coins modal first
+            showCoinsModal();
+            
+            // Then select the package that was chosen before
+            setTimeout(() => {
+                selectPackage(pendingCoinPackage);
+                // Remove from session storage
+                sessionStorage.removeItem('pendingCoinPackage');
+            }, 500);
+        }, 1000);
+    }
+}

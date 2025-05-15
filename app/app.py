@@ -686,22 +686,47 @@ def purchase_coins():
     amount = data.get('amount', 0)
     payment_id = data.get('payment_id')
     
+    # Handle direct coupon application
+    if data.get('direct_apply') and data.get('coupon'):
+        # Process coupon validation (existing code)
+        pass
+    
+    # Validate required fields
     if amount <= 0 or not payment_id:
         return jsonify({"error": "Valid amount and payment_id are required"}), 400
     
     user_id = session.get('user_id')
     
+    # Check if user is authenticated
+    is_authenticated = user_id is not None
+    
+    # For authenticated users, we don't need name/email 
+    # For non-authenticated users, name/email are required
+    if not is_authenticated:
+        name = data.get('name')
+        email = data.get('email')
+        
+        if not name or not email:
+            return jsonify({"error": "Name and email are required for guest purchases"}), 400
+    
     if USE_DYNAMODB and user_id:
         try:
             # Record transaction in DynamoDB
+            transaction_details = {
+                'payment_id': payment_id,
+                'payment_method': data.get('payment_method', 'mercadopago')
+            }
+            
+            # Include name/email in transaction details if provided
+            if data.get('name') and data.get('email'):
+                transaction_details['name'] = data.get('name')
+                transaction_details['email'] = data.get('email')
+            
             transaction = create_transaction(
                 user_id=user_id,
                 coins_amount=amount,
                 transaction_type='purchase',
-                details={
-                    'payment_id': payment_id,
-                    'payment_method': data.get('payment_method', 'mercadopago')
-                }
+                details=transaction_details
             )
             
             # Update session with latest coins
