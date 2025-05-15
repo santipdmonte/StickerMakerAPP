@@ -82,9 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Coin packages data
     const coinPackagesData = {
-        'small': { name: 'Small Package', amount: 100, price: 500.00 },
-        'medium': { name: 'Medium Package', amount: 300, price: 1000.00 },
-        'large': { name: 'Large Package', amount: 500, price: 1500.00 }
+        'small': { id: 'small', name: 'Small Package', amount: 100, price: 500.00 },
+        'medium': { id: 'medium', name: 'Medium Package', amount: 300, price: 1000.00 },
+        'large': { id: 'large', name: 'Large Package', amount: 500, price: 1500.00 }
     };
     
     // Current selected package
@@ -277,50 +277,45 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (!isValid) return;
             
-            // Disable button and show loading state
+            finalizeCoinsBtn.innerHTML = '<i class="ri-loader-4-line rotate"></i> Processing...';
             finalizeCoinsBtn.disabled = true;
-            finalizeCoinsBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Processing...';
-            
+
             try {
-                // Call backend to process purchase
+                const payload = {
+                    package_id: selectedPackage.id, // Send package_id (e.g., 'small')
+                    name: name, 
+                    email: email 
+                };
+
                 const response = await fetch('/purchase-coins', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        package: selectedPackage,
-                        name,
-                        email
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Purchase failed.');
-                }
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Update coins
-                    currentCoins = data.coins;
-                    updateCoinsDisplay();
-                    
-                    // Show success message
-                    showSuccess('Coins purchase successful!');
-                    
-                    // Close modal
-                    hideCoinsModal();
+
+                const result = await response.json();
+
+                if (response.ok && result.preference_id) {
+                    hideCoinsModal(); // Hide modal before redirecting
+                    if (mp) {
+                        mp.checkout({
+                            preference: { id: result.preference_id },
+                            autoOpen: true
+                        });
+                        // Payment processing is now handled by Mercado Pago UI & backend feedback.
+                        // Do not update coins or show success message here.
+                    } else {
+                        showError("Mercado Pago SDK no está listo. No se puede iniciar el pago.");
+                        finalizeCoinsBtn.disabled = false; // Re-enable button if MP SDK fails
+                        finalizeCoinsBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Complete Purchase';
+                    }
                 } else {
-                    throw new Error('Purchase failed.');
+                    throw new Error(result.error || 'Error al iniciar la compra de monedas.');
                 }
             } catch (error) {
-                console.error('Error purchasing coins:', error);
-                showError('Error processing payment. Please try again.');
-            } finally {
-                // Re-enable button
-                finalizeCoinsBtn.disabled = false;
+                console.error('Error initiating coin purchase:', error);
+                showError(error.message || 'Error procesando el pago. Intente nuevamente.');
+                finalizeCoinsBtn.disabled = false; // Re-enable button on error
                 finalizeCoinsBtn.innerHTML = '<i class="ri-secure-payment-line"></i> Complete Purchase';
             }
         });
@@ -1642,8 +1637,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function selectPackage(packageType) {
         if (!coinPackagesData[packageType]) return;
         
-        selectedPackage = packageType;
-        const packageData = coinPackagesData[packageType];
+        selectedPackage = coinPackagesData[packageType];
+        const packageData = selectedPackage;
         
         // Update UI with selected package details
         selectedPackageName.textContent = packageData.name;
