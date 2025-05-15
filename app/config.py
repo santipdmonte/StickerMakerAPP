@@ -11,6 +11,11 @@ load_dotenv()
 INITIAL_COINS = int(os.getenv('INITIAL_COINS', 15))
 BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
 
+# Sticker Generation Costs (NEW)
+LOW_STICKER_COST = int(os.getenv('LOW_STICKER_COST', 10))
+MEDIUM_STICKER_COST = int(os.getenv('MEDIUM_STICKER_COST', 25))
+HIGH_STICKER_COST = int(os.getenv('HIGH_STICKER_COST', 100))
+
 # Get discount coupon settings
 DISCOUNT_COUPON = os.getenv("CUPON", "")
 COUPON_LIMIT = int(os.getenv("CUPON_LIMITE", "-1"))
@@ -57,20 +62,24 @@ MP_ACCESS_TOKEN = os.getenv("PROD_ACCESS_TOKEN")
 MP_PUBLIC_KEY = os.getenv('MP_PUBLIC_KEY', '')
 
 # S3 configuration
-USE_S3 = True  # Forzar a True para usar exclusivamente S3
+USE_S3 = os.getenv('USE_S3', 'True')
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
 AWS_S3_BUCKET_NAME = os.getenv('AWS_S3_BUCKET_NAME')
-S3_STICKERS_FOLDER = "stickers"
-S3_TEMPLATES_FOLDER = "templates"
+S3_STICKERS_FOLDER = os.getenv('S3_STICKERS_FOLDER', 'stickers')
+S3_TEMPLATES_FOLDER = os.getenv('S3_TEMPLATES_FOLDER', 'templates')
 
 # Custom JSON encoder for handling Decimal and other DynamoDB-specific types
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Decimal):
             return float(obj)
+        if isinstance(obj, timedelta):
+            return str(obj)
+        if hasattr(obj, 'isoformat'):
+            return obj.isoformat()
         return super().default(obj)
 
 # Development or production mode
-FLASK_ENV = os.environ.get('FLASK_ENV', 'production') 
+FLASK_ENV = os.environ.get('FLASK_ENV', 'development') 

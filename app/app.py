@@ -17,7 +17,8 @@ from config import (
     JSONIFY_PRETTYPRINT_REGULAR, SESSION_PERMANENT_LIFETIME,
     SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE,
     SESSION_USE_SIGNER, SESSION_REFRESH_EACH_REQUEST,
-    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
+    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
+    LOW_STICKER_COST, MEDIUM_STICKER_COST, HIGH_STICKER_COST
 )
 
 # Added Mercado Pago
@@ -138,9 +139,6 @@ if USE_DYNAMODB:
             # In production, don't allow the app to start without DynamoDB configured
             raise RuntimeError(error_msg)
 
-# Define cost (can be moved to config.py or made dynamic)
-STICKER_GENERATION_COST = 10
-
 @app.route('/')
 def index():
     # Initialize user if authenticated via DynamoDB
@@ -202,20 +200,16 @@ def generate():
         quality = data.get('quality', 'low')
         mode = data.get('mode', 'simple')
         reference_image_data = data.get('reference_image', None)
-        style = data.get('style', None)  # Obtener el estilo seleccionado
+        style = data.get('style', None)
     else:
-        # Handle form data with file upload
         prompt = request.form.get('prompt', '')
         quality = request.form.get('quality', 'low')
         mode = request.form.get('mode', 'simple')
-        style = request.form.get('style', None)  # Obtener el estilo seleccionado
+        style = request.form.get('style', None)
         reference_image_data = None
-        
-        # Check if a reference image file was uploaded
         if 'reference_image' in request.files:
             ref_file = request.files['reference_image']
             if ref_file and ref_file.filename:
-                # Convert file to base64 for processing
                 ref_file_data = ref_file.read()
                 import base64
                 reference_image_data = f"data:image/{ref_file.content_type.split('/')[-1]};base64,{base64.b64encode(ref_file_data).decode('utf-8')}"
@@ -227,70 +221,65 @@ def generate():
     is_logged_in = bool(user_id)
     current_coins = 0
 
-    # --- BEGIN COIN VALIDATION AND DEDUCTION LOGIC ---
+    # Determine sticker cost based on quality
+    actual_sticker_cost = LOW_STICKER_COST
+    if quality == 'medium':
+        actual_sticker_cost = MEDIUM_STICKER_COST
+    elif quality == 'high':
+        actual_sticker_cost = HIGH_STICKER_COST
+
     try:
-        # STEP 1: Validate if the user has enough coins
         if is_logged_in:
             current_user_data = get_user(user_id)
             if not current_user_data:
-                # This might happen if the user was deleted or session is stale
                 session.pop('user_id', None)
                 session.pop('email', None)
                 return jsonify({"error": "User session invalid. Please log in again."}), 401
             current_coins = current_user_data.get('coins', 0)
         else:
-            # Anonymous user, check session coins
-            current_coins = session.get('coins', INITIAL_COINS) # Use INITIAL_COINS as a fallback if not set
+            current_coins = session.get('coins', INITIAL_COINS)
 
-        if current_coins < STICKER_GENERATION_COST:
-            return jsonify({"error": f"Insufficient coins. You need {STICKER_GENERATION_COST} coins. Your balance: {current_coins}"}), 402
+        if current_coins < actual_sticker_cost:
+            return jsonify({"error": f"Insufficient coins. You need {actual_sticker_cost} coins. Your balance: {current_coins}"}), 402
 
-        # Generate a unique filename
-        # If user is not logged in, generate a temporary user_id for filename uniqueness for this session if desired
-        # However, for simplicity and as stickers are tied to session s3_urls, a simple timestamp might be enough if user_id is None
-        # For consistency, let's use a temporary id if user_id is None for filename generation part only.
-        filename_user_part = user_id if is_logged_in else str(uuid.uuid4()).split('-')[0] # short temp id
+        filename_user_part = user_id if is_logged_in else str(uuid.uuid4()).split('-')[0]
         timestamp = int(time.time())
         filename = f"sticker_{filename_user_part}_{timestamp}.png"
         img_path = os.path.join(folder_path, filename)
 
-        # STEP 2: Proceed to the image generation
         image_b64, s3_url, high_res_s3_url = None, None, None
         if mode == 'reference' and reference_image_data:
             image_b64, s3_url, high_res_s3_url = generate_sticker_with_reference(
-                prompt, img_path, reference_image_data, quality, user_id=user_id, style=style # Pass actual user_id (can be None)
+                prompt, img_path, reference_image_data, quality, user_id=user_id, style=style
             )
         else:
             image_b64, s3_url, high_res_s3_url = generate_sticker(
-                prompt, img_path, quality, user_id=user_id, style=style # Pass actual user_id (can be None)
+                prompt, img_path, quality, user_id=user_id, style=style
             )
         
-        # STEP 3: When the img generation is completed, deduct the coin cost
         if is_logged_in:
             create_transaction(
                 user_id=user_id,
-                coins_amount=-STICKER_GENERATION_COST,
+                coins_amount=-actual_sticker_cost,
                 transaction_type='sticker_generation_authenticated',
                 details={
                     'prompt': prompt, 
                     'quality': quality, 
                     'mode': mode,
                     'style': style or 'default',
-                    'filename': filename
+                    'filename': filename,
+                    'cost': actual_sticker_cost
                 }
             )
             user_after_deduction = get_user(user_id)
             if user_after_deduction:
                 session['coins'] = user_after_deduction.get('coins', 0)
             else:
-                # This should ideally not happen if previous checks passed and transaction succeeded
                 app.logger.warning(f"User {user_id} not found after successful transaction. Session coins might be stale.")
         else:
-            # Anonymous user, deduct from session
             session_coins_before_deduction = session.get('coins', INITIAL_COINS)
-            session['coins'] = max(0, session_coins_before_deduction - STICKER_GENERATION_COST)
-            # Optionally, log anonymous sticker generation if needed
-            app.logger.info(f"Anonymous user generated a sticker. Coins deducted from session. New session coins: {session['coins']}")
+            session['coins'] = max(0, session_coins_before_deduction - actual_sticker_cost)
+            app.logger.info(f"Anonymous user generated a sticker. Cost: {actual_sticker_cost}. New session coins: {session['coins']}")
 
         s3_urls = session.get('s3_urls', {})
         s3_urls[filename] = s3_url
@@ -311,11 +300,11 @@ def generate():
     except ValueError as e:
         if f"Insufficient coins" in str(e) or f"Payment failed" in str(e):
             return jsonify({"error": str(e)}), 402
+        app.logger.error(f"ValueError during sticker generation for user {user_id or 'anonymous'}: {str(e)}", exc_info=True)
         return jsonify({"error": f"Invalid image format or input: {str(e)}"}), 400
     except Exception as e:
         app.logger.error(f"Error during sticker generation for user {user_id}: {str(e)}", exc_info=True)
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
-    # --- END COIN VALIDATION AND DEDUCTION LOGIC ---
 
 @app.route('/add-to-template', methods=['POST'])
 def add_to_template():
