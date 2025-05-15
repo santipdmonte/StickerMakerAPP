@@ -2,10 +2,24 @@ import os
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response, send_file
 import time
 import json
-from dotenv import load_dotenv
 import tempfile
 from io import BytesIO
-import uuid  # Add import for uuid
+import uuid
+from datetime import datetime
+
+# Import configuration from config.py
+from config import (
+    INITIAL_COINS, BONUS_COINS, DISCOUNT_COUPON, COUPON_LIMIT,
+    FOLDER_PATH, TEMPLATES_PATH, REQUIRED_DIRECTORIES,
+    USE_DYNAMODB, USE_S3, MP_ACCESS_TOKEN, MP_PUBLIC_KEY,
+    AWS_S3_BUCKET_NAME, S3_STICKERS_FOLDER, S3_TEMPLATES_FOLDER,
+    CustomJSONEncoder, FLASK_ENV, FLASK_SECRET_KEY,
+    JSONIFY_PRETTYPRINT_REGULAR, SESSION_PERMANENT_LIFETIME,
+    SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE,
+    SESSION_USE_SIGNER, SESSION_REFRESH_EACH_REQUEST,
+    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
+    LOW_STICKER_COST, MEDIUM_STICKER_COST, HIGH_STICKER_COST
+)
 
 # Added Mercado Pago
 import mercadopago 
@@ -17,57 +31,91 @@ from s3_utils import (
     upload_bytes_to_s3, 
     get_s3_client, 
     list_files_in_s3_folder,
-    list_files_by_user_id,
-    S3_STICKERS_FOLDER, 
-    S3_TEMPLATES_FOLDER
+    list_files_by_user_id
 )
 
-# Load environment variables
-load_dotenv()
+# Import DynamoDB utils
+from dynamodb_utils import (
+    ensure_tables_exist,
+    create_user,
+    get_user,
+    update_user_coins,
+    create_transaction,
+    verify_email_index
+)
+
+# Import route blueprints
+from auth_routes import auth_bp
+from coin_routes import coin_bp
+
+# --- Coin Packages Configuration ---
+COIN_PACKAGES_CONFIG = {
+    'small': {'name': 'Paquete Pequeño de Monedas', 'coins': 100, 'price': 500.00, 'currency_id': 'ARS'},
+    'medium': {'name': 'Paquete Mediano de Monedas', 'coins': 300, 'price': 1000.00, 'currency_id': 'ARS'},
+    'large': {'name': 'Paquete Grande de Monedas', 'coins': 500, 'price': 1500.00, 'currency_id': 'ARS'}
+}
+# --- End Coin Packages Configuration ---
+
+# Initialize DynamoDB tables and indexes
+if USE_DYNAMODB:
+    try:
+        print("Initializing DynamoDB tables and indexes...")
+        ensure_tables_exist()
+        verify_email_index()
+        print("DynamoDB tables and indexes configured successfully")
+    except Exception as e:
+        print(f"WARNING: Error setting up DynamoDB: {e}")
+        print("The application will continue but DynamoDB operations may fail")
 
 app = Flask(__name__)
-# Configure Flask from environment variables
-app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'default_secret_key') 
-# app.config['SERVER_NAME'] = os.getenv('FLASK_SERVER_NAME', None) # REMOVED: Let url_for infer from request
+# Configure Flask from configuration
+app.config['SECRET_KEY'] = FLASK_SECRET_KEY
+# Set JSON encoder for Flask (compatible with older versions)
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = JSONIFY_PRETTYPRINT_REGULAR
+app.json_encoder = CustomJSONEncoder
+
+# Configure session to be more persistent
+app.config['PERMANENT_SESSION_LIFETIME'] = SESSION_PERMANENT_LIFETIME
+app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE
+app.config['SESSION_COOKIE_HTTPONLY'] = SESSION_COOKIE_HTTPONLY
+app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
+app.config['SESSION_USE_SIGNER'] = SESSION_USE_SIGNER
+app.config['SESSION_REFRESH_EACH_REQUEST'] = SESSION_REFRESH_EACH_REQUEST
+
+# Register blueprints
+app.register_blueprint(auth_bp)
+app.register_blueprint(coin_bp)
+
+# Set session to be permanent by default before any request
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
 
 # TheStickerHouse - Sticker generation web application
 
 # Configure Mercado Pago SDK
-mp_access_token = os.getenv("PROD_ACCESS_TOKEN")
-if not mp_access_token:
+if not MP_ACCESS_TOKEN:
     print("Error: PROD_ACCESS_TOKEN not found in .env file.")
     # Handle the error appropriately, maybe raise an exception or use a default test token
     # For demonstration, let's allow it to continue but it won't work without a token
-sdk = mercadopago.SDK(mp_access_token) if mp_access_token else None
-
-# Get discount coupon settings
-DISCOUNT_COUPON = os.getenv("CUPON", "")
-COUPON_LIMIT = int(os.getenv("CUPON_LIMITE", "-1"))
+sdk = mercadopago.SDK(MP_ACCESS_TOKEN) if MP_ACCESS_TOKEN else None
 
 # Create static directories if they don't exist
-folder_path = "app/static/imgs"
-templates_path = "app/static/templates"
+folder_path = FOLDER_PATH
+templates_path = TEMPLATES_PATH
 
 # Asegurar que todos los directorios existan
-required_directories = [
-    folder_path,
-    templates_path,
-    "app/static/stickers",  # Carpeta alternativa para stickers
-    "app/static/img"        # Para archivos estáticos como hat.png
-]
+required_directories = REQUIRED_DIRECTORIES
 
 for directory in required_directories:
     os.makedirs(directory, exist_ok=True)
     print(f"Ensured directory exists: {directory}")
 
-# Flag to determine if S3 should be used - Forzar a True para usar exclusivamente S3
-USE_S3 = True
-
 # Verify S3 configuration
 try:
     # Test S3 connection
     s3_client = get_s3_client()
-    bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
+    bucket_name = AWS_S3_BUCKET_NAME
     if not bucket_name:
         raise ValueError("AWS_S3_BUCKET_NAME is not set in environment variables")
     
@@ -78,14 +126,44 @@ except Exception as e:
     error_msg = f"ERROR: S3 configuration is invalid or connection failed: {e}"
     print(error_msg)
     # No usar fallback a almacenamiento local, lanzar una excepción para indicar el problema
-    if os.environ.get('FLASK_ENV') == 'development':
+    if FLASK_ENV == 'development':
         print("Application will continue but S3 operations will fail.")
     else:
         # En producción, no permitir que la aplicación inicie sin S3 configurado
         raise RuntimeError(error_msg)
 
+# Setup DynamoDB tables if enabled
+if USE_DYNAMODB:
+    try:
+        ensure_tables_exist()
+        verify_email_index()
+        print("DynamoDB tables successfully configured")
+    except Exception as e:
+        error_msg = f"ERROR: DynamoDB configuration is invalid or connection failed: {e}"
+        print(error_msg)
+        if FLASK_ENV == 'development':
+            print("Application will continue but DynamoDB operations will fail.")
+        else:
+            # In production, don't allow the app to start without DynamoDB configured
+            raise RuntimeError(error_msg)
+
 @app.route('/')
 def index():
+    # Initialize user if authenticated via DynamoDB
+    if USE_DYNAMODB:
+        user_id = session.get('user_id')
+        if user_id:
+            # Get user from DynamoDB
+            user = get_user(user_id)
+            if user:
+                # Update session with latest data
+                session['coins'] = user.get('coins', 0)
+            else:
+                # Clear invalid session
+                session.pop('user_id', None)
+                session.pop('email', None)
+                session.pop('coins', None)
+    
     # Initialize empty template if not exists in session or convert old format to new format
     if 'template_stickers' not in session:
         session['template_stickers'] = [{'filename': 'hat.png', 'quantity': 1}]
@@ -100,57 +178,46 @@ def index():
                 updated_stickers.append(sticker)
         session['template_stickers'] = updated_stickers
     
-    # Initialize coins if not exists in session
+    # Initialize coins for new sessions without authentication (35 monedas)
     if 'coins' not in session:
-        session['coins'] = 85  # Start with 85 coins for new users
+        session['coins'] = INITIAL_COINS  # Start with default coins for new users
     
     # Initialize coupon uses if not exists
     if 'coupon_uses' not in session:
         session['coupon_uses'] = 0
     
-    # Initialize user_id if not exists in session
-    if 'user_id' not in session:
+    # Initialize user_id for legacy users (non-DynamoDB)
+    if 'user_id' not in session and not USE_DYNAMODB:
         session['user_id'] = str(uuid.uuid4())
     
-    # Get the Mercado Pago public key from environment variables
-    mp_public_key = os.getenv('MP_PUBLIC_KEY', '')
-    
     # Pass coupon info to the template
-    discount_coupon = os.getenv("CUPON", "")
-    coupon_limit = int(os.getenv("CUPON_LIMITE", "-1"))
-    coupon_enabled = coupon_limit != 0
+    coupon_enabled = COUPON_LIMIT != 0
     coupon_uses = session.get('coupon_uses', 0)
-    coupon_available = coupon_limit == -1 or coupon_uses < coupon_limit
+    coupon_available = COUPON_LIMIT == -1 or coupon_uses < COUPON_LIMIT
         
     return render_template('index.html', 
-                          mp_public_key=mp_public_key,
+                          mp_public_key=MP_PUBLIC_KEY,
                           coupon_enabled=coupon_enabled,
                           coupon_available=coupon_available)
 
-
 @app.route('/generate', methods=['POST'])
 def generate():
-    # Handle both form data and JSON input for flexibility
     if request.is_json:
         data = request.json
         prompt = data.get('prompt', '')
         quality = data.get('quality', 'low')
         mode = data.get('mode', 'simple')
         reference_image_data = data.get('reference_image', None)
-        style = data.get('style', None)  # Obtener el estilo seleccionado
+        style = data.get('style', None)
     else:
-        # Handle form data with file upload
         prompt = request.form.get('prompt', '')
         quality = request.form.get('quality', 'low')
         mode = request.form.get('mode', 'simple')
-        style = request.form.get('style', None)  # Obtener el estilo seleccionado
+        style = request.form.get('style', None)
         reference_image_data = None
-        
-        # Check if a reference image file was uploaded
         if 'reference_image' in request.files:
             ref_file = request.files['reference_image']
             if ref_file and ref_file.filename:
-                # Convert file to base64 for processing
                 ref_file_data = ref_file.read()
                 import base64
                 reference_image_data = f"data:image/{ref_file.content_type.split('/')[-1]};base64,{base64.b64encode(ref_file_data).decode('utf-8')}"
@@ -158,34 +225,73 @@ def generate():
     if not prompt:
         return jsonify({"error": "No prompt provided"}), 400
     
-    # Get user_id from session, create if doesn't exist
     user_id = session.get('user_id')
-    if not user_id:
-        user_id = str(uuid.uuid4())
-        session['user_id'] = user_id
-    
-    # Generate a unique filename based on user_id and timestamp
-    timestamp = int(time.time())
-    filename = f"sticker_{user_id}_{timestamp}.png"
-    img_path = os.path.join(folder_path, filename)
-    
+    is_logged_in = bool(user_id)
+    current_coins = 0
+
+    # Determine sticker cost based on quality
+    actual_sticker_cost = LOW_STICKER_COST
+    if quality == 'medium':
+        actual_sticker_cost = MEDIUM_STICKER_COST
+    elif quality == 'high':
+        actual_sticker_cost = HIGH_STICKER_COST
+
     try:
+        if is_logged_in:
+            current_user_data = get_user(user_id)
+            if not current_user_data:
+                session.pop('user_id', None)
+                session.pop('email', None)
+                return jsonify({"error": "User session invalid. Please log in again."}), 401
+            current_coins = current_user_data.get('coins', 0)
+        else:
+            current_coins = session.get('coins', INITIAL_COINS)
+
+        if current_coins < actual_sticker_cost:
+            return jsonify({"error": f"Insufficient coins. You need {actual_sticker_cost} coins. Your balance: {current_coins}"}), 402
+
+        filename_user_part = user_id if is_logged_in else str(uuid.uuid4()).split('-')[0]
+        timestamp = int(time.time())
+        filename = f"sticker_{filename_user_part}_{timestamp}.png"
+        img_path = os.path.join(folder_path, filename)
+
+        image_b64, s3_url, high_res_s3_url = None, None, None
         if mode == 'reference' and reference_image_data:
-            # Use reference-mode function if reference image is provided
             image_b64, s3_url, high_res_s3_url = generate_sticker_with_reference(
                 prompt, img_path, reference_image_data, quality, user_id=user_id, style=style
             )
         else:
-            # Use simple mode if no reference image or mode is 'simple'
             image_b64, s3_url, high_res_s3_url = generate_sticker(
                 prompt, img_path, quality, user_id=user_id, style=style
             )
         
-        # Store S3 URLs in session for later use
+        if is_logged_in:
+            create_transaction(
+                user_id=user_id,
+                coins_amount=-actual_sticker_cost,
+                transaction_type='sticker_generation_authenticated',
+                details={
+                    'prompt': prompt, 
+                    'quality': quality, 
+                    'mode': mode,
+                    'style': style or 'default',
+                    'filename': filename,
+                    'cost': actual_sticker_cost
+                }
+            )
+            user_after_deduction = get_user(user_id)
+            if user_after_deduction:
+                session['coins'] = user_after_deduction.get('coins', 0)
+            else:
+                app.logger.warning(f"User {user_id} not found after successful transaction. Session coins might be stale.")
+        else:
+            session_coins_before_deduction = session.get('coins', INITIAL_COINS)
+            session['coins'] = max(0, session_coins_before_deduction - actual_sticker_cost)
+            app.logger.info(f"Anonymous user generated a sticker. Cost: {actual_sticker_cost}. New session coins: {session['coins']}")
+
         s3_urls = session.get('s3_urls', {})
         s3_urls[filename] = s3_url
         
-        # Store the high resolution version URL
         filename_without_ext, ext = os.path.splitext(filename)
         high_res_filename = f"{filename_without_ext}_high{ext}"
         s3_urls[high_res_filename] = high_res_s3_url
@@ -198,39 +304,15 @@ def generate():
             "high_res_filename": high_res_filename, 
             "image": image_b64
         })
+
     except ValueError as e:
-        return jsonify({"error": f"Invalid image format: {str(e)}"}), 400
+        if f"Insufficient coins" in str(e) or f"Payment failed" in str(e):
+            return jsonify({"error": str(e)}), 402
+        app.logger.error(f"ValueError during sticker generation for user {user_id or 'anonymous'}: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Invalid image format or input: {str(e)}"}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@app.route('/generate-with-reference', methods=['POST'])
-def generate_with_reference():
-    # For backward compatibility, redirect to the unified generate endpoint
-    data = request.json
-    prompt = data.get('prompt', '')
-    reference_image = data.get('referenceImage', '')
-    quality = data.get('quality', 'low')
-    style = data.get('style', None)  # Obtener el estilo seleccionado
-    
-    if not prompt:
-        return jsonify({"error": "No prompt provided"}), 400
-    
-    if not reference_image:
-        return jsonify({"error": "No reference image provided"}), 400
-    
-    # Create a new request to the unified endpoint
-    modified_data = {
-        "prompt": prompt,
-        "quality": quality,
-        "mode": "reference",
-        "reference_image": reference_image,
-        "style": style  # Incluir el estilo en los datos modificados
-    }
-    
-    # Pass the modified data to the unified generate endpoint
-    request.json = modified_data
-    return generate()
+        app.logger.error(f"Error during sticker generation for user {user_id}: {str(e)}", exc_info=True)
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route('/add-to-template', methods=['POST'])
 def add_to_template():
@@ -542,212 +624,326 @@ def get_history():
 
 @app.route('/get-coins', methods=['GET'])
 def get_coins():
-    # Return current coin balance
-    coins = session.get('coins', 0)
-    return jsonify({
-        "success": True,
-        "coins": coins
-    })
+    """
+    Return current coin balance from the session or DynamoDB
+    """
+    user_id = session.get('user_id')
+    
+    if USE_DYNAMODB and user_id:
+        # Get latest user data from DynamoDB
+        user = get_user(user_id)
+        if user:
+            # Update session with latest coins
+            session['coins'] = user.get('coins', 0)
+    
+    # Make sure coins is set in the session (for non-authenticated users)
+    if 'coins' not in session:
+        session['coins'] = INITIAL_COINS  # Default for non-authenticated users
+    
+    # Return current coin balance from session
+    return jsonify({"coins": session.get('coins', INITIAL_COINS)})
 
 @app.route('/update-coins', methods=['POST'])
 def update_coins():
-    data = request.json
-    amount = data.get('amount', 0)
+    """
+    Update coin balance in the session and DynamoDB if enabled
+    """
+    coins_update = request.json.get('coins', 0)
     
-    # Get current coins from session
-    current_coins = session.get('coins', 0)
+    if coins_update == 0:
+        return jsonify({"coins": session.get('coins', 0)})
     
-    # Update coins
-    new_coins = max(0, current_coins + amount)
-    session['coins'] = new_coins
+    user_id = session.get('user_id')
     
-    return jsonify({
-        "success": True,
-        "coins": new_coins
-    })
+    if USE_DYNAMODB and user_id:
+        try:
+            # Record transaction
+            transaction_type = 'usage' if coins_update < 0 else 'bonus'
+            create_transaction(
+                user_id=user_id,
+                coins_amount=coins_update,
+                transaction_type=transaction_type,
+                details={'source': 'app', 'api_route': '/update-coins'}
+            )
+            
+            # Update session with latest coins
+            user = get_user(user_id)
+            if user:
+                session['coins'] = user.get('coins', 0)
+        except Exception as e:
+            print(f"Error updating coins in DynamoDB: {e}")
+            # Fall back to session-based coins
+            current_coins = session.get('coins', 0)
+            session['coins'] = max(0, current_coins + coins_update)
+    else:
+        # Legacy session-based coin handling
+        current_coins = session.get('coins', 0)
+        session['coins'] = max(0, current_coins + coins_update)
+    
+    return jsonify({"coins": session.get('coins', 0)})
 
 @app.route('/purchase-coins', methods=['POST'])
 def purchase_coins():
-    if not sdk:
-        return jsonify({"error": "Mercado Pago SDK not configured. Check Access Token."}), 500
-         
+    """
+    Process a coin purchase.
+    - If 'direct_apply' and 'coupon' are present, attempts to apply a coupon directly (Not fully implemented).
+    - Otherwise, expects 'package_id' to initiate a Mercado Pago payment for a coin package.
+    """
+    app.logger.info(f"--- /purchase-coins ---")
+    # app.logger.info(f"Raw request data: {request.data}") # DEBUG REMOVED
+    # app.logger.info(f"request.is_json: {request.is_json}") # DEBUG REMOVED
+
+    if not request.is_json:
+        app.logger.error("Request is not JSON")
+        return jsonify({"error": "Request must be JSON"}), 400
+    
     data = request.json
-    coupon = data.get('coupon', '').strip()
-    direct_apply = data.get('direct_apply', False)
+    # app.logger.info(f"Parsed JSON data: {data}") # DEBUG REMOVED
     
-    # Direct coupon application without purchase
-    if direct_apply:
-        if not coupon:
-            return jsonify({"error": "No coupon code provided"}), 400
-            
-        # Validate the coupon
-        if coupon != DISCOUNT_COUPON:
-            return jsonify({"error": "Invalid coupon code"}), 400
-            
-        # Check if coupon is disabled
-        if COUPON_LIMIT == 0:
-            return jsonify({"error": "This coupon is no longer valid."}), 400
-            
-        # Check usage limit for session
-        coupon_uses = session.get('coupon_uses', 0)
-        
-        # If there's a limit and it's reached, reject
-        if COUPON_LIMIT > 0 and coupon_uses >= COUPON_LIMIT:
-            return jsonify({"error": "You have reached the maximum number of uses for this coupon."}), 400
-            
-        # Apply coupon directly - add 500 coins to user's account
-        coins_added = 500
-        current_coins = session.get('coins', 0)
-        session['coins'] = current_coins + coins_added
-        
-        # Track coupon use
-        session['coupon_uses'] = coupon_uses + 1
-        
-        return jsonify({
-            "success": True,
-            "message": "Coupon applied successfully",
-            "coins_added": coins_added,
-            "current_coins": session.get('coins', 0)
-        })
-    
-    # Normal purchase flow
-    name = data.get('name')
-    email = data.get('email')
-    coin_package = data.get('package')
-    
-    if not all([name, email, coin_package]):
-        return jsonify({"error": "Missing required information for purchase."}), 400
+    user_id = session.get('user_id')
+    is_authenticated = user_id is not None
 
-    # Define coin packages with their prices and amounts
-    coin_packages = {
-        "small": {"amount": 100, "price": 500.00},
-        "medium": {"amount": 300, "price": 1000.00},
-        "large": {"amount": 500, "price": 1500.00}
-    }
-    
-    if coin_package not in coin_packages:
-        return jsonify({"error": "Invalid coin package selected."}), 400
-    
-    package_info = coin_packages[coin_package]
-    coin_amount = package_info['amount']
-    price = package_info['price']
-    
-    # Apply coupon discount if valid
-    additional_coins = 0
-    if coupon and coupon == DISCOUNT_COUPON:
-        # Check if coupon is disabled
-        if COUPON_LIMIT == 0:
-            return jsonify({"error": "This coupon is no longer valid."}), 400
-            
-        # Check usage limit for session
-        coupon_uses = session.get('coupon_uses', 0)
+    # Scenario 1: Direct Coupon Application
+    if data.get('direct_apply') and data.get('coupon'):
+        coupon_code = data.get('coupon')
+        app.logger.info(f"Direct coupon application attempt for coupon: {coupon_code} by user: {user_id or 'guest'}")
         
-        # If there's a limit and it's reached, reject
-        if COUPON_LIMIT > 0 and coupon_uses >= COUPON_LIMIT:
-            return jsonify({"error": "You have reached the maximum number of uses for this coupon."}), 400
-            
-        # Apply coupon - add 500 coins
-        additional_coins = 500
-        
-        # Track coupon use
-        session['coupon_uses'] = coupon_uses + 1
-    
-    items = [{
-        "title": f"{coin_amount + additional_coins} Coins Package" + (" with Discount" if additional_coins > 0 else ""),
-        "quantity": 1,
-        "unit_price": price,
-        "currency_id": "ARS" # Or your country's currency code
-    }]
-    
-    total_amount = price
-    
-    # Basic payer info
-    payer = {
-        "name": name,
-        "email": email
-    }
+        if not is_authenticated: # Coupons require login
+            return jsonify({"error": "Debes iniciar sesión para aplicar un cupón de monedas."}), 403
 
-    # Define back URLs dynamically using url_for
-    base_url = request.url_root
-    
-    try:
-        # Force HTTPS scheme for external URLs
-        success_url = url_for('coin_payment_feedback', _external=True, _scheme='https', package=coin_package, additional_coins=additional_coins)
-        failure_url = url_for('coin_payment_feedback', _external=True, _scheme='https', package=coin_package, additional_coins=0)
-        pending_url = url_for('coin_payment_feedback', _external=True, _scheme='https', package=coin_package, additional_coins=0)
+        # --- Placeholder for actual coupon validation and coin awarding logic ---
+        # Example:
+        # coupon_details = validate_coupon_for_direct_coin_award(coupon_code)
+        # if coupon_details and coupon_details.get('is_valid'):
+        #     coins_to_add = coupon_details.get('coins_value', 0)
+        #     if coins_to_add > 0:
+        #         try:
+        #             create_transaction(
+        #                 user_id=user_id,
+        #                 coins_amount=coins_to_add,
+        #                 transaction_type='coupon_redeem_direct',
+        #                 details={'coupon_code': coupon_code, 'coins_added': coins_to_add}
+        #             )
+        #             updated_user = get_user(user_id)
+        #             session['coins'] = updated_user.get('coins', 0)
+        #             app.logger.info(f"Coupon '{coupon_code}' redeemed by user {user_id}, {coins_to_add} coins added.")
+        #             return jsonify({
+        #                 "success": True, 
+        #                 "message": f"{coins_to_add} monedas agregadas con el cupón '{coupon_code}'.", 
+        #                 "coins_added": coins_to_add, 
+        #                 "current_coins": session['coins']
+        #             })
+        #         except Exception as e:
+        #             app.logger.error(f"Error processing coupon {coupon_code} for user {user_id}: {str(e)}")
+        #             return jsonify({"error": "Error al procesar el cupón."}), 500
+        #     else:
+        #         return jsonify({"error": "El cupón es válido pero no otorga monedas."}), 400
+        # else:
+        #     return jsonify({"error": coupon_details.get('message', "Cupón inválido o ya utilizado.")}), 400
+        # --- End Placeholder ---
         
-        back_urls_data = {
-            "success": success_url,
-            "failure": failure_url,
-            "pending": pending_url
-        }
+        app.logger.warning("Direct coupon application feature is not fully implemented on the backend.")
+        return jsonify({"error": "La aplicación directa de cupones aún no está completamente implementada."}), 501
+
+    # Scenario 2: Coin Package Purchase (Initiate Mercado Pago payment)
+    else:
+        package_id = data.get('package_id')
+        app.logger.info(f"Coin package purchase initiated for package_id: {package_id} by user: {user_id or 'guest'}")
+
+        if not package_id or package_id not in COIN_PACKAGES_CONFIG:
+            app.logger.error(f"Invalid or missing package_id: {package_id}")
+            return jsonify({"error": "Paquete de monedas inválido o no especificado."}), 400
+
+        package_info = COIN_PACKAGES_CONFIG[package_id]
         
-    except Exception as url_gen_err:
-        print(f"Error generating back URLs: {url_gen_err}")
-        return jsonify({"error": f"Failed to generate callback URLs: {str(url_gen_err)}"}), 500
+        payer_info = {}
+        req_name = data.get('name')
+        req_email = data.get('email')
 
-    preference_data = {
-        "items": items,
-        "payer": payer,
-        "back_urls": back_urls_data,
-        "auto_return": "approved",
-    }
-    
-    try:
-        preference_response = sdk.preference().create(preference_data)
+        if is_authenticated:
+            db_user = get_user(user_id)
+            if db_user:
+                payer_info['email'] = db_user.get('email', '') # Ensure email is always present
+                if db_user.get('name'):
+                     payer_info['name'] = db_user.get('name')
+        elif req_name and req_email and req_name != 'authenticated' and req_email != 'authenticated':
+            payer_info['name'] = req_name
+            payer_info['email'] = req_email
+        
+        if not sdk:
+            app.logger.error("Mercado Pago SDK not configured for coin purchase.")
+            return jsonify({"error": "El sistema de pagos no está configurado correctamente."}), 500
 
-        if preference_response and isinstance(preference_response, dict) and preference_response.get("status") in [200, 201] and "response" in preference_response and "id" in preference_response["response"]:
-            preference = preference_response["response"]
-            return jsonify({
-                "success": True,
-                "preference_id": preference['id'],
-                "package": coin_package,
-                "amount": coin_amount,
-                "additional_coins": additional_coins,
-                "coupon_applied": additional_coins > 0
-            })
-        else:
-            error_message = "Failed to create payment preference due to unexpected response."
-            if preference_response and isinstance(preference_response, dict) and "response" in preference_response and "message" in preference_response["response"]:
-                error_message = f"Mercado Pago Error: {preference_response['response']['message']}"
-            elif preference_response and isinstance(preference_response, dict) and "message" in preference_response:
-                 error_message = f"Mercado Pago Error: {preference_response['message']}"
-                 
-            return jsonify({"error": error_message}), 500
+        try:
+            timestamp = int(time.time())
+            # External reference: Type_UserID_PackageID_Coins_Timestamp
+            external_reference = f"COINPKG_{user_id or 'GUEST'}_{package_id}_{package_info['coins']}_{timestamp}"
+
+            preference_data = {
+                "items": [{
+                    "title": package_info['name'],
+                    "description": f"{package_info['coins']} monedas virtuales para TheStickerHouse",
+                    "quantity": 1,
+                    "unit_price": package_info['price'],
+                    "currency_id": package_info['currency_id']
+                }],
+                "payer": payer_info,
+                "back_urls": {
+                    "success": url_for('coin_payment_feedback', _external=True, _scheme='https'),
+                    "failure": url_for('coin_payment_feedback', _external=True, _scheme='https'), # Can have specific failure page
+                    "pending": url_for('coin_payment_feedback', _external=True, _scheme='https')  # Can have specific pending page
+                },
+                "auto_return": "approved",
+                "external_reference": external_reference,
+                # "notification_url": url_for('coin_webhook_receiver', _external=True, _scheme='https') # TODO: Implement webhook
+            }
             
-    except Exception as e:
-        print(f"Error creating preference: {e}")
-        error_detail = str(e)
-        if hasattr(e, 'response') and e.response is not None:
-             try:
-                 error_detail = e.response.text
-             except:
-                 pass
-        return jsonify({"error": f"Failed to create payment preference: {error_detail}"}), 500
+            app.logger.info(f"Creating Mercado Pago preference for coin purchase. Ref: {external_reference}. Data: {preference_data}")
+            preference_response = sdk.preference().create(preference_data)
+            # app.logger.info(f"Mercado Pago preference response: {preference_response}") # DEBUG REMOVED
+
+            if preference_response and isinstance(preference_response, dict) and \
+               preference_response.get("status") in [200, 201] and \
+               preference_response.get("response") and "id" in preference_response["response"]:
+                preference_id = preference_response["response"]["id"]
+                app.logger.info(f"Successfully created Mercado Pago preference ID: {preference_id} for ER: {external_reference}")
+                # DO NOT give coins here. Coins are given upon successful payment feedback.
+                return jsonify({"preference_id": preference_id})
+            else:
+                error_message = "Error al crear la preferencia de pago con Mercado Pago."
+                if preference_response and isinstance(preference_response, dict) and preference_response.get("response"):
+                    error_message = preference_response["response"].get("message", error_message)
+                elif preference_response and isinstance(preference_response, dict) and preference_response.get("message"):
+                     error_message = preference_response.get("message", error_message)
+                app.logger.error(f"Mercado Pago preference creation failed: {error_message}. Full response: {preference_response}")
+                return jsonify({"error": error_message}), 500
+        except Exception as e:
+            app.logger.error(f"Exception creating Mercado Pago preference for coins: {str(e)}", exc_info=True)
+            return jsonify({"error": f"Error crítico al procesar el pago: {str(e)}"}), 500
 
 @app.route('/coin_payment_feedback')
 def coin_payment_feedback():
-    # Handle the user returning from Mercado Pago
-    status = request.args.get('status')
-    payment_id = request.args.get('payment_id')
-    coin_package = request.args.get('package')
-    additional_coins = int(request.args.get('additional_coins', 0))
-    
-    # Define coin packages with their amounts
-    coin_packages = {
-        "small": 100,
-        "medium": 300,
-        "large": 500
-    }
-    
-    if status == 'approved' and coin_package in coin_packages:
-        # Add coins to user's account
-        current_coins = session.get('coins', 0)
-        package_coins = coin_packages[coin_package]
-        total_coins = package_coins + additional_coins
-        session['coins'] = current_coins + total_coins
+    """
+    Handle the user returning from Mercado Pago after a coin purchase.
+    Processes the payment status and external_reference to award coins.
+    """
+    app.logger.info(f"--- /coin_payment_feedback ---")
+    # app.logger.info(f"Query Args: {request.args}") # DEBUG REMOVED
+
+    payment_status = request.args.get('collection_status', '') # e.g., approved, rejected
+    payment_id = request.args.get('collection_id', '')     # MP Payment ID
+    external_reference = request.args.get('external_reference', '') # Custom reference sent to MP
+    # preference_id = request.args.get('preference_id', '') # MP Preference ID
+    # site_id = request.args.get('site_id', '')
+    # processing_mode = request.args.get('processing_mode', '')
+    # merchant_account_id = request.args.get('merchant_account_id', '')
+
+    app.logger.info(f"Payment Status: {payment_status}, Payment ID: {payment_id}, External Reference: {external_reference}")
+
+    if payment_status == 'approved' and payment_id and external_reference:
+        try:
+            # Parse external_reference: COINPKG_{user_id_or_GUEST}_{package_id}_{coins}_{timestamp}
+            ref_parts = external_reference.split('_')
+            # app.logger.info(f"Parsing external_reference parts: {ref_parts}") # DEBUG REMOVED
+
+            if len(ref_parts) == 5 and ref_parts[0] == 'COINPKG':
+                user_id_from_ref = ref_parts[1]
+                # package_id_from_ref = ref_parts[2] # Not strictly needed here but good for logging/validation
+                coins_to_add = int(ref_parts[3])
+                # timestamp_from_ref = ref_parts[4]
+                
+                app.logger.info(f"Successfully parsed ER: UserID='{user_id_from_ref}', CoinsToAdd={coins_to_add}")
+
+                if user_id_from_ref == 'GUEST':
+                    # Handle GUEST purchases: Award coins to current session if no user_id is in session.
+                    # This is a simple approach. A more robust one might involve temporary tokens
+                    # or requiring login before coin purchases even for guests.
+                    # For now, if a GUEST made the purchase and returns, and there's a session user, attribute to them.
+                    # If no session user, this might be problematic or coins go to a new guest session.
+                    user_id_for_transaction = session.get('user_id') 
+                    if not user_id_for_transaction:
+                        # This case is tricky. If the GUEST has no active session, where do coins go?
+                        # For now, log a warning. Consider creating a temporary guest user or other strategy.
+                        app.logger.warning(f"Coin purchase for GUEST (ER: {external_reference}) but no active session user_id. Coins might be lost or misattributed.")
+                        # Potentially redirect to an error page or a page asking to log in to claim coins.
+                        return redirect(url_for('index')) # Or an error/info page
+                    app.logger.info(f"GUEST purchase (ER: {external_reference}). Attributing to session user_id: {user_id_for_transaction}")
+                else:
+                    user_id_for_transaction = user_id_from_ref
+
+                if not user_id_for_transaction:
+                    app.logger.error(f"No user_id could be determined for transaction from ER: {external_reference}")
+                    # Potentially redirect to an error page.
+                    return redirect(url_for('index'))
+
+                # Award coins if USE_DYNAMODB is True and a user_id_for_transaction exists
+                if USE_DYNAMODB:
+                    try:
+                        # Check if user exists before attempting transaction
+                        user_check = get_user(user_id_for_transaction)
+                        if not user_check and user_id_from_ref != 'GUEST': # Don't create new user for GUEST ref here
+                            app.logger.error(f"User {user_id_for_transaction} from ER not found in DB. Cannot award coins.")
+                            # Redirect or show error
+                            return redirect(url_for('index'))
+                        
+                        # Record transaction in DynamoDB
+                        transaction_record = create_transaction(
+                            user_id=user_id_for_transaction,
+                            coins_amount=coins_to_add,
+                            transaction_type='coin_purchase_mp', # More specific type
+                            details={
+                                'payment_id': payment_id,
+                                'payment_method': 'mercadopago',
+                                'payment_status': payment_status,
+                                'external_reference': external_reference,
+                                'source': 'coin_payment_feedback'
+                            }
+                        )
+                        app.logger.info(f"Transaction {transaction_record.get('transaction_id')} created for user {user_id_for_transaction}, {coins_to_add} coins added.")
+                        
+                        # Update session with latest coins if the transaction was for the current session user
+                        if user_id_for_transaction == session.get('user_id'):
+                            user = get_user(user_id_for_transaction)
+                            if user:
+                                session['coins'] = user.get('coins', 0)
+                                app.logger.info(f"Session coins updated for user {user_id_for_transaction} to {session['coins']}")
+                            else:
+                                app.logger.warning(f"User {user_id_for_transaction} not found after transaction for session update.")
+                        else:
+                            app.logger.info(f"Coin purchase ER {external_reference} was for user {user_id_for_transaction}, session user is {session.get('user_id')}. Session coins not updated directly.")
+
+                    except Exception as e:
+                        app.logger.error(f"Error recording coin purchase transaction for ER {external_reference}: {str(e)}", exc_info=True)
+                        # Don't redirect here if coins might have been awarded but logging failed
+                        # Or handle idempotency carefully
+                else:
+                    # Legacy session-based coin handling (if DynamoDB is not used)
+                    # This part needs careful thought if guest purchases can happen without DynamoDB
+                    app.logger.warning("USE_DYNAMODB is false. Legacy coin handling for MP feedback not fully robust for GUESTs.")
+                    current_coins = session.get('coins', INITIAL_COINS)
+                    session['coins'] = current_coins + coins_to_add
+                    app.logger.info(f"Legacy session coins updated: {session['coins']}")
+                
+                # Optional: Add a success message to be displayed on the index page after redirect
+                # session['payment_success_message'] = f"¡Pago exitoso! Se agregaron {coins_to_add} monedas a tu cuenta."
+
+            else:
+                app.logger.error(f"Failed to parse external_reference: {external_reference}. Format incorrect or not COINPKG.")
         
-    # Redirect back to index
+        except ValueError as e:
+            app.logger.error(f"ValueError parsing external_reference '{external_reference}' (likely int conversion for coins): {str(e)}")
+        except IndexError as e:
+            app.logger.error(f"IndexError parsing external_reference '{external_reference}' (not enough parts): {str(e)}")
+        except Exception as e:
+            app.logger.error(f"Generic exception processing payment feedback for ER {external_reference}: {str(e)}", exc_info=True)
+    
+    elif payment_status == 'rejected':
+        app.logger.warning(f"Payment rejected by Mercado Pago. Payment ID: {payment_id}, ER: {external_reference}")
+        # session['payment_failure_message'] = "Tu pago fue rechazado. Por favor, intenta nuevamente o contacta a soporte."
+    else:
+        app.logger.info(f"Payment feedback received with status: {payment_status} (not 'approved' or 'rejected'). ER: {external_reference}")
+        # session['payment_pending_message'] = "Tu pago está pendiente. Te notificaremos cuando se confirme."
+
     return redirect(url_for('index'))
 
 # --- End Coins System Routes ---
@@ -762,10 +958,28 @@ def create_preference():
     data = request.json
     name = data.get('name')
     email = data.get('email')
-    address = data.get('address', '') # Obtenemos la dirección aunque no se usaba antes
-
-    if not all([name, email]):
-         return jsonify({"error": "Missing name or email for checkout."}), 400
+    address = data.get('address', '') # Shipping address is required
+    
+    # Check if user is authenticated
+    user_id = session.get('user_id')
+    is_authenticated = user_id is not None
+    
+    # For authenticated users, get their info from the database
+    if is_authenticated and name == 'authenticated' and email == 'authenticated':
+        if USE_DYNAMODB:
+            try:
+                # Get user data from DynamoDB
+                user = get_user(user_id)
+                if user:
+                    name = user.get('name', '')
+                    email = user.get('email', '')
+            except Exception as e:
+                print(f"Error getting user data: {e}")
+                return jsonify({"error": f"Could not retrieve user data: {str(e)}"}), 500
+    
+    # Validate required fields
+    if not all([name, email, address]):
+         return jsonify({"error": "Name, email, and shipping address are required for checkout."}), 400
 
     # Guardar los datos del cliente en la sesión para tenerlos disponibles en la ruta de retroalimentación
     session['customer_data'] = {
@@ -935,7 +1149,7 @@ def payment_feedback():
             try:
                 # Descargar archivos temporalmente para crear el ZIP
                 s3_client = get_s3_client()
-                bucket = os.getenv('AWS_S3_BUCKET_NAME')
+                bucket = AWS_S3_BUCKET_NAME
                 
                 for filename, url in sticker_s3_urls.items():
                     # Obtener key de S3 desde URL
@@ -1001,9 +1215,7 @@ def payment_feedback():
 
 @app.route('/library')
 def library():
-    # Get the Mercado Pago public key from environment variables
-    mp_public_key = os.getenv('MP_PUBLIC_KEY', '')
-    return render_template('library.html', mp_public_key=mp_public_key)
+    return render_template('library.html', mp_public_key=MP_PUBLIC_KEY)
 
 @app.route('/img/<filename>')
 def get_image(filename):
@@ -1023,7 +1235,7 @@ def get_image(filename):
         # para evitar problemas de CORS cuando se usa en un canvas
         try:
             s3_client = get_s3_client()
-            bucket = os.getenv('AWS_S3_BUCKET_NAME')
+            bucket = AWS_S3_BUCKET_NAME
             key = f"{S3_STICKERS_FOLDER}/{filename}"
             
             # Descargar el archivo a memoria
@@ -1058,7 +1270,7 @@ def get_image(filename):
     # 2. Si no está en la sesión, verificar si existe en S3 y crear una URL firmada
     try:
         s3_client = get_s3_client()
-        bucket = os.getenv('AWS_S3_BUCKET_NAME')
+        bucket = AWS_S3_BUCKET_NAME
         
         if not bucket:
             error_msg = "S3 bucket name not specified in environment variables"
@@ -1120,6 +1332,8 @@ def get_image(filename):
                     as_attachment=False,
                     download_name=filename
                 ))
+                
+                # Añadir cabeceras CORS y cache
                 response.headers['Access-Control-Allow-Origin'] = '*'
                 response.headers['Access-Control-Allow-Methods'] = 'GET'
                 response.headers['Cache-Control'] = 'public, max-age=86400'  # Cache por 24 horas
@@ -1143,12 +1357,12 @@ def debug_s3():
     Ruta de diagnóstico para verificar la conexión a S3 y listar archivos
     """
     debug_info = {
-        "s3_enabled": True,  # Siempre True
+        "s3_enabled": USE_S3,
         "environment_vars": {
-            "aws_access_key_present": bool(os.getenv('AWS_ACCESS_KEY_ID')),
-            "aws_secret_key_present": bool(os.getenv('AWS_SECRET_ACCESS_KEY')),
-            "bucket_name": os.getenv('AWS_S3_BUCKET_NAME'),
-            "region": os.getenv('AWS_REGION', 'us-east-1')
+            "aws_access_key_present": bool(AWS_ACCESS_KEY_ID),
+            "aws_secret_key_present": bool(AWS_SECRET_ACCESS_KEY),
+            "bucket_name": AWS_S3_BUCKET_NAME,
+            "region": AWS_REGION
         },
         "stickers_folder": S3_STICKERS_FOLDER,
         "files": [],
@@ -1161,7 +1375,7 @@ def debug_s3():
         debug_info["connection"] = "Success"
         
         # Verificar si el bucket existe
-        bucket = os.getenv('AWS_S3_BUCKET_NAME')
+        bucket = AWS_S3_BUCKET_NAME
         
         if not bucket:
             debug_info["errors"].append("AWS_S3_BUCKET_NAME not set in environment variables")
@@ -1229,7 +1443,7 @@ def direct_s3_image(filename):
         s3_client = get_s3_client()
         print("[DIRECT-S3] Got S3 client successfully")
         
-        bucket = os.getenv('AWS_S3_BUCKET_NAME')
+        bucket = AWS_S3_BUCKET_NAME
         print(f"[DIRECT-S3] Using bucket: {bucket}")
         
         if not bucket:
@@ -1359,11 +1573,11 @@ def debug_s3_bucket():
         "errors": []
     }
     
-    # Verificar que las variables de entorno estén configuradas
-    aws_access_key = os.getenv('AWS_ACCESS_KEY_ID')
-    aws_secret_key = os.getenv('AWS_SECRET_ACCESS_KEY')
-    aws_region = os.getenv('AWS_REGION', 'us-east-1')
-    bucket_name = os.getenv('AWS_S3_BUCKET_NAME')
+    # Use AWS configuration from config.py
+    aws_access_key = AWS_ACCESS_KEY_ID
+    aws_secret_key = AWS_SECRET_ACCESS_KEY
+    aws_region = AWS_REGION
+    bucket_name = AWS_S3_BUCKET_NAME
     
     debug_info["aws_check"] = {
         "aws_access_key_present": bool(aws_access_key),

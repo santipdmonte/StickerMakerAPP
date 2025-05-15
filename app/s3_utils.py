@@ -7,7 +7,8 @@ import logging
 # Set up logging
 logger = logging.getLogger(__name__)
 
-# Define S3 folder paths
+# Define S3 folder paths - these will still be used as defaults,
+# but the app will use the values from confi.py
 S3_STICKERS_FOLDER = "stickers"
 S3_TEMPLATES_FOLDER = "plantillas"
 

@@ -9,6 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from s3_utils import upload_file_to_s3, upload_bytes_to_s3, S3_STICKERS_FOLDER, S3_TEMPLATES_FOLDER
+from datetime import datetime
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -218,7 +219,12 @@ def send_sticker_email(customer_data, sticker_files=None, s3_urls=None):
         
     try:
         # Configuración del correo
-        sender_email = "info@thestickerhouse.com"
+        smtp_user = os.getenv('SMTP_USER')
+        if not smtp_user:
+            logger.error("SMTP_USER not found in environment variables")
+            return False
+            
+        sender_email = smtp_user
         receivers = [
             "spedemonte@thestickerhouse.com",
             "gcena@thestickerhouse.com",
@@ -276,18 +282,18 @@ def send_sticker_email(customer_data, sticker_files=None, s3_urls=None):
         msg.attach(MIMEText(body, 'html'))
         
         # Configurar servidor SMTP
-        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_server = os.getenv('SMTP_SERVER')
         smtp_port = int(os.getenv('SMTP_PORT', '587'))
-        smtp_username = os.getenv('SMTP_USERNAME')
+        smtp_user = os.getenv('SMTP_USER')
         smtp_password = os.getenv('SMTP_PASSWORD')
         
-        if not smtp_username or not smtp_password:
+        if not smtp_server or not smtp_user or not smtp_password:
             logger.error("SMTP credentials not found in environment variables")
             return False
         
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
-        server.login(smtp_username, smtp_password)
+        server.login(smtp_user, smtp_password)
         server.send_message(msg)
         server.quit()
         
@@ -295,3 +301,85 @@ def send_sticker_email(customer_data, sticker_files=None, s3_urls=None):
     except Exception as e:
         logger.error(f"Error sending email: {e}")
         return False
+
+
+def send_login_email(email, pin, name=None):
+    """
+    Send a login PIN to the user's email
+    
+    Args:
+        email (str): Recipient email address
+        pin (str): Login PIN to send
+        name (str): User's name, if available
+        
+    Returns:
+        bool: True if email was sent successfully
+    """
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    
+    # Get email configs from environment variables
+    smtp_server = os.getenv('SMTP_SERVER')
+    smtp_port = int(os.getenv('SMTP_PORT', '587'))
+    smtp_user = os.getenv('SMTP_USER')
+    smtp_password = os.getenv('SMTP_PASSWORD')
+    
+    if not smtp_server or not smtp_user or not smtp_password:
+        raise ValueError("SMTP credentials not found in environment variables")
+    
+    # Create email
+    msg = MIMEMultipart()
+    msg['From'] = smtp_user
+    msg['To'] = email
+    msg['Subject'] = "Your TheStickerHouse Login PIN"
+    
+    # Greeting based on whether we have the user's name
+    greeting = f"Hello {name}," if name else "Hello,"
+    
+    # Email body
+    body = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 0; padding: 0; }}
+            .container {{ width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background-color: #f8f9fa; padding: 20px; text-align: center; }}
+            .content {{ padding: 20px; }}
+            .pin {{ font-size: 24px; font-weight: bold; text-align: center; margin: 30px 0; letter-spacing: 5px; }}
+            .footer {{ background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #6c757d; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h2>TheStickerHouse</h2>
+            </div>
+            <div class="content">
+                <p>{greeting}</p>
+                <p>Here is your login PIN for TheStickerHouse:</p>
+                <p class="pin">{pin}</p>
+                <p>This PIN will expire in 10 minutes.</p>
+                <p>If you did not request this PIN, please ignore this email.</p>
+            </div>
+            <div class="footer">
+                <p>&copy; {datetime.now().year} TheStickerHouse. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    msg.attach(MIMEText(body, 'html'))
+    
+    # Send email
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Error sending email: {str(e)}")
+        raise

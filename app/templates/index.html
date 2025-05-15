@@ -273,14 +273,25 @@
                 </form>
             </div>
             
+            <div id="name-form-container" class="hidden">
+                <p class="new-user-message">Welcome! Please provide your name to create an account.</p>
+                <form id="name-form">
+                    <div class="form-group">
+                        <label for="login-name">Name:</label>
+                        <input type="text" id="login-name" name="name" required placeholder="Enter your name" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
+                    </div>
+                    <button type="submit" id="create-account-btn" class="login-button"><i class="ri-user-add-line"></i> Create Account</button>
+                </form>
+            </div>
+            
             <div id="pin-form-container" class="hidden">
-                <p class="pin-sent-message">PIN code sent! Check your email.</p>
+                <p class="pin-sent-message">PIN sent! Check your email and enter the code below.</p>
                 <form id="pin-form">
                     <div class="form-group">
-                        <label for="login-pin">Enter PIN:</label>
-                        <input type="text" id="login-pin" name="pin" required placeholder="Enter the 6-digit PIN" maxlength="6" pattern="[0-9]{6}" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition); letter-spacing: 2px; text-align: center;">
+                        <label for="login-pin">PIN Code:</label>
+                        <input type="text" id="login-pin" name="pin" required placeholder="Enter 6-digit PIN" maxlength="6" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
                     </div>
-                    <button type="submit" id="verify-pin-btn" class="login-button"><i class="ri-login-circle-line"></i> Login</button>
+                    <button type="submit" id="verify-pin-btn" class="login-button"><i class="ri-shield-check-line"></i> Verify PIN</button>
                 </form>
             </div>
         </div>
@@ -294,8 +305,10 @@
             const loginModalCloseBtn = document.getElementById('login-modal-close-btn');
             const loginModalOverlay = document.getElementById('login-modal-overlay');
             const emailForm = document.getElementById('email-form');
+            const nameForm = document.getElementById('name-form');
             const pinForm = document.getElementById('pin-form');
             const emailFormContainer = document.getElementById('email-form-container');
+            const nameFormContainer = document.getElementById('name-form-container');
             const pinFormContainer = document.getElementById('pin-form-container');
             
             // Library button redirection
@@ -304,17 +317,17 @@
                 window.location.href = '/library';
             });
             
-            // Function to open login modal
-            function openLoginModal() {
-                console.log('Login button clicked');
+            // Function to open login modal - make it globally accessible
+            window.openLoginModal = function() {
+                console.log('Login modal opened');
                 loginModal.classList.remove('hidden');
                 loginModal.style.display = 'flex';
                 loginModal.style.opacity = '1';
                 loginModal.style.visibility = 'visible';
             }
             
-            // Function to close login modal
-            function closeLoginModal() {
+            // Function to close login modal - make it globally accessible
+            window.closeLoginModal = function() {
                 loginModal.classList.add('hidden');
                 loginModal.style.opacity = '0';
                 loginModal.style.visibility = 'hidden';
@@ -324,24 +337,189 @@
                 
                 // Reset forms
                 emailForm.reset();
+                nameForm.reset();
                 pinForm.reset();
                 emailFormContainer.classList.remove('hidden');
+                nameFormContainer.classList.add('hidden');
                 pinFormContainer.classList.add('hidden');
             }
             
             // Open login modal when login button is clicked
-            loginBtn.addEventListener('click', openLoginModal);
-            
-            // Close login modal when close button is clicked
-            loginModalCloseBtn.addEventListener('click', closeLoginModal);
-            
-            // Close login modal when clicking outside of it (on the overlay)
-            loginModalOverlay.addEventListener('click', closeLoginModal);
-            
-            // Prevent clicks on the modal content from closing the modal
-            loginModal.querySelector('.modal-content').addEventListener('click', function(e) {
-                e.stopPropagation();
+            loginBtn.addEventListener('click', function() {
+                // Check if user is already logged in by looking at the button text
+                if (loginBtn.querySelector('span') && loginBtn.innerHTML.includes('ri-user-fill')) {
+                    // User is logged in, show logout menu
+                    showLogoutMenu();
+                } else {
+                    // User is not logged in, show login modal
+                    openLoginModal();
+                }
             });
+            
+            // Logout menu functionality
+            function showLogoutMenu() {
+                // Create logout menu if it doesn't exist
+                let logoutMenu = document.getElementById('logout-menu');
+                if (!logoutMenu) {
+                    logoutMenu = document.createElement('div');
+                    logoutMenu.id = 'logout-menu';
+                    logoutMenu.className = 'logout-menu';
+                    logoutMenu.innerHTML = `
+                        <div class="logout-menu-item" id="logout-btn">
+                            <i class="ri-logout-box-line"></i> Logout
+                        </div>
+                        <div class="logout-menu-item" id="view-profile-btn">
+                            <i class="ri-user-settings-line"></i> View Profile
+                        </div>
+                        <style>
+                            .logout-menu {
+                                position: absolute;
+                                top: 100%;
+                                right: 0;
+                                background: white;
+                                border-radius: 10px;
+                                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                                overflow: hidden;
+                                width: 180px;
+                                z-index: 1000;
+                                opacity: 0;
+                                transform: translateY(-10px);
+                                pointer-events: none;
+                                transition: opacity 0.2s ease, transform 0.2s ease;
+                            }
+                            .logout-menu.active {
+                                opacity: 1;
+                                transform: translateY(0);
+                                pointer-events: all;
+                            }
+                            .logout-menu-item {
+                                padding: 12px 16px;
+                                cursor: pointer;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                                transition: background 0.2s ease;
+                            }
+                            .logout-menu-item:hover {
+                                background: #f5f5f5;
+                            }
+                            .logout-menu-item i {
+                                font-size: 18px;
+                            }
+                        </style>
+                    `;
+                    
+                    // Position the menu relative to the login button
+                    const headerRight = document.querySelector('.header-right');
+                    headerRight.style.position = 'relative';
+                    headerRight.appendChild(logoutMenu);
+                    
+                    // Add event listeners for logout menu items
+                    document.getElementById('logout-btn').addEventListener('click', handleLogout);
+                    document.getElementById('view-profile-btn').addEventListener('click', viewProfile);
+            
+                    // Close menu when clicking outside
+                    document.addEventListener('click', function(e) {
+                        if (logoutMenu.classList.contains('active') && 
+                            !logoutMenu.contains(e.target) && 
+                            !loginBtn.contains(e.target)) {
+                            logoutMenu.classList.remove('active');
+                        }
+                    });
+                }
+                
+                // Toggle menu visibility
+                logoutMenu.classList.toggle('active');
+            }
+            
+            // Handle logout
+            function handleLogout() {
+                fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update UI for logged out state
+                        loginBtn.innerHTML = '<i class="ri-user-line"></i> <span>Login</span>';
+                        
+                        // Hide logout menu
+                        const logoutMenu = document.getElementById('logout-menu');
+                        if (logoutMenu) {
+                            logoutMenu.classList.remove('active');
+                        }
+                        
+                        // Reset coins if applicable
+                        if (typeof updateCoinsDisplay === 'function') {
+                            currentCoins = 0;
+                            updateCoinsDisplay();
+                        } else {
+                            // Direct update if updateCoinsDisplay is not available
+                            const coinsElement = document.getElementById('coins-count-header');
+                            if (coinsElement) {
+                                coinsElement.textContent = '0';
+                            }
+                        }
+                        
+                        // Show success message
+                        const successMessage = document.createElement('div');
+                        successMessage.className = 'info-toast';
+                        successMessage.innerHTML = '<i class="ri-checkbox-circle-line"></i> Logged out successfully';
+                        document.body.appendChild(successMessage);
+                        
+                        // Show toast
+                        setTimeout(() => {
+                            successMessage.classList.add('show');
+                        }, 100);
+                        
+                        // Hide toast
+                        setTimeout(() => {
+                            successMessage.classList.remove('show');
+                            setTimeout(() => {
+                                successMessage.remove();
+                            }, 300);
+                        }, 2000);
+                    } else {
+                        // Show error
+                        alert(data.error || 'Error logging out. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error logging out:', error);
+                    alert('Network error. Please try again.');
+                });
+            }
+            
+            // View profile function
+            function viewProfile() {
+                // Close the logout menu
+                const logoutMenu = document.getElementById('logout-menu');
+                if (logoutMenu) {
+                    logoutMenu.classList.remove('active');
+                }
+                
+                // For now, just show a toast message
+                const infoMessage = document.createElement('div');
+                infoMessage.className = 'info-toast';
+                infoMessage.innerHTML = '<i class="ri-information-line"></i> Profile view coming soon!';
+                document.body.appendChild(infoMessage);
+                
+                // Show toast
+                setTimeout(() => {
+                    infoMessage.classList.add('show');
+                }, 100);
+                
+                // Hide toast
+                setTimeout(() => {
+                    infoMessage.classList.remove('show');
+                    setTimeout(() => {
+                        infoMessage.remove();
+                    }, 300);
+                }, 2000);
+            }
             
             // Handle email form submission (request PIN)
             emailForm.addEventListener('submit', function(e) {
@@ -354,19 +532,131 @@
                     return;
                 }
                 
-                // For now, just simulate PIN sending (frontend only)
-                // In a real implementation, this would make an API call to the backend
-                console.log('Sending PIN to email:', email);
+                // Show loading state
+                const sendPinBtn = document.getElementById('send-pin-btn');
+                const originalBtnText = sendPinBtn.innerHTML;
+                sendPinBtn.disabled = true;
+                sendPinBtn.innerHTML = '<i class="ri-loader-4-line"></i> Sending...';
                 
-                // Show PIN entry form
-                emailFormContainer.classList.add('hidden');
-                pinFormContainer.classList.remove('hidden');
+                // Call API to request PIN
+                fetch('/api/auth/request-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Reset button state
+                    sendPinBtn.disabled = false;
+                    sendPinBtn.innerHTML = originalBtnText;
+                    
+                    if (data.success) {
+                        // Store email for PIN verification
+                        sessionStorage.setItem('auth_email', email);
+                        
+                        // Check if user exists or needs registration
+                        if (data.user_exists) {
+                            // Existing user - show PIN entry form
+                            emailFormContainer.classList.add('hidden');
+                            pinFormContainer.classList.remove('hidden');
+                        } else {
+                            // New user - show name form
+                            emailFormContainer.classList.add('hidden');
+                            nameFormContainer.classList.remove('hidden');
+                        }
+                    } else {
+                        // Show error
+                        alert(data.error || 'Failed to send PIN. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    // Reset button state
+                    sendPinBtn.disabled = false;
+                    sendPinBtn.innerHTML = originalBtnText;
+                    
+                    // Show error
+                    console.error('Error sending PIN:', error);
+                    alert('Network error. Please try again.');
+                });
+            });
+            
+            // Handle name form submission (create account)
+            nameForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const name = document.getElementById('login-name').value;
+                const email = sessionStorage.getItem('auth_email');
+                
+                // Frontend validation
+                if (!name) {
+                    alert('Please enter your name');
+                    return;
+                }
+                
+                if (!email) {
+                    alert('Session expired. Please try again.');
+                    // Go back to email form
+                    nameFormContainer.classList.add('hidden');
+                    emailFormContainer.classList.remove('hidden');
+                    return;
+                }
+                
+                // Show loading state
+                const createAccountBtn = document.getElementById('create-account-btn');
+                const originalBtnText = createAccountBtn.innerHTML;
+                createAccountBtn.disabled = true;
+                createAccountBtn.innerHTML = '<i class="ri-loader-4-line"></i> Creating...';
+                
+                // Call API to create account
+                fetch('/api/auth/create-account', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, name })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Reset button state
+                    createAccountBtn.disabled = false;
+                    createAccountBtn.innerHTML = originalBtnText;
+                    
+                    if (data.success) {
+                        // Account created, show PIN entry form
+                        nameFormContainer.classList.add('hidden');
+                        pinFormContainer.classList.remove('hidden');
+                        
+                        // Update pin sent message
+                        const pinMessage = document.querySelector('.pin-sent-message');
+                        pinMessage.textContent = 'Account created! Enter the PIN sent to your email.';
+                    } else {
+                        // Show error
+                        alert(data.error || 'Failed to create account. Please try again.');
+                        
+                        // If user already exists, go to PIN form
+                        if (data.user_exists) {
+                            nameFormContainer.classList.add('hidden');
+                            pinFormContainer.classList.remove('hidden');
+                        }
+                    }
+                })
+                .catch(error => {
+                    // Reset button state
+                    createAccountBtn.disabled = false;
+                    createAccountBtn.innerHTML = originalBtnText;
+                    
+                    // Show error
+                    console.error('Error creating account:', error);
+                    alert('Network error. Please try again.');
+                });
             });
             
             // Handle PIN form submission (verify PIN)
             pinForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 const pin = document.getElementById('login-pin').value;
+                const email = sessionStorage.getItem('auth_email');
                 
                 // Frontend validation
                 if (!pin || pin.length !== 6 || !/^\d+$/.test(pin)) {
@@ -374,15 +664,186 @@
                     return;
                 }
                 
-                // For now, just simulate PIN verification (frontend only)
-                // In a real implementation, this would make an API call to the backend
-                console.log('Verifying PIN:', pin);
+                if (!email) {
+                    alert('Session expired. Please try again.');
+                    // Go back to email form
+                    pinFormContainer.classList.add('hidden');
+                    emailFormContainer.classList.remove('hidden');
+                    return;
+                }
                 
-                // Simulate successful login
-                alert('Login successful!');
-                closeLoginModal();
+                // Show loading state
+                const verifyPinBtn = document.getElementById('verify-pin-btn');
+                const originalBtnText = verifyPinBtn.innerHTML;
+                verifyPinBtn.disabled = true;
+                verifyPinBtn.innerHTML = '<i class="ri-loader-4-line"></i> Verifying...';
+                
+                // Call API to verify PIN
+                fetch('/api/auth/verify-pin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, pin })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Reset button state
+                    verifyPinBtn.disabled = false;
+                    verifyPinBtn.innerHTML = originalBtnText;
+                    
+                    if (data.success) {
+                        // Update UI based on successful login
+                        // Use name if available, otherwise use email
+                        const displayName = data.user.name || data.user.email;
+                        loginBtn.innerHTML = '<i class="ri-user-fill"></i> <span>' + displayName + '</span>';
+                        
+                        // Update coins display if needed
+                        if (typeof updateCoinsDisplay === 'function' && data.user.coins !== undefined) {
+                            currentCoins = data.user.coins;
+                            updateCoinsDisplay();
+                        } else {
+                            // Direct update if updateCoinsDisplay is not available
+                            const coinsElement = document.getElementById('coins-count-header');
+                            if (coinsElement && data.user.coins !== undefined) {
+                                coinsElement.textContent = data.user.coins;
+                            }
+                        }
+                        
+                        // Show success message
+                        const successMessage = document.createElement('div');
+                        successMessage.className = 'info-toast';
+                        successMessage.innerHTML = '<i class="ri-checkbox-circle-line"></i> Login successful!';
+                        document.body.appendChild(successMessage);
+                        
+                        // Show toast
+                        setTimeout(() => {
+                            successMessage.classList.add('show');
+                        }, 100);
+                        
+                        // Hide toast and close modal
+                        setTimeout(() => {
+                            successMessage.classList.remove('show');
+                            closeLoginModal();
+                            
+                            // Check for pending coin purchase 
+                            const pendingCoinPackage = sessionStorage.getItem('pendingCoinPackage');
+                            if (pendingCoinPackage && typeof selectPackage === 'function') {
+                                setTimeout(() => {
+                                    // Select the package that was chosen before login
+                                    selectPackage(pendingCoinPackage);
+                                    // Remove from session storage
+                                    sessionStorage.removeItem('pendingCoinPackage');
+                                }, 500);
+                            }
+                            
+                            // Check for pending checkout
+                            const pendingCheckout = sessionStorage.getItem('pendingCheckout');
+                            if (pendingCheckout === 'true' && typeof continueCheckout === 'function') {
+                                setTimeout(() => {
+                                    // Continue with checkout process
+                                    continueCheckout();
+                                    // Remove from session storage
+                                    sessionStorage.removeItem('pendingCheckout');
+                                }, 500);
+                            }
+                            
+                            setTimeout(() => {
+                                successMessage.remove();
+                            }, 300);
+                        }, 2000);
+                        
+                        // Clear stored email
+                        sessionStorage.removeItem('auth_email');
+                    } else {
+                        // Show error
+                        alert(data.error || 'Invalid PIN. Please try again.');
+                        // Clear PIN input
+                        document.getElementById('login-pin').value = '';
+                    }
+                })
+                .catch(error => {
+                    // Reset button state
+                    verifyPinBtn.disabled = false;
+                    verifyPinBtn.innerHTML = originalBtnText;
+                    
+                    // Show error
+                    console.error('Error verifying PIN:', error);
+                    alert('Network error. Please try again.');
+                });
+            });
+            
+            // Check if user is already logged in
+            fetch('/api/auth/me')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.user) {
+                        // Update UI for logged in user
+                        // Use name if available, otherwise use email
+                        const displayName = data.user.name || data.user.email;
+                        loginBtn.innerHTML = '<i class="ri-user-fill"></i> <span>' + displayName + '</span>';
+                        
+                        // Update coins if applicable
+                        if (typeof updateCoinsDisplay === 'function' && data.user.coins !== undefined) {
+                            currentCoins = data.user.coins;
+                            updateCoinsDisplay();
+                        } else {
+                            // Direct update if updateCoinsDisplay is not available
+                            const coinsElement = document.getElementById('coins-count-header');
+                            if (coinsElement && data.user.coins !== undefined) {
+                                coinsElement.textContent = data.user.coins;
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking login status:', error);
+                });
+            
+            // Close login modal when close button is clicked
+            loginModalCloseBtn.addEventListener('click', closeLoginModal);
+            
+            // Close login modal when clicking outside of it (on the overlay)
+            loginModalOverlay.addEventListener('click', closeLoginModal);
+            
+            // Prevent clicks on the modal content from closing the modal
+            loginModal.querySelector('.modal-content').addEventListener('click', function(e) {
+                e.stopPropagation();
             });
         });
     </script>
+
+    <style>
+        /* Additional styles for name form */
+        .new-user-message {
+            color: var(--accent-color);
+            font-weight: 500;
+            margin-bottom: 20px;
+            padding: 12px;
+            background-color: rgba(255, 107, 155, 0.1);
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        #login-name:focus {
+            outline: none;
+            border-color: var(--accent-color) !important;
+            box-shadow: 0 0 0 3px rgba(255, 107, 155, 0.1) !important;
+        }
+        
+        #name-form-container {
+            width: 100%;
+            padding-top: 10px;
+        }
+        
+        #create-account-btn {
+            background: linear-gradient(45deg, var(--accent-color), #ff8ab4);
+            box-shadow: 0 8px 20px rgba(255, 107, 155, 0.25);
+        }
+        
+        #create-account-btn:hover {
+            box-shadow: 0 12px 25px rgba(255, 107, 155, 0.35);
+        }
+    </style>
 </body>
 </html> 
