@@ -26,7 +26,7 @@ MEDIUM_PACKAGE_COINS = 300
 LARGE_PACKAGE_COST = 1997
 LARGE_PACKAGE_COINS = 500
 
-STICKER_COSTS = {
+COIN_PACKAGES = {
             "small": {
                 "cost": SMALL_PACKAGE_COST,
                 "coins": SMALL_PACKAGE_COINS
