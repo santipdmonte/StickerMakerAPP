@@ -18,33 +18,15 @@ STICKER_COSTS = {
             "high": HIGH_STICKER_COST
         }
 
-# Coin Packages
-SMALL_PACKAGE_COST = 1000
-SMALL_PACKAGE_COINS = 100
-MEDIUM_PACKAGE_COST = 1699
-MEDIUM_PACKAGE_COINS = 300
-LARGE_PACKAGE_COST = 1997
-LARGE_PACKAGE_COINS = 500
-
-COIN_PACKAGES = {
-            "small": {
-                "cost": SMALL_PACKAGE_COST,
-                "coins": SMALL_PACKAGE_COINS
-            },
-            "medium": {
-                "cost": MEDIUM_PACKAGE_COST,
-                "coins": MEDIUM_PACKAGE_COINS
-            },
-            "large": {
-                "cost": LARGE_PACKAGE_COST,
-                "coins": LARGE_PACKAGE_COINS
-            }
-        }
+COIN_PACKAGES_CONFIG = {
+    'small': {'name': 'Paquete Pequeño de Monedas', 'coins': 100, 'price': 1000.00, 'currency_id': 'ARS'},
+    'medium': {'name': 'Paquete Mediano de Monedas', 'coins': 300, 'price': 1699.00, 'currency_id': 'ARS'},
+    'large': {'name': 'Paquete Grande de Monedas', 'coins': 500, 'price': 1997.00, 'currency_id': 'ARS'}
+}
 
 # Coin configuration from environment variables
 INITIAL_COINS = int(os.getenv('INITIAL_COINS', 15))
 BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
-
 
 # Get discount coupon settings
 DISCOUNT_COUPON = os.getenv("CUPON", "")

@@ -319,41 +319,6 @@ def get_user_by_email(email):
         print(f"Error querying EmailIndex: {e}, falling back to scan")
         return find_user_by_email_scan(email)
 
-def update_user_coins(user_id, coins_change):
-    """
-    Update a user's coin balance
-    
-    Args:
-        user_id (str): User ID to update
-        coins_change (int): Number of coins to add (positive) or subtract (negative)
-        
-    Returns:
-        dict: Updated user data
-    """
-    dynamodb = get_dynamodb_resource()
-    table = dynamodb.Table(USER_TABLE)
-    
-    # Get current user data
-    user = get_user(user_id)
-    if not user:
-        raise ValueError(f"User with ID {user_id} not found")
-    
-    # Update coins and timestamp
-    current_coins = user.get('coins', 0)
-    new_coins = max(0, current_coins + coins_change)  # Prevent negative coins
-    timestamp = int(time.time())
-    
-    response = table.update_item(
-        Key={'user_id': user_id},
-        UpdateExpression='SET coins = :coins, updated_at = :timestamp',
-        ExpressionAttributeValues={
-            ':coins': new_coins,
-            ':timestamp': timestamp
-        },
-        ReturnValues='ALL_NEW'
-    )
-    
-    return response.get('Attributes')
 
 def update_user_last_login(user_id):
     """
@@ -498,7 +463,7 @@ def verify_login_pin(email, pin):
 # Transaction Management Functions
 def create_transaction(user_id, coins_amount, transaction_type, details=None):
     """
-    Record a transaction in the transaction table
+    Record a transaction in the transaction table and update user's coin balance
     
     Args:
         user_id (str): The user ID associated with this transaction
@@ -510,11 +475,15 @@ def create_transaction(user_id, coins_amount, transaction_type, details=None):
         dict: Transaction data
     """
     dynamodb = get_dynamodb_resource()
-    table = dynamodb.Table(TRANSACTION_TABLE)
+    transaction_table = dynamodb.Table(TRANSACTION_TABLE)
+    user_table = dynamodb.Table(USER_TABLE)
     
     transaction_id = str(uuid.uuid4())
     timestamp = int(time.time())
     date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+
+    if transaction_type not in ['purchase', 'usage', 'bonus']:
+        raise ValueError(f"Invalid transaction type: {transaction_type}, must be one of: purchase, usage, bonus")
     
     transaction_data = {
         'transaction_id': transaction_id,
@@ -526,11 +495,32 @@ def create_transaction(user_id, coins_amount, transaction_type, details=None):
         'details': details or {}
     }
     
-    table.put_item(Item=transaction_data)
+    # Record the transaction
+    transaction_table.put_item(Item=transaction_data)
     
     # Update user's coin balance
-    update_user_coins(user_id, coins_amount)
+    # First get current user data
+    user = get_user(user_id)
+    if not user:
+        raise ValueError(f"User with ID {user_id} not found")
     
+    # Update coins and timestamp
+    current_coins = user.get('coins', 0)
+    new_coins = max(0, current_coins + coins_amount)  # Prevent negative coins
+    
+    # Update the user's coin balance
+    response = user_table.update_item(
+        Key={'user_id': user_id},
+        UpdateExpression='SET coins = :coins, updated_at = :timestamp',
+        ExpressionAttributeValues={
+            ':coins': new_coins,
+            ':timestamp': timestamp
+        },
+        ReturnValues='ALL_NEW'
+    )
+    
+    # Return the transaction data and the updated user data
+    transaction_data['updated_user'] = response.get('Attributes')
     return transaction_data
 
 def get_user_transactions(user_id, limit=50):

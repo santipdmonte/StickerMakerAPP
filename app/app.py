@@ -18,7 +18,7 @@ from config import (
     SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE,
     SESSION_USE_SIGNER, SESSION_REFRESH_EACH_REQUEST,
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
-    LOW_STICKER_COST, MEDIUM_STICKER_COST, HIGH_STICKER_COST
+    LOW_STICKER_COST, MEDIUM_STICKER_COST, HIGH_STICKER_COST, COIN_PACKAGES_CONFIG
 )
 
 # Added Mercado Pago
@@ -39,7 +39,6 @@ from dynamodb_utils import (
     ensure_tables_exist,
     create_user,
     get_user,
-    update_user_coins,
     create_transaction,
     verify_email_index
 )
@@ -48,13 +47,6 @@ from dynamodb_utils import (
 from auth_routes import auth_bp
 from coin_routes import coin_bp
 
-# --- Coin Packages Configuration ---
-COIN_PACKAGES_CONFIG = {
-    'small': {'name': 'Paquete Pequeño de Monedas', 'coins': 100, 'price': 500.00, 'currency_id': 'ARS'},
-    'medium': {'name': 'Paquete Mediano de Monedas', 'coins': 300, 'price': 1000.00, 'currency_id': 'ARS'},
-    'large': {'name': 'Paquete Grande de Monedas', 'coins': 500, 'price': 1500.00, 'currency_id': 'ARS'}
-}
-# --- End Coin Packages Configuration ---
 
 # Initialize DynamoDB tables and indexes
 if USE_DYNAMODB:
@@ -657,9 +649,11 @@ def update_coins():
     
     if USE_DYNAMODB and user_id:
         try:
-            # Record transaction
+            # Determine transaction type based on whether we're adding or removing coins
             transaction_type = 'usage' if coins_update < 0 else 'bonus'
-            create_transaction(
+            
+            # Record transaction (which also updates the user's coins)
+            transaction = create_transaction(
                 user_id=user_id,
                 coins_amount=coins_update,
                 transaction_type=transaction_type,
@@ -667,9 +661,9 @@ def update_coins():
             )
             
             # Update session with latest coins
-            user = get_user(user_id)
-            if user:
-                session['coins'] = user.get('coins', 0)
+            updated_user = transaction.get('updated_user', {})
+            if updated_user:
+                session['coins'] = updated_user.get('coins', 0)
         except Exception as e:
             print(f"Error updating coins in DynamoDB: {e}")
             # Fall back to session-based coins
