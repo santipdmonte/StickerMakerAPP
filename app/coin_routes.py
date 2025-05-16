@@ -8,9 +8,7 @@ from dynamodb_utils import (
     get_user_by_email,
     get_user_transactions
 )
-from utils import sanitize_dynamodb_response
-from config import INITIAL_COINS, BONUS_COINS, COIN_PACKAGES_CONFIG, STICKER_COSTS, ALLOW_ANONYMOUS
-import uuid
+from config import INITIAL_COINS, BONUS_COINS, COIN_PACKAGES_CONFIG, STICKER_COSTS
 
 coin_bp = Blueprint('coin', __name__)
 
