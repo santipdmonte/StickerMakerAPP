@@ -21,7 +21,8 @@ DISCOUNT_COUPON = os.getenv("CUPON", "")
 COUPON_LIMIT = int(os.getenv("CUPON_LIMITE", "-1"))
 
 # Development mode placeholder sticker
-USE_PLACEHOLDER_STICKER = os.getenv('USE_PLACEHOLDER_STICKER', 'False')
+placeholder_value = os.getenv('USE_PLACEHOLDER_STICKER', 'False').lower()
+USE_PLACEHOLDER_STICKER = placeholder_value == 'true' or placeholder_value == '1'
 
 # Flask app configuration
 FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
