@@ -8,7 +8,7 @@ from dynamodb_utils import (
     create_transaction,
     get_user_transactions
 )
-from config import INITIAL_COINS, BONUS_COINS
+from config import INITIAL_COINS, BONUS_COINS, COIN_PACKAGES, STICKER_COSTS
 
 coin_bp = Blueprint('coin', __name__)
 
@@ -118,11 +118,37 @@ def use_coins():
         return jsonify({"error": "Request must be JSON"}), 400
     
     data = request.json
-    amount = data.get('amount')
     feature = data.get('feature')
     
-    if not amount or not feature:
-        return jsonify({"error": "Amount and feature are required"}), 400
+    if not feature:
+        return jsonify({"error": "Feature is required"}), 400
+    
+    # Handle sticker generation with quality level
+    if feature == 'sticker_generation':
+        quality = data.get('quality', 'low')
+        
+        # Validate quality level
+        if quality not in STICKER_COSTS:
+            return jsonify({"error": f"Invalid quality level: {quality}"}), 400
+        
+        # Get cost for the requested quality level
+        amount = STICKER_COSTS[quality]
+        
+        # Extra details for the transaction
+        extra_details = {
+            'feature': feature,
+            'quality': quality
+        }
+    else:
+        # For other features, use the amount directly from the request
+        amount = data.get('amount')
+        if not amount:
+            return jsonify({"error": "Amount is required for non-sticker features"}), 400
+        
+        # Extra details for the transaction
+        extra_details = {
+            'feature': feature
+        }
     
     # Convert amount to negative since we're spending coins
     amount = -abs(int(amount))
@@ -161,9 +187,7 @@ def use_coins():
             user_id=user_id,
             coins_amount=amount,
             transaction_type='usage',
-            details={
-                'feature': feature
-            }
+            details=extra_details
         )
         
         # Sanitize data for JSON serialization
@@ -256,4 +280,84 @@ def get_transactions():
             "transactions": transactions
         })
     except Exception as e:
-        return jsonify({"error": f"Failed to retrieve transactions: {str(e)}"}), 500 
+        return jsonify({"error": f"Failed to retrieve transactions: {str(e)}"}), 500
+
+@coin_bp.route('/api/coins/packages', methods=['GET'])
+def get_coin_packages():
+    """
+    Get available coin packages for purchase
+    """
+    return jsonify({
+        "packages": COIN_PACKAGES
+    })
+
+@coin_bp.route('/api/coins/purchase-package', methods=['POST'])
+def purchase_coin_package():
+    """
+    Purchase a specific coin package
+    """
+    user_id = session.get('user_id')
+    
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+    
+    data = request.json
+    package_id = data.get('package_id')
+    payment_id = data.get('payment_id')
+    
+    if not package_id or not payment_id:
+        return jsonify({"error": "Package ID and payment_id are required"}), 400
+    
+    # Validate package exists
+    if package_id not in COIN_PACKAGES:
+        return jsonify({"error": f"Invalid package ID: {package_id}"}), 400
+    
+    package = COIN_PACKAGES[package_id]
+    coins_amount = package['coins']
+    package_cost = package['cost']
+    
+    try:
+        # Add coins to user account
+        updated_user = update_user_coins(user_id, coins_amount)
+        
+        # Record the transaction
+        transaction = create_transaction(
+            user_id=user_id,
+            coins_amount=coins_amount,
+            transaction_type='purchase',
+            details={
+                'payment_id': payment_id,
+                'payment_method': data.get('payment_method', 'mercadopago'),
+                'package_id': package_id,
+                'package_cost': package_cost
+            }
+        )
+        
+        # Sanitize data for JSON serialization
+        updated_user = sanitize_dynamodb_response(updated_user)
+        transaction = sanitize_dynamodb_response(transaction)
+        
+        # Update session
+        session['coins'] = updated_user.get('coins', 0)
+        
+        return jsonify({
+            "success": True,
+            "transaction_id": transaction['transaction_id'],
+            "new_balance": updated_user.get('coins', 0),
+            "package": package_id,
+            "coins_added": coins_amount
+        })
+    except Exception as e:
+        return jsonify({"error": f"Failed to process package purchase: {str(e)}"}), 500
+
+@coin_bp.route('/api/stickers/costs', methods=['GET'])
+def get_sticker_costs():
+    """
+    Get the costs for generating stickers at different quality levels
+    """
+    return jsonify({
+        "costs": STICKER_COSTS
+    }) 

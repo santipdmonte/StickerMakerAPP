@@ -7,14 +7,44 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Sticker Generation Costs
+LOW_STICKER_COST = 10
+MEDIUM_STICKER_COST = 25
+HIGH_STICKER_COST = 100
+
+STICKER_COSTS = {
+            "low": LOW_STICKER_COST,
+            "medium": MEDIUM_STICKER_COST, 
+            "high": HIGH_STICKER_COST
+        }
+
+# Coin Packages
+SMALL_PACKAGE_COST = 1000
+SMALL_PACKAGE_COINS = 100
+MEDIUM_PACKAGE_COST = 1699
+MEDIUM_PACKAGE_COINS = 300
+LARGE_PACKAGE_COST = 1997
+LARGE_PACKAGE_COINS = 500
+
+STICKER_COSTS = {
+            "small": {
+                "cost": SMALL_PACKAGE_COST,
+                "coins": SMALL_PACKAGE_COINS
+            },
+            "medium": {
+                "cost": MEDIUM_PACKAGE_COST,
+                "coins": MEDIUM_PACKAGE_COINS
+            },
+            "large": {
+                "cost": LARGE_PACKAGE_COST,
+                "coins": LARGE_PACKAGE_COINS
+            }
+        }
+
 # Coin configuration from environment variables
 INITIAL_COINS = int(os.getenv('INITIAL_COINS', 15))
 BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
 
-# Sticker Generation Costs (NEW)
-LOW_STICKER_COST = int(os.getenv('LOW_STICKER_COST', 10))
-MEDIUM_STICKER_COST = int(os.getenv('MEDIUM_STICKER_COST', 25))
-HIGH_STICKER_COST = int(os.getenv('HIGH_STICKER_COST', 100))
 
 # Get discount coupon settings
 DISCOUNT_COUPON = os.getenv("CUPON", "")
