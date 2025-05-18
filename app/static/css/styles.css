@@ -1079,7 +1079,7 @@ button i, .download-button i {
     padding: 40px;
     border-radius: var(--border-radius);
     width: 90%;
-    max-width: 500px;
+    max-width: 700px; /* Aumentado de 500px a 700px para tener más espacio */
     position: relative;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
     transform: scale(0.9);
