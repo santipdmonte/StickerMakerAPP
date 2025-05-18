@@ -280,7 +280,7 @@ def generate():
             create_transaction(
                 user_id=user_id,
                 coins_amount=-actual_sticker_cost,
-                transaction_type='sticker_generation_authenticated',
+                transaction_type='usage',  # Changed from 'sticker_generation_authenticated' to 'usage'
                 details={
                     'prompt': prompt, 
                     'quality': quality, 
