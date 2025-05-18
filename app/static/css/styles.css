@@ -636,7 +636,7 @@ button i, .download-button i {
 }
 
 .quality-options label {
-    padding: 8px 20px;
+    padding: 8px 15px;
     cursor: pointer;
     border-radius: 20px;
     font-size: 0.9rem;
@@ -645,6 +645,18 @@ button i, .download-button i {
     transition: var(--transition);
     flex: 1;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.1;
+}
+
+/* Contenedor para el texto principal y el sparkle */
+.quality-options label > .main-label-content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Slider background indicator */
@@ -697,6 +709,9 @@ button i, .download-button i {
     color: #777;
     font-weight: normal;
     opacity: 0.8;
+    display: block;
+    margin-top: 2px;
+    margin-left: 0;
 }
 
 .quality-options label:hover .quality-cost {
@@ -717,6 +732,7 @@ button i, .download-button i {
     animation: sparkle 1.5s 1 forwards;
     transform-origin: center;
     margin-left: 2px;
+    vertical-align: middle;
 }
 
 @keyframes sparkle {
@@ -1537,6 +1553,8 @@ body.modal-open {
     color: #777;
     font-weight: normal;
     opacity: 0.8;
+    display: inline-block;
+    margin-left: 5px;
 }
 
 .quality-options label:hover .quality-cost {
@@ -1651,9 +1669,13 @@ body.modal-open {
     }
 
     .quality-options label {
-        padding: 8px 8px;
+        padding: 8px 5px;
         font-size: 0.85rem;
-        white-space: nowrap;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        line-height: 1.1;
     }
 
     textarea {
@@ -1693,6 +1715,7 @@ body.modal-open {
         display: block;
         text-align: center;
         margin-top: 2px;
+        margin-left: 0;
     }
 
     /* Sticker Template section mobile optimizations */
