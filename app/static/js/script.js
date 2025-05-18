@@ -82,9 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Coin packages data
     const coinPackagesData = {
-        'small': { id: 'small', name: 'Small Package', amount: 100, price: 500.00 },
-        'medium': { id: 'medium', name: 'Medium Package', amount: 300, price: 1000.00 },
-        'large': { id: 'large', name: 'Large Package', amount: 500, price: 1500.00 }
+        'small': { id: 'small', name: 'Paquete Pequeño', amount: 100, price: 500.00 },
+        'medium': { id: 'medium', name: 'Paquete Mediano', amount: 300, price: 1000.00 },
+        'large': { id: 'large', name: 'Paquete Grande', amount: 500, price: 1500.00 }
     };
     
     // Current selected package
@@ -106,19 +106,19 @@ document.addEventListener('DOMContentLoaded', () => {
             mp = new MercadoPago(mpPublicKey, {
                 locale: 'es-AR' // Adjust locale if needed (e.g., 'es-MX', 'pt-BR')
             });
-            console.log("Mercado Pago SDK Initialized.");
+            console.log("Mercado Pago SDK Initializado.");
         } catch (error) {
-            console.error("Failed to initialize Mercado Pago SDK:", error);
-            showError("Payment system could not be initialized.");
+            console.error("Error al inicializar Mercado Pago SDK:", error);
+            showError("El sistema de pago no pudo ser inicializado.");
             // Disable payment button if SDK fails
             finalizePaymentBtn.disabled = true;
-            finalizePaymentBtn.textContent = "Payment Unavailable";
+            finalizePaymentBtn.textContent = "Pago no disponible";
         }
     } else {
-        console.warn("Mercado Pago Public Key not set. Payment processing will not work.");
+        console.warn("Clave pública de Mercado Pago no configurada. El procesamiento de pagos no funcionará.");
         // Optionally disable the finalize button if the key isn't set
         finalizePaymentBtn.disabled = true;
-        finalizePaymentBtn.innerHTML = '<i class="ri-error-warning-line"></i> Payment Key Missing';
+        finalizePaymentBtn.innerHTML = '<i class="ri-error-warning-line"></i> Clave de pago faltante';
     }
     // ---
     
@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Buy Stickers button click handler
     buyStickersBtn.addEventListener('click', () => {
         if (templateStickers.length === 0) {
-            showError('Template is empty. Add stickers first!');
+            showError('La plantilla está vacía. ¡Agregá stickers primero!');
             return;
         }
         
@@ -259,12 +259,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isUserLoggedIn) {
                 // Only validate name/email for non-authenticated users
                 if (!name) {
-                    showError("Please enter your name.");
+                    showError("Por favor, ingresá tu nombre.");
                     shakElement(coinsNameInput);
                     isValid = false;
                 }
                 if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                    showError("Please enter a valid email address.");
+                    showError("Por favor, ingresá una dirección de correo electrónico válida.");
                     shakElement(coinsEmailInput);
                     isValid = false;
                 }
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (!isValid) return;
             
-            finalizeCoinsBtn.innerHTML = '<i class="ri-loader-4-line rotate"></i> Processing...';
+            finalizeCoinsBtn.innerHTML = '<i class="ri-loader-4-line rotate"></i> Procesando...';
             finalizeCoinsBtn.disabled = true;
 
             try {
@@ -469,18 +469,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Only validate name/email for non-authenticated users
         if (!isUserLoggedIn) {
             if (!name) {
-                showError("Please enter your name.");
+                showError("Por favor, ingresá tu nombre.");
                 isValid = false;
             }
             if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { // Simple email regex
-                showError("Please enter a valid email address.");
+                showError("Por favor, ingresá una dirección de correo electrónico válida.");
                 isValid = false;
             }
         }
         
         // Always validate address for all users
         if (!address) {
-            showError("Please enter your shipping address.");
+            showError("Por favor, ingresá tu dirección de envío.");
             isValid = false;
         }
         
@@ -502,7 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Disable button and show loading state
         window.finalizePaymentBtn.disabled = true;
-        window.finalizePaymentBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Processing...';
+        window.finalizePaymentBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Procesando...';
 
         try {
             console.log("Creating payment preference with data:", { name, email, address });
@@ -1222,13 +1222,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Only process image files
         if (!file.type.match('image.*')) {
-            showError('Please select an image file');
+            showError('Por favor, seleccioná un archivo de imagen');
             return;
         }
         
         // Check file size - limit to 5MB
         if (file.size > 5 * 1024 * 1024) {
-            showError('Image size must be less than 5MB');
+            showError('El tamaño de la imagen debe ser menor a 5MB');
             return;
         }
         
@@ -1343,7 +1343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const hasReferenceImage = referenceImageData !== null;
         
         if (!prompt) {
-            showError('Please enter a description for your sticker');
+            showError('Por favor, ingresá una descripción para tu sticker');
             shakElement(promptInput);
             return;
         }
@@ -1356,7 +1356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Client-side pre-check for coins. currentCoins is a global-like variable in this scope,
         // updated by loadCoins().
         if (currentCoins < coinCost) {
-            showError(`Not enough coins. You need ${coinCost} coins. Current: ${currentCoins}`);
+            showError(`No tenés suficientes monedas. Necesitás ${coinCost} monedas. Actuales: ${currentCoins}`);
             // Optionally, you could call checkCurrentCoins() here for an immediate server check 
             // if currentCoins might be stale, but that adds an extra API call.
             // For now, relying on currentCoins which is refreshed on load and after coin purchases.
@@ -1389,7 +1389,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 formData.append('style', selectedStyle);
             }
             
-            console.log("Sending /generate request to backend..."); // DEBUG: Log before sending
+            console.log("Enviando solicitud de /generate al backend..."); // DEBUG: Log before sending
             const response = await fetch('/generate', {
                 method: 'POST',
                 body: formData
@@ -1400,8 +1400,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // const data = JSON.parse(responseText); // DEBUG: Parse text manually if response.json() fails
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: `Failed to generate sticker. Status: ${response.status}` }));
-                showError(errorData.error || `Failed to generate sticker. Status: ${response.status}`);
+                const errorData = await response.json().catch(() => ({ error: `Error al generar el sticker. Estado: ${response.status}` }));
+                showError(errorData.error || `Error al generar el sticker. Estado: ${response.status}`);
                 // throw new Error(errorData.error || 'Failed to generate sticker'); 
                 // No need to throw if showError already handles user feedback and we don't want to re-enable button yet
             } else {
@@ -1419,18 +1419,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     resultsSection.scrollIntoView({ behavior: 'smooth' });
                     if (hasReferenceImage) {
-                        showSuccess('Sticker generated with reference image!');
+                        showSuccess('¡Sticker generado con imagen de referencia!');
                     } else {
-                        showSuccess('Sticker generated successfully!');
+                        showSuccess('¡Sticker generado exitosamente!');
                     }
                     // UI update if no coins left is implicitly handled by loadCoins() -> updateCoinsDisplay() and the pre-check.
                 } else {
-                    showError(data.error || 'Failed to generate sticker (server error)');
+                    showError(data.error || 'Error al generar el sticker (error del servidor)');
                 }
             }
         } catch (error) {
-            console.error('Error in generateSticker function:', error);
-            showError('Error generating sticker. Please try again.');
+            console.error('Error en la función generateSticker:', error);
+            showError('Error al generar el sticker. Por favor, intentá nuevamente.');
         } finally {
             loadingSpinner.classList.add('hidden');
             generateBtn.disabled = false;
@@ -1463,8 +1463,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 successToast.classList.remove('show');
             }, 3000);
         } else {
-            console.warn('Success toast elements not found, falling back to alert');
-            alert('Success: ' + message);
+            console.warn('Elementos de toast de éxito no encontrados, usando alert como alternativa');
+            alert('Éxito: ' + message);
         }
     }
     
@@ -1481,7 +1481,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 errorToast.classList.remove('show');
             }, 3000);
         } else {
-            console.warn('Error toast elements not found, falling back to alert');
+            console.warn('Elementos de toast de error no encontrados, usando alert como alternativa');
             alert('Error: ' + message);
         }
     }
@@ -1768,7 +1768,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const couponCode = coinsCouponDirectInput.value.trim();
         
         if (!couponCode) {
-            couponDirectStatus.textContent = "Please enter a coupon code.";
+            couponDirectStatus.textContent = "Por favor, ingresá un código de cupón.";
             couponDirectStatus.className = 'coupon-status error';
             return;
         }
@@ -1939,7 +1939,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showSuccess(`Estilo "${styleName}" seleccionado`);
         } else {
             // Resetear botón cuando no hay estilo seleccionado
-            styleNameElement.textContent = 'Select style';
+            styleNameElement.textContent = 'Seleccionar estilo';
             stylesButton.classList.remove('has-style');
             
             // Mostrar mensaje informativo
