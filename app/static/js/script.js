@@ -1450,6 +1450,42 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Blob([ab], {type: mimeString});
     }
 
+    // Function to show success message
+    function showSuccess(message) {
+        const successToast = document.getElementById('success-toast');
+        const successMessage = document.getElementById('success-message');
+        
+        if (successToast && successMessage) {
+            successMessage.textContent = message;
+            successToast.classList.add('show');
+            
+            setTimeout(() => {
+                successToast.classList.remove('show');
+            }, 3000);
+        } else {
+            console.warn('Success toast elements not found, falling back to alert');
+            alert('Success: ' + message);
+        }
+    }
+    
+    // Function to show error message
+    function showError(message) {
+        const errorToast = document.getElementById('error-toast');
+        const errorMessage = document.getElementById('error-message');
+        
+        if (errorToast && errorMessage) {
+            errorMessage.textContent = message;
+            errorToast.classList.add('show');
+            
+            setTimeout(() => {
+                errorToast.classList.remove('show');
+            }, 3000);
+        } else {
+            console.warn('Error toast elements not found, falling back to alert');
+            alert('Error: ' + message);
+        }
+    }
+
     // The following functions (deductCoins, legacyDeductCoins) are no longer directly used by 
     // the sticker generation flow because the backend /generate route now handles coin deduction.
     // They are kept here with their API-calling logic commented out in case they are used by other features
