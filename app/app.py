@@ -18,7 +18,7 @@ from config import (
     SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE,
     SESSION_USE_SIGNER, SESSION_REFRESH_EACH_REQUEST,
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
-    LOW_STICKER_COST, MEDIUM_STICKER_COST, HIGH_STICKER_COST
+    LOW_STICKER_COST, MEDIUM_STICKER_COST, HIGH_STICKER_COST, COIN_PACKAGES_CONFIG
 )
 
 # Added Mercado Pago
@@ -39,7 +39,6 @@ from dynamodb_utils import (
     ensure_tables_exist,
     create_user,
     get_user,
-    update_user_coins,
     create_transaction,
     verify_email_index
 )
@@ -48,13 +47,6 @@ from dynamodb_utils import (
 from auth_routes import auth_bp
 from coin_routes import coin_bp
 
-# --- Coin Packages Configuration ---
-COIN_PACKAGES_CONFIG = {
-    'small': {'name': 'Paquete Pequeño de Monedas', 'coins': 100, 'price': 500.00, 'currency_id': 'ARS'},
-    'medium': {'name': 'Paquete Mediano de Monedas', 'coins': 300, 'price': 1000.00, 'currency_id': 'ARS'},
-    'large': {'name': 'Paquete Grande de Monedas', 'coins': 500, 'price': 1500.00, 'currency_id': 'ARS'}
-}
-# --- End Coin Packages Configuration ---
 
 # Initialize DynamoDB tables and indexes
 if USE_DYNAMODB:
@@ -149,22 +141,27 @@ if USE_DYNAMODB:
 
 @app.route('/')
 def index():
-    # Initialize user if authenticated via DynamoDB
-    if USE_DYNAMODB:
-        user_id = session.get('user_id')
-        if user_id:
-            # Get user from DynamoDB
-            user = get_user(user_id)
-            if user:
-                # Update session with latest data
-                session['coins'] = user.get('coins', 0)
-            else:
-                # Clear invalid session
-                session.pop('user_id', None)
-                session.pop('email', None)
-                session.pop('coins', None)
+
+    user_id = session.get('user_id')
+    if user_id:
+        # Get user from DB - this is an authenticated user
+        user = get_user(user_id)
+        if user:
+            # Update session with latest data
+            session['coins'] = user.get('coins', 0)
+        else:
+            # Clear invalid session
+            session.pop('user_id', None)
+            session.pop('email', None)
+            session.pop('coins', None)
+            user_id = None
+    
+    # Initialize session_id for anonymous visitors if not present
+    if not user_id and 'session_id' not in session:
+        session['session_id'] = str(uuid.uuid4())
     
     # Initialize empty template if not exists in session or convert old format to new format
+    # TODO: remove this 'template_stickers' to be stored in session
     if 'template_stickers' not in session:
         session['template_stickers'] = [{'filename': 'hat.png', 'quantity': 1}]
     else:
@@ -186,9 +183,9 @@ def index():
     if 'coupon_uses' not in session:
         session['coupon_uses'] = 0
     
-    # Initialize user_id for legacy users (non-DynamoDB)
-    if 'user_id' not in session and not USE_DYNAMODB:
-        session['user_id'] = str(uuid.uuid4())
+    # Remove legacy code - we now use session_id instead for anonymous visitors
+    # if 'user_id' not in session and not USE_DYNAMODB:
+    #     session['user_id'] = str(uuid.uuid4())
     
     # Pass coupon info to the template
     coupon_enabled = COUPON_LIMIT != 0
@@ -250,26 +247,40 @@ def generate():
         if current_coins < actual_sticker_cost:
             return jsonify({"error": f"Insufficient coins. You need {actual_sticker_cost} coins. Your balance: {current_coins}"}), 402
 
-        filename_user_part = user_id if is_logged_in else str(uuid.uuid4()).split('-')[0]
+        # Para usuarios anónimos, utilizamos session_id en lugar de un UUID aleatorio
+        if not is_logged_in:
+            # Verificar que tenemos session_id para visitantes anónimos
+            session_id = session.get('session_id')
+            if not session_id:
+                session_id = str(uuid.uuid4())
+                session['session_id'] = session_id
+            filename_user_part = session_id.split('-')[0]
+        else:
+            filename_user_part = user_id
+
         timestamp = int(time.time())
         filename = f"sticker_{filename_user_part}_{timestamp}.png"
         img_path = os.path.join(folder_path, filename)
 
         image_b64, s3_url, high_res_s3_url = None, None, None
         if mode == 'reference' and reference_image_data:
+            # Usar el identificador correcto para la generación del sticker
+            identifier = user_id if is_logged_in else session.get('session_id')
             image_b64, s3_url, high_res_s3_url = generate_sticker_with_reference(
-                prompt, img_path, reference_image_data, quality, user_id=user_id, style=style
+                prompt, img_path, reference_image_data, quality, user_id=identifier, style=style
             )
         else:
+            # Usar el identificador correcto para la generación del sticker
+            identifier = user_id if is_logged_in else session.get('session_id')
             image_b64, s3_url, high_res_s3_url = generate_sticker(
-                prompt, img_path, quality, user_id=user_id, style=style
+                prompt, img_path, quality, user_id=identifier, style=style
             )
         
         if is_logged_in:
             create_transaction(
                 user_id=user_id,
                 coins_amount=-actual_sticker_cost,
-                transaction_type='sticker_generation_authenticated',
+                transaction_type='usage',  # Changed from 'sticker_generation_authenticated' to 'usage'
                 details={
                     'prompt': prompt, 
                     'quality': quality, 
@@ -518,9 +529,16 @@ def get_library():
 def get_history():
     # Get the current user ID from session
     user_id = session.get('user_id')
+    identifier = user_id
+    
+    # Si no hay user_id, usamos session_id para visitantes anónimos
     if not user_id:
-        user_id = str(uuid.uuid4())
-        session['user_id'] = user_id
+        session_id = session.get('session_id')
+        if not session_id:
+            # Crear session_id si no existe
+            session_id = str(uuid.uuid4())
+            session['session_id'] = session_id
+        identifier = session_id
     
     # Permitir solicitud de tamaño específico de página para paginación
     page = request.args.get('page', 1, type=int)
@@ -531,8 +549,8 @@ def get_history():
     
     if USE_S3:
         try:
-            # Get files from S3 stickers folder filtered by user_id
-            s3_files = list_files_by_user_id(user_id, S3_STICKERS_FOLDER)
+            # Get files from S3 stickers folder filtered by user_id or session_id
+            s3_files = list_files_by_user_id(identifier, S3_STICKERS_FOLDER)
             
             # Extract just the filenames without folder prefix
             for file_key in s3_files:
@@ -573,7 +591,7 @@ def get_history():
     # If S3 failed or is disabled, check local files
     try:
         for file in os.listdir(folder_path):
-            if file.endswith('.png') and file.startswith(f"sticker_{user_id}_"):
+            if file.endswith('.png') and file.startswith(f"sticker_{identifier}_"):
                 sticker_files.append(file)
         
         if sticker_files:
@@ -612,7 +630,6 @@ def get_history():
                 "total_pages": 0,
                 "source": "local"
             })
-            
     except Exception as e:
         return jsonify({
             "error": str(e),
@@ -625,12 +642,12 @@ def get_history():
 @app.route('/get-coins', methods=['GET'])
 def get_coins():
     """
-    Return current coin balance from the session or DynamoDB
+    Return current coin balance from the session or DB
     """
     user_id = session.get('user_id')
     
-    if USE_DYNAMODB and user_id:
-        # Get latest user data from DynamoDB
+    if user_id:
+        # Get latest user data from DB
         user = get_user(user_id)
         if user:
             # Update session with latest coins
@@ -639,6 +656,10 @@ def get_coins():
     # Make sure coins is set in the session (for non-authenticated users)
     if 'coins' not in session:
         session['coins'] = INITIAL_COINS  # Default for non-authenticated users
+        
+        # Asegurarnos de que haya un session_id para visitantes anónimos
+        if not user_id and 'session_id' not in session:
+            session['session_id'] = str(uuid.uuid4())
     
     # Return current coin balance from session
     return jsonify({"coins": session.get('coins', INITIAL_COINS)})
@@ -657,9 +678,11 @@ def update_coins():
     
     if USE_DYNAMODB and user_id:
         try:
-            # Record transaction
+            # Determine transaction type based on whether we're adding or removing coins
             transaction_type = 'usage' if coins_update < 0 else 'bonus'
-            create_transaction(
+            
+            # Record transaction (which also updates the user's coins)
+            transaction = create_transaction(
                 user_id=user_id,
                 coins_amount=coins_update,
                 transaction_type=transaction_type,
@@ -667,18 +690,26 @@ def update_coins():
             )
             
             # Update session with latest coins
-            user = get_user(user_id)
-            if user:
-                session['coins'] = user.get('coins', 0)
+            updated_user = transaction.get('updated_user', {})
+            if updated_user:
+                session['coins'] = updated_user.get('coins', 0)
         except Exception as e:
             print(f"Error updating coins in DynamoDB: {e}")
             # Fall back to session-based coins
             current_coins = session.get('coins', 0)
             session['coins'] = max(0, current_coins + coins_update)
     else:
-        # Legacy session-based coin handling
+        # Visitante anónimo - asegurarnos de que tenga session_id
+        if not user_id and 'session_id' not in session:
+            session['session_id'] = str(uuid.uuid4())
+            
+        # Session-based coin handling for anonymous users
         current_coins = session.get('coins', 0)
         session['coins'] = max(0, current_coins + coins_update)
+        
+        # Log transaction for anonymous users
+        identifier = session.get('session_id') if not user_id else user_id
+        app.logger.info(f"Anonymous user (session_id: {identifier}) coin update: {coins_update}, new balance: {session['coins']}")
     
     return jsonify({"coins": session.get('coins', 0)})
 

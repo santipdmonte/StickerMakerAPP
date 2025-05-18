@@ -6,7 +6,6 @@ from dynamodb_utils import (
     create_user, 
     get_user, 
     get_user_by_email, 
-    update_user_coins,
     generate_pin,
     store_login_pin,
     verify_login_pin,
@@ -117,8 +116,17 @@ def verify_pin():
         
         # Update user in DynamoDB with the additional coins
         try:
-            user = update_user_coins(user['user_id'], coins_to_add)
-            user = sanitize_dynamodb_response(user)
+            # Use create_transaction to update the user's coins
+            transaction = create_transaction(
+                user_id=user['user_id'],
+                coins_amount=coins_to_add,
+                transaction_type='bonus',
+                details={'reason': 'New user registration bonus + session coins transfer'}
+            )
+            # Get the updated user from the transaction result
+            updated_user = transaction.get('updated_user', {})
+            if updated_user:
+                user = sanitize_dynamodb_response(updated_user)
         except Exception as e:
             return jsonify({"error": f"Failed to update coins: {str(e)}"}), 500
     

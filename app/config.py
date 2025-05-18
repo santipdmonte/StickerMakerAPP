@@ -7,21 +7,34 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Sticker Generation Costs
+LOW_STICKER_COST = 10
+MEDIUM_STICKER_COST = 25
+HIGH_STICKER_COST = 100
+
+STICKER_COSTS = {
+            "low": LOW_STICKER_COST,
+            "medium": MEDIUM_STICKER_COST, 
+            "high": HIGH_STICKER_COST
+        }
+
+COIN_PACKAGES_CONFIG = {
+    'small': {'name': 'Paquete Pequeño de Monedas', 'coins': 100, 'price': 1000.00, 'currency_id': 'ARS'},
+    'medium': {'name': 'Paquete Mediano de Monedas', 'coins': 300, 'price': 1699.00, 'currency_id': 'ARS'},
+    'large': {'name': 'Paquete Grande de Monedas', 'coins': 500, 'price': 1997.00, 'currency_id': 'ARS'}
+}
+
 # Coin configuration from environment variables
 INITIAL_COINS = int(os.getenv('INITIAL_COINS', 15))
 BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
-
-# Sticker Generation Costs (NEW)
-LOW_STICKER_COST = int(os.getenv('LOW_STICKER_COST', 10))
-MEDIUM_STICKER_COST = int(os.getenv('MEDIUM_STICKER_COST', 25))
-HIGH_STICKER_COST = int(os.getenv('HIGH_STICKER_COST', 100))
 
 # Get discount coupon settings
 DISCOUNT_COUPON = os.getenv("CUPON", "")
 COUPON_LIMIT = int(os.getenv("CUPON_LIMITE", "-1"))
 
 # Development mode placeholder sticker
-USE_PLACEHOLDER_STICKER = os.getenv('USE_PLACEHOLDER_STICKER', 'False')
+placeholder_value = os.getenv('USE_PLACEHOLDER_STICKER', 'False').lower()
+USE_PLACEHOLDER_STICKER = placeholder_value == 'true' or placeholder_value == '1'
 
 # Flask app configuration
 FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
