@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,15 +23,15 @@
                 </div>
                 
                 <div class="logo-container">
-                    <img src="{{ url_for('static', filename='logo/TheStickerHouseLogo.PNG') }}" alt="TheStickerHouse Logo" class="main-logo">
+                    <img src="{{ url_for('static', filename='logo/TheStickerHouseLogo.PNG') }}" alt="Logo TheStickerHouse" class="main-logo">
                 </div>
                 
                 <div class="header-right">
                     <button id="library-page-btn" class="library-page-btn">
-                        <i class="ri-pages-line"></i> <span>Library</span>
+                        <i class="ri-pages-line"></i> <span>Biblioteca</span>
                     </button>
                     <button id="login-btn" class="login-btn">
-                        <i class="ri-user-line"></i> <span>Login</span>
+                        <i class="ri-user-line"></i> <span>Iniciar Sesión</span>
                     </button>
                 </div>
             </div>
@@ -43,32 +43,41 @@
                 <div class="input-section">
                     <div id="unified-input-mode" class="generation-mode">
                         <div class="quality-selector">
-                            <label>Quality:</label>
+                            <label>Calidad:</label>
                             <div class="quality-options">
                                 <input type="radio" id="quality-low" name="quality" value="low" checked>
-                                <label for="quality-low">Low <span class="quality-cost">(10 coins)</span></label>
+                                <label for="quality-low">
+                                    <div class="main-label-content">Baja</div>
+                                    <span class="quality-cost">10 monedas</span>
+                                </label>
                                 <input type="radio" id="quality-medium" name="quality" value="medium">
-                                <label for="quality-medium">Medium <span class="quality-cost">(25 coins)</span></label>
+                                <label for="quality-medium">
+                                    <div class="main-label-content">Media</div>
+                                    <span class="quality-cost">25 monedas</span>
+                                </label>
                                 <input type="radio" id="quality-high" name="quality" value="high">
-                                <label for="quality-high">High <span class="high-quality-sparkle">✨</span> <span class="quality-cost">(100 coins)</span></label>
+                                <label for="quality-high">
+                                    <div class="main-label-content">Alta <span class="high-quality-sparkle">✨</span></div>
+                                    <span class="quality-cost">100 monedas</span>
+                                </label>
                             </div>
                         </div>
                         
                         <div class="prompt-input-container">
                             <div id="reference-image-preview" class="reference-image-thumbnail hidden">
-                                <img src="" alt="Reference image">
-                                <button type="button" class="remove-thumbnail-btn" title="Remove image">
+                                <img src="" alt="Imagen de referencia">
+                                <button type="button" class="remove-thumbnail-btn" title="Eliminar imagen">
                                     <i class="ri-close-line"></i>
                                 </button>
                             </div>
-                            <textarea id="prompt-input" placeholder="Describe your sticker... (e.g., 'a cute panda eating bamboo on a transparent background')"></textarea>
+                            <textarea id="prompt-input" placeholder="Describí tu sticker... (ej., 'un panda tierno comiendo bambú en un fondo transparente')"></textarea>
                             
                             <div class="reference-image-controls">
-                                <button id="styles-btn" class="styles-btn" title="Choose sticker style">
+                                <button id="styles-btn" class="styles-btn" title="Elegir estilo de sticker">
                                     <i class="ri-brush-line"></i>
-                                    <span id="selected-style-name" class="style-name">Select style</span>
+                                    <span id="selected-style-name" class="style-name">Seleccionar estilo</span>
                                 </button>
-                                <button id="add-reference-btn" class="add-reference-btn" title="Add reference image">
+                                <button id="add-reference-btn" class="add-reference-btn" title="Agregar imagen de referencia">
                                     <i class="ri-camera-line"></i>
                                 </button>
                                 <input type="file" id="reference-image-input" accept="image/*" class="file-input hidden">
@@ -76,22 +85,22 @@
                         </div>
                     </div>
                     
-                    <button id="generate-btn"><i class="ri-magic-line"></i> Generate Sticker</button>
+                    <button id="generate-btn"><i class="ri-magic-line"></i> Generar Sticker</button>
                 </div>
                 
                 <div class="results-section" id="results-section">
                     <div class="loading-spinner hidden" id="loading-spinner">
                         <div class="spinner"></div>
-                        <p>Generating your sticker...</p>
+                        <p>Generando tu sticker...</p>
                     </div>
                     
                     <div class="sticker-result">
                         <div class="sticker-image-container">
-                            <img id="sticker-image" src="" alt="Generated sticker">
+                            <img id="sticker-image" src="" alt="Sticker generado">
                         </div>
                         <div class="sticker-actions">
-                            <a id="download-btn" href="#" download class="download-button"><i class="ri-download-cloud-line"></i> Download</a>
-                            <button id="add-to-template-btn" class="template-button"><i class="ri-add-circle-fill"></i> Add to Template</button>
+                            <a id="download-btn" href="#" download class="download-button"><i class="ri-download-cloud-line"></i> Descargar</a>
+                            <button id="add-to-template-btn" class="template-button"><i class="ri-add-circle-fill"></i> Agregar a Plantilla</button>
                         </div>
                     </div>
                 </div>
@@ -100,19 +109,19 @@
             <!-- Template Card: Separate card below the main card -->
             <div class="card template-card" id="template-section">
                 <div class="template-header">
-                    <h2><i class="ri-grid-fill"></i> Sticker Template</h2>
+                    <h2><i class="ri-grid-fill"></i> Plantilla de Stickers</h2>
                     <div class="template-actions">
-                        <button id="download-template-btn" class="download-button"><i class="ri-download-cloud-line"></i> Download Template</button>
-                        <button id="buy-stickers-btn" class="buy-button"><i class="ri-shopping-cart-line"></i> Buy Stickers</button>
-                        <button id="clear-template-btn" class="clear-button"><i class="ri-delete-bin-6-line"></i> Clear All</button>
+                        <button id="download-template-btn" class="download-button"><i class="ri-download-cloud-line"></i> Descargar Plantilla</button>
+                        <button id="buy-stickers-btn" class="buy-button"><i class="ri-shopping-cart-line"></i> Comprar Stickers</button>
+                        <button id="clear-template-btn" class="clear-button"><i class="ri-delete-bin-6-line"></i> Limpiar Todo</button>
                     </div>
                 </div>
                 
                 <div class="template-grid" id="template-grid">
                     <div class="empty-template-message">
                         <i class="ri-image-add-fill"></i>
-                        <p>Your template is empty</p>
-                        <span>Generate stickers and add them to create a template for printing</span>
+                        <p>Tu plantilla está vacía</p>
+                        <span>Generá stickers y agregalos para crear una plantilla para imprimir</span>
                     </div>
                     <!-- Stickers will be added here dynamically -->
                 </div>
@@ -137,36 +146,36 @@
     <!-- Success/Error Toast Messages -->
     <div class="success-toast" id="success-toast">
         <i class="ri-checkbox-circle-line"></i>
-        <span id="success-message">Success!</span>
+        <span id="success-message">¡Éxito!</span>
     </div>
     
     <div class="error-toast" id="error-toast">
         <i class="ri-error-warning-line"></i>
-        <span id="error-message">Error!</span>
+        <span id="error-message">¡Error!</span>
     </div>
     
     <!-- Checkout Modal -->
     <div id="checkout-modal" class="modal hidden">
         <div class="modal-content">
             <button class="modal-close-btn" id="modal-close-btn"><i class="ri-close-line"></i></button>
-            <h2>Checkout</h2>
-            <p>Please provide your details to complete the purchase.</p>
+            <h2>Finalizar Compra</h2>
+            <p>Por favor, proporcioná tus datos para completar la compra.</p>
             
             <form id="checkout-form">
                 <div class="form-group">
-                    <label for="checkout-name">Name:</label>
-                    <input type="text" id="checkout-name" name="name" required placeholder="Enter your full name">
+                    <label for="checkout-name">Nombre:</label>
+                    <input type="text" id="checkout-name" name="name" required placeholder="Ingresá tu nombre completo">
                 </div>
                 <div class="form-group">
                     <label for="checkout-email">Email:</label>
-                    <input type="email" id="checkout-email" name="email" required placeholder="Enter your email address">
+                    <input type="email" id="checkout-email" name="email" required placeholder="Ingresá tu dirección de email">
                 </div>
                 <div class="form-group">
-                    <label for="checkout-address">Address:</label>
-                    <textarea id="checkout-address" name="address" rows="3" required placeholder="Enter your shipping address"></textarea>
+                    <label for="checkout-address">Dirección:</label>
+                    <textarea id="checkout-address" name="address" rows="3" required placeholder="Ingresá tu dirección de envío"></textarea>
                 </div>
                 
-                <button type="submit" id="finalize-payment-btn" class="finalize-button"><i class="ri-secure-payment-line"></i> Finalize Payment</button>
+                <button type="submit" id="finalize-payment-btn" class="finalize-button"><i class="ri-secure-payment-line"></i> Finalizar Pago</button>
             </form>
         </div>
     </div>
@@ -175,38 +184,38 @@
     <div id="coins-modal" class="modal hidden">
         <div class="modal-content">
             <button class="modal-close-btn" id="coins-modal-close-btn"><i class="ri-close-line"></i></button>
-            <h2>Buy Coins</h2>
-            <p>Purchase coins to create more stickers!</p>
+            <h2>Comprar Monedas</h2>
+            <p>¡Comprá monedas para crear más stickers!</p>
             
             <div class="coins-packages">
                 <div class="coins-package" data-package="small">
                     <div class="package-icon"><i class="ri-coin-line"></i></div>
-                    <h3>100 Coins</h3>
+                    <h3>100 Monedas</h3>
                     <p class="package-price">$500.00</p>
-                    <button class="package-select-btn">Select</button>
+                    <button class="package-select-btn">Seleccionar</button>
                 </div>
                 <div class="coins-package" data-package="medium">
                     <div class="package-icon"><i class="ri-coins-line"></i></div>
-                    <h3>300 Coins</h3>
+                    <h3>300 Monedas</h3>
                     <p class="package-price">$1000.00</p>
                     <div class="package-badge">Popular</div>
-                    <button class="package-select-btn">Select</button>
+                    <button class="package-select-btn">Seleccionar</button>
                 </div>
                 <div class="coins-package" data-package="large">
                     <div class="package-icon"><i class="ri-money-dollar-box-line"></i></div>
-                    <h3>500 Coins</h3>
+                    <h3>500 Monedas</h3>
                     <p class="package-price">$1500.00</p>
-                    <div class="package-badge">Best Value</div>
-                    <button class="package-select-btn">Select</button>
+                    <div class="package-badge">Mejor Valor</div>
+                    <button class="package-select-btn">Seleccionar</button>
                 </div>
             </div>
             
             <div class="coupon-section">
-                <p>Have a coupon code?</p>
+                <p>¿Tenés un código de cupón?</p>
                 <div class="form-group compact-form">
                     <div class="coupon-container">
-                        <input type="text" id="coins-coupon-direct" name="coupon" placeholder="Enter discount coupon">
-                        <button type="button" id="apply-coupon-direct-btn" class="apply-coupon-button">Apply</button>
+                        <input type="text" id="coins-coupon-direct" name="coupon" placeholder="Ingresá el código de descuento">
+                        <button type="button" id="apply-coupon-direct-btn" class="apply-coupon-button">Aplicar</button>
                     </div>
                     <p id="coupon-direct-status" class="coupon-status"></p>
                 </div>
@@ -214,25 +223,25 @@
             
             <form id="coins-form" class="hidden">
                 <div class="selected-package-info">
-                    <p>Selected: <span id="selected-package-name">Medium Package</span></p>
-                    <p>Amount: <span id="selected-package-amount">300</span> coins</p>
-                    <p>Price: $<span id="selected-package-price">1000.00</span></p>
+                    <p>Seleccionado: <span id="selected-package-name">Paquete Mediano</span></p>
+                    <p>Cantidad: <span id="selected-package-amount">300</span> monedas</p>
+                    <p>Precio: $<span id="selected-package-price">1000.00</span></p>
                 </div>
                 
                 <div class="form-group">
-                    <label for="coins-name">Name:</label>
-                    <input type="text" id="coins-name" name="name" required placeholder="Enter your full name">
+                    <label for="coins-name">Nombre:</label>
+                    <input type="text" id="coins-name" name="name" required placeholder="Ingresá tu nombre completo">
                 </div>
                 <div class="form-group">
                     <label for="coins-email">Email:</label>
-                    <input type="email" id="coins-email" name="email" required placeholder="Enter your email address">
+                    <input type="email" id="coins-email" name="email" required placeholder="Ingresá tu dirección de email">
                 </div>
                 
                 <button type="submit" id="finalize-coins-btn" class="finalize-button">
-                    <i class="ri-secure-payment-line"></i> Purchase Coins
+                    <i class="ri-secure-payment-line"></i> Comprar Monedas
                 </button>
                 <button type="button" id="back-to-packages-btn" class="back-button">
-                    <i class="ri-arrow-left-line"></i> Back to Packages
+                    <i class="ri-arrow-left-line"></i> Volver a Paquetes
                 </button>
             </form>
         </div>
@@ -243,9 +252,9 @@
         <div class="modal-backdrop"></div>
         <div class="modern-image-modal">
             <div class="image-container">
-                <img id="enlarged-image" src="" alt="Reference image enlarged">
+                <img id="enlarged-image" src="" alt="Imagen de referencia ampliada">
             </div>
-            <button type="button" id="image-modal-close-btn" class="modern-close-btn" aria-label="Close modal">
+            <button type="button" id="image-modal-close-btn" class="modern-close-btn" aria-label="Cerrar modal">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
@@ -257,8 +266,8 @@
     <div id="styles-selection-modal" class="modal hidden">
         <div class="modal-content styles-modal-content">
             <button class="modal-close-btn" id="styles-modal-close-btn"><i class="ri-close-line"></i></button>
-            <h2>Select Sticker Style</h2>
-            <p>Choose a style to enhance your sticker's appearance</p>
+            <h2>Seleccionar Estilo de Sticker</h2>
+            <p>Elegí un estilo para mejorar la apariencia de tu sticker</p>
             
             <div class="styles-grid" id="styles-grid">
                 <!-- Los estilos se cargarán dinámicamente aquí -->
@@ -271,38 +280,38 @@
         <div class="modal-overlay" id="login-modal-overlay"></div>
         <div class="modal-content">
             <button class="modal-close-btn" id="login-modal-close-btn"><i class="ri-close-line"></i></button>
-            <h2>Login</h2>
-            <p>Enter your email to receive a secure PIN code.</p>
+            <h2>Iniciar Sesión</h2>
+            <p>Ingresá tu email para recibir un código PIN seguro.</p>
             
             <div id="email-form-container">
                 <form id="email-form">
                     <div class="form-group">
                         <label for="login-email">Email:</label>
-                        <input type="email" id="login-email" name="email" required placeholder="Enter your email address" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
+                        <input type="email" id="login-email" name="email" required placeholder="Ingresá tu dirección de email" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
                     </div>
-                    <button type="submit" id="send-pin-btn" class="login-button"><i class="ri-mail-send-line"></i> Send PIN</button>
+                    <button type="submit" id="send-pin-btn" class="login-button"><i class="ri-mail-send-line"></i> Enviar PIN</button>
                 </form>
             </div>
             
             <div id="name-form-container" class="hidden">
-                <p class="new-user-message">Welcome! Please provide your name to create an account.</p>
+                <p class="new-user-message">¡Bienvenido! Por favor, proporcioná tu nombre para crear una cuenta.</p>
                 <form id="name-form">
                     <div class="form-group">
-                        <label for="login-name">Name:</label>
-                        <input type="text" id="login-name" name="name" required placeholder="Enter your name" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
+                        <label for="login-name">Nombre:</label>
+                        <input type="text" id="login-name" name="name" required placeholder="Ingresá tu nombre" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
                     </div>
-                    <button type="submit" id="create-account-btn" class="login-button"><i class="ri-user-add-line"></i> Create Account</button>
+                    <button type="submit" id="create-account-btn" class="login-button"><i class="ri-user-add-line"></i> Crear Cuenta</button>
                 </form>
             </div>
             
             <div id="pin-form-container" class="hidden">
-                <p class="pin-sent-message">PIN sent! Check your email and enter the code below.</p>
+                <p class="pin-sent-message">¡PIN enviado! Revisá tu email e ingresá el código a continuación.</p>
                 <form id="pin-form">
                     <div class="form-group">
-                        <label for="login-pin">PIN Code:</label>
-                        <input type="text" id="login-pin" name="pin" required placeholder="Enter 6-digit PIN" maxlength="6" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
+                        <label for="login-pin">Código PIN:</label>
+                        <input type="text" id="login-pin" name="pin" required placeholder="Ingresá el PIN de 6 dígitos" maxlength="6" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
                     </div>
-                    <button type="submit" id="verify-pin-btn" class="login-button"><i class="ri-shield-check-line"></i> Verify PIN</button>
+                    <button type="submit" id="verify-pin-btn" class="login-button"><i class="ri-shield-check-line"></i> Verificar PIN</button>
                 </form>
             </div>
         </div>
@@ -377,10 +386,10 @@
                     logoutMenu.className = 'logout-menu';
                     logoutMenu.innerHTML = `
                         <div class="logout-menu-item" id="logout-btn">
-                            <i class="ri-logout-box-line"></i> Logout
+                            <i class="ri-logout-box-line"></i> Cerrar Sesión
                         </div>
                         <div class="logout-menu-item" id="view-profile-btn">
-                            <i class="ri-user-settings-line"></i> View Profile
+                            <i class="ri-user-settings-line"></i> Ver Perfil
                         </div>
                         <style>
                             .logout-menu {
@@ -455,7 +464,7 @@
                 .then(data => {
                     if (data.success) {
                         // Update UI for logged out state
-                        loginBtn.innerHTML = '<i class="ri-user-line"></i> <span>Login</span>';
+                        loginBtn.innerHTML = '<i class="ri-user-line"></i> <span>Iniciar Sesión</span>';
                         
                         // Hide logout menu
                         const logoutMenu = document.getElementById('logout-menu');
@@ -478,7 +487,7 @@
                         // Show success message
                         const successMessage = document.createElement('div');
                         successMessage.className = 'info-toast';
-                        successMessage.innerHTML = '<i class="ri-checkbox-circle-line"></i> Logged out successfully';
+                        successMessage.innerHTML = '<i class="ri-checkbox-circle-line"></i> Sesión cerrada correctamente';
                         document.body.appendChild(successMessage);
                         
                         // Show toast
@@ -495,12 +504,12 @@
                         }, 2000);
                     } else {
                         // Show error
-                        alert(data.error || 'Error logging out. Please try again.');
+                        alert(data.error || 'Error al cerrar sesión. Por favor, intentá nuevamente.');
                     }
                 })
                 .catch(error => {
                     console.error('Error logging out:', error);
-                    alert('Network error. Please try again.');
+                    alert('Error de red. Por favor, intentá nuevamente.');
                 });
             }
             
@@ -515,7 +524,7 @@
                 // For now, just show a toast message
                 const infoMessage = document.createElement('div');
                 infoMessage.className = 'info-toast';
-                infoMessage.innerHTML = '<i class="ri-information-line"></i> Profile view coming soon!';
+                infoMessage.innerHTML = '<i class="ri-information-line"></i> ¡Vista de perfil próximamente!';
                 document.body.appendChild(infoMessage);
                 
                 // Show toast
@@ -539,7 +548,7 @@
                 
                 // Frontend validation
                 if (!email) {
-                    alert('Please enter your email address');
+                    alert('Por favor, ingresá tu dirección de email');
                     return;
                 }
                 
@@ -547,7 +556,7 @@
                 const sendPinBtn = document.getElementById('send-pin-btn');
                 const originalBtnText = sendPinBtn.innerHTML;
                 sendPinBtn.disabled = true;
-                sendPinBtn.innerHTML = '<i class="ri-loader-4-line"></i> Sending...';
+                sendPinBtn.innerHTML = '<i class="ri-loader-4-line"></i> Enviando...';
                 
                 // Call API to request PIN
                 fetch('/api/auth/request-login', {
@@ -579,7 +588,7 @@
                         }
                     } else {
                         // Show error
-                        alert(data.error || 'Failed to send PIN. Please try again.');
+                        alert(data.error || 'No se pudo enviar el PIN. Por favor, intentá nuevamente.');
                     }
                 })
                 .catch(error => {
@@ -589,7 +598,7 @@
                     
                     // Show error
                     console.error('Error sending PIN:', error);
-                    alert('Network error. Please try again.');
+                    alert('Error de red. Por favor, intentá nuevamente.');
                 });
             });
             
@@ -601,12 +610,12 @@
                 
                 // Frontend validation
                 if (!name) {
-                    alert('Please enter your name');
+                    alert('Por favor, ingresá tu nombre');
                     return;
                 }
                 
                 if (!email) {
-                    alert('Session expired. Please try again.');
+                    alert('Sesión expirada. Por favor, intentá nuevamente.');
                     // Go back to email form
                     nameFormContainer.classList.add('hidden');
                     emailFormContainer.classList.remove('hidden');
@@ -617,7 +626,7 @@
                 const createAccountBtn = document.getElementById('create-account-btn');
                 const originalBtnText = createAccountBtn.innerHTML;
                 createAccountBtn.disabled = true;
-                createAccountBtn.innerHTML = '<i class="ri-loader-4-line"></i> Creating...';
+                createAccountBtn.innerHTML = '<i class="ri-loader-4-line"></i> Creando...';
                 
                 // Call API to create account
                 fetch('/api/auth/create-account', {
@@ -640,10 +649,10 @@
                         
                         // Update pin sent message
                         const pinMessage = document.querySelector('.pin-sent-message');
-                        pinMessage.textContent = 'Account created! Enter the PIN sent to your email.';
+                        pinMessage.textContent = '¡Cuenta creada! Ingresá el PIN enviado a tu email.';
                     } else {
                         // Show error
-                        alert(data.error || 'Failed to create account. Please try again.');
+                        alert(data.error || 'No se pudo crear la cuenta. Por favor, intentá nuevamente.');
                         
                         // If user already exists, go to PIN form
                         if (data.user_exists) {
@@ -659,7 +668,7 @@
                     
                     // Show error
                     console.error('Error creating account:', error);
-                    alert('Network error. Please try again.');
+                    alert('Error de red. Por favor, intentá nuevamente.');
                 });
             });
             
@@ -671,12 +680,12 @@
                 
                 // Frontend validation
                 if (!pin || pin.length !== 6 || !/^\d+$/.test(pin)) {
-                    alert('Please enter a valid 6-digit PIN');
+                    alert('Por favor, ingresá un PIN válido de 6 dígitos');
                     return;
                 }
                 
                 if (!email) {
-                    alert('Session expired. Please try again.');
+                    alert('Sesión expirada. Por favor, intentá nuevamente.');
                     // Go back to email form
                     pinFormContainer.classList.add('hidden');
                     emailFormContainer.classList.remove('hidden');
@@ -687,7 +696,7 @@
                 const verifyPinBtn = document.getElementById('verify-pin-btn');
                 const originalBtnText = verifyPinBtn.innerHTML;
                 verifyPinBtn.disabled = true;
-                verifyPinBtn.innerHTML = '<i class="ri-loader-4-line"></i> Verifying...';
+                verifyPinBtn.innerHTML = '<i class="ri-loader-4-line"></i> Verificando...';
                 
                 // Call API to verify PIN
                 fetch('/api/auth/verify-pin', {
@@ -724,7 +733,7 @@
                         // Show success message
                         const successMessage = document.createElement('div');
                         successMessage.className = 'info-toast';
-                        successMessage.innerHTML = '<i class="ri-checkbox-circle-line"></i> Login successful!';
+                        successMessage.innerHTML = '<i class="ri-checkbox-circle-line"></i> ¡Inicio de sesión exitoso!';
                         document.body.appendChild(successMessage);
                         
                         // Show toast
@@ -768,7 +777,7 @@
                         sessionStorage.removeItem('auth_email');
                     } else {
                         // Show error
-                        alert(data.error || 'Invalid PIN. Please try again.');
+                        alert(data.error || 'PIN inválido. Por favor, intentá nuevamente.');
                         // Clear PIN input
                         document.getElementById('login-pin').value = '';
                     }
@@ -780,7 +789,7 @@
                     
                     // Show error
                     console.error('Error verifying PIN:', error);
-                    alert('Network error. Please try again.');
+                    alert('Error de red. Por favor, intentá nuevamente.');
                 });
             });
             

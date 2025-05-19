@@ -636,7 +636,7 @@ button i, .download-button i {
 }
 
 .quality-options label {
-    padding: 8px 20px;
+    padding: 8px 15px;
     cursor: pointer;
     border-radius: 20px;
     font-size: 0.9rem;
@@ -645,6 +645,18 @@ button i, .download-button i {
     transition: var(--transition);
     flex: 1;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1.1;
+}
+
+/* Contenedor para el texto principal y el sparkle */
+.quality-options label > .main-label-content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Slider background indicator */
@@ -697,6 +709,9 @@ button i, .download-button i {
     color: #777;
     font-weight: normal;
     opacity: 0.8;
+    display: block;
+    margin-top: 2px;
+    margin-left: 0;
 }
 
 .quality-options label:hover .quality-cost {
@@ -717,6 +732,7 @@ button i, .download-button i {
     animation: sparkle 1.5s 1 forwards;
     transform-origin: center;
     margin-left: 2px;
+    vertical-align: middle;
 }
 
 @keyframes sparkle {
@@ -1079,7 +1095,7 @@ button i, .download-button i {
     padding: 40px;
     border-radius: var(--border-radius);
     width: 90%;
-    max-width: 500px;
+    max-width: 700px; /* Aumentado de 500px a 700px para tener más espacio */
     position: relative;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
     transform: scale(0.9);
@@ -1537,6 +1553,8 @@ body.modal-open {
     color: #777;
     font-weight: normal;
     opacity: 0.8;
+    display: inline-block;
+    margin-left: 5px;
 }
 
 .quality-options label:hover .quality-cost {
@@ -1651,9 +1669,13 @@ body.modal-open {
     }
 
     .quality-options label {
-        padding: 8px 8px;
+        padding: 8px 5px;
         font-size: 0.85rem;
-        white-space: nowrap;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        line-height: 1.1;
     }
 
     textarea {
@@ -1693,6 +1715,7 @@ body.modal-open {
         display: block;
         text-align: center;
         margin-top: 2px;
+        margin-left: 0;
     }
 
     /* Sticker Template section mobile optimizations */
@@ -2794,6 +2817,11 @@ body.modal-open {
     text-align: center;
 }
 
+/* Login modal specific width */
+#login-modal .modal-content {
+    max-width: 500px;
+}
+
 /* Login form input styles */
 #login-email:focus,
 #login-pin:focus {
@@ -2852,35 +2880,6 @@ body.modal-open {
         padding: 12px 20px;
         font-size: 0.9rem;
     }
-}
-
-/* Login Button Styles */
-.login-btn {
-    background: linear-gradient(45deg, var(--accent-color), #ff8ab4);
-    color: white;
-    border: none;
-    padding: 10px 18px;
-    font-family: 'Poppins', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 500;
-    border-radius: 50px;
-    cursor: pointer;
-    transition: var(--transition);
-    box-shadow: 0 6px 15px rgba(255, 107, 155, 0.2);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: 10px;
-}
-
-.login-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(255, 107, 155, 0.3);
-}
-
-.login-btn i {
-    font-size: 1.1rem;
-    margin-right: 2px;
 }
 
 /* Library button styles */

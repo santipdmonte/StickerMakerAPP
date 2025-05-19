@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TheStickerHouse - Library</title>
+    <title>TheStickerHouse - Biblioteca</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -175,36 +175,57 @@
 
         .empty-library {
             display: none; /* Start hidden until we know it's empty */
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 60px 20px;
-            color: #64748b;
             width: 100%;
             grid-column: 1 / -1;
+            min-height: 400px;
         }
 
-        .empty-library i {
-            font-size: 5rem;
+        .empty-state-container {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .empty-state-illustration {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            background: rgba(146, 119, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .empty-state-illustration i.ri-gallery-line {
+            font-size: 50px;
             color: var(--primary-color);
-            opacity: 0.4;
-            margin-bottom: 20px;
+        }
+
+        .empty-library h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
         }
 
         .empty-library p {
-            font-size: 1.5rem;
-            font-weight: 500;
-            margin-bottom: 10px;
-        }
-
-        .empty-library span {
-            font-size: 1rem;
-            opacity: 0.8;
+            font-size: 1.1rem;
+            color: #64748b;
+            margin-bottom: 30px;
         }
 
         .create-sticker-btn {
-            margin-top: 30px;
             background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
             color: white;
             border: none;
@@ -212,18 +233,64 @@
             font-family: 'Poppins', sans-serif;
             font-size: 1rem;
             font-weight: 500;
-            border-radius: var(--border-radius);
+            border-radius: 50px;
             cursor: pointer;
             transition: var(--transition-speed);
             box-shadow: 0 10px 25px rgba(124, 93, 250, 0.25);
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            text-decoration: none;
         }
 
         .create-sticker-btn:hover {
             transform: translateY(-3px);
             box-shadow: 0 15px 30px rgba(124, 93, 250, 0.35);
+        }
+
+        .create-sticker-btn i {
+            font-size: 1.2rem;
+        }
+
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .empty-state-container {
+                padding: 30px 20px;
+            }
+
+            .empty-state-illustration {
+                width: 100px;
+                height: 100px;
+                margin-bottom: 20px;
+            }
+
+            .empty-state-illustration i.ri-gallery-line {
+                font-size: 40px;
+            }
+
+            .empty-library h2 {
+                font-size: 1.5rem;
+            }
+
+            .empty-library p {
+                font-size: 1rem;
+                margin-bottom: 25px;
+            }
+
+            .create-sticker-btn {
+                padding: 12px 25px;
+            }
         }
 
         /* Loading Animation */
@@ -533,7 +600,7 @@
         <header>
             <div class="library-page-title">
                 <i class="ri-gallery-line"></i>
-                <h1>Sticker Library</h1>
+                <h1>Biblioteca de Stickers</h1>
             </div>
         </header>
         
@@ -542,17 +609,21 @@
                 <!-- Loading Animation -->
                 <div class="loading-container" id="loading-container">
                     <div class="spinner"></div>
-                    <div class="loading-text">Loading stickers...</div>
+                    <div class="loading-text">Cargando stickers...</div>
                 </div>
                 
                 <!-- Empty Library Message (Hidden Initially) -->
                 <div class="empty-library" id="empty-library">
-                    <i class="ri-image-line"></i>
-                    <p>Your sticker library is empty</p>
-                    <span>Generate some stickers to see them here!</span>
-                    <a href="/" class="create-sticker-btn">
-                        <i class="ri-add-circle-line"></i> Create a Sticker
-                    </a>
+                    <div class="empty-state-container">
+                        <div class="empty-state-illustration">
+                            <i class="ri-gallery-line"></i>
+                        </div>
+                        <h2>Tu biblioteca de stickers está vacía</h2>
+                        <p>¡Generá algunos stickers para verlos acá!</p>
+                        <a href="/" class="create-sticker-btn">
+                            <i class="ri-sparkle-line"></i> Crear un Sticker
+                        </a>
+                    </div>
                 </div>
             </div>
             
@@ -561,7 +632,7 @@
                 <button class="pagination-btn" id="prev-page-btn" disabled>
                     <i class="ri-arrow-left-s-line"></i>
                 </button>
-                <div class="pagination-info" id="pagination-info">Page 1 of 1</div>
+                <div class="pagination-info" id="pagination-info">Página 1 de 1</div>
                 <button class="pagination-btn" id="next-page-btn" disabled>
                     <i class="ri-arrow-right-s-line"></i>
                 </button>
@@ -577,12 +648,12 @@
     <!-- Success/Error Toast Messages -->
     <div class="success-toast" id="success-toast">
         <i class="ri-checkbox-circle-line"></i>
-        <span id="success-message">Success!</span>
+        <span id="success-message">¡Éxito!</span>
     </div>
     
     <div class="error-toast" id="error-toast">
         <i class="ri-error-warning-line"></i>
-        <span id="error-message">Error!</span>
+        <span id="error-message">¡Error!</span>
     </div>
 
     <!-- Sticker View Modal -->
@@ -591,7 +662,7 @@
         <div class="modal-content card-style-modal-content">
             <button class="modal-close-btn sticker-modal-close" id="sticker-modal-close"><i class="ri-close-line"></i></button>
             <div class="modal-image-container">
-                <img id="modal-sticker-image" src="" alt="Sticker Preview">
+                <img id="modal-sticker-image" src="" alt="Vista previa del Sticker">
             </div>
             <div class="modal-actions-container" id="modal-actions-container">
                 <!-- Buttons will be added here by JS -->
@@ -671,17 +742,17 @@
                     // Create Add to Template button
                     const addBtn = document.createElement('button');
                     addBtn.className = 'template-button'; // Use existing style
-                    addBtn.innerHTML = '<i class="ri-add-line"></i> Add to Template';
+                    addBtn.innerHTML = '<i class="ri-add-line"></i> Agregar a Plantilla';
                     addBtn.onclick = () => {
                         addToTemplate(filename);
                         // Mostrar mensaje de éxito
-                        showSuccess('Added to template!');
+                        showSuccess('¡Agregado a la plantilla!');
                     };
                     
                     // Create Download button (as link)
                     const downloadBtn = document.createElement('a');
                     downloadBtn.className = 'download-button-link'; // Use specific class for styling link
-                    downloadBtn.innerHTML = '<i class="ri-download-line"></i> Download';
+                    downloadBtn.innerHTML = '<i class="ri-download-line"></i> Descargar';
                     
                     // Establecer href temporal mientras se verifica la versión de alta resolución
                     downloadBtn.href = imageUrl;
@@ -707,14 +778,14 @@
                     const errorMsg = document.createElement('div');
                     errorMsg.className = 'error-message'; // Añadir una clase para facilitar la selección
                     errorMsg.innerHTML = `<i class="ri-error-warning-line" style="font-size: 40px; color: #ff6b6b;"></i>
-                                        <p style="color: #666;">Failed to load image</p>`;
+                                        <p style="color: #666;">Error al cargar la imagen</p>`;
                     errorMsg.style.textAlign = 'center';
                     modalImageContainer.appendChild(errorMsg);
                     
                     // Crear solo el botón de cerrar
                     const closeBtn = document.createElement('button');
                     closeBtn.className = 'template-button';
-                    closeBtn.innerHTML = '<i class="ri-close-line"></i> Close';
+                    closeBtn.innerHTML = '<i class="ri-close-line"></i> Cerrar';
                     closeBtn.onclick = hideStickerModal;
                     modalActionsContainer.appendChild(closeBtn);
                 };
@@ -784,14 +855,14 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showSuccess('Added to template!');
+                        showSuccess('¡Agregado a la plantilla!');
                     } else {
-                        showError(data.error || 'Failed to add to template');
+                        showError(data.error || 'Error al agregar a la plantilla');
                     }
                 })
                 .catch(error => {
                     console.error('Error adding to template:', error);
-                    showError('Failed to add to template');
+                    showError('Error al agregar a la plantilla');
                 });
             }
             
@@ -826,7 +897,7 @@
                                 totalPages = data.total_pages;
                                 
                                 // Actualizar controles de paginación
-                                paginationInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+                                paginationInfo.textContent = `Página ${currentPage} de ${totalPages}`;
                                 prevPageBtn.disabled = currentPage <= 1;
                                 nextPageBtn.disabled = currentPage >= totalPages;
                                 paginationControls.style.display = totalPages > 1 ? 'flex' : 'none';
@@ -855,8 +926,8 @@
                         }
                     })
                     .catch(error => {
-                        console.error('Error loading library stickers:', error);
-                        showError('Failed to load stickers');
+                        console.error('Error al cargar stickers de la biblioteca:', error);
+                        showError('Error al cargar los stickers');
                         loadingContainer.style.display = 'none';
                         emptyLibrary.style.display = 'flex';
                         paginationControls.style.display = 'none';
@@ -899,10 +970,10 @@
                     const cachedSrc = localStorage.getItem(`img_cache_${filename}`);
                     if (cachedSrc) {
                         img.src = cachedSrc;
-                        console.log(`Using cached image for ${filename}`);
+                        console.log(`Usando imagen en caché para ${filename}`);
                     } else {
                         img.src = `/img/${filename}`;
-                        console.log(`Loading image from server: ${filename}`);
+                        console.log(`Cargando imagen desde el servidor: ${filename}`);
                     }
                     
                     // Manejar la carga exitosa
@@ -911,7 +982,7 @@
                         try {
                             localStorage.setItem(`img_cache_${filename}`, img.src);
                         } catch (e) {
-                            console.warn('Error caching image:', e);
+                            console.warn('Error al almacenar imagen en caché:', e);
                         }
                         
                         // Ocultar spinner y mostrar imagen
@@ -921,7 +992,7 @@
                     
                     // Manejar errores de carga
                     img.onerror = function() {
-                        console.warn(`Error loading image from S3: ${filename}, trying alternative method`);
+                        console.warn(`Error al cargar imagen desde S3: ${filename}, probando método alternativo`);
                         
                         // Limpiar caché si la URL era inválida
                         localStorage.removeItem(`img_cache_${filename}`);
@@ -931,14 +1002,14 @@
                         
                         // Si falla el método directo
                         img.onerror = function() {
-                            console.warn(`Direct S3 method failed for ${filename}, trying local fallback`);
+                            console.warn(`Método directo de S3 falló para ${filename}, probando alternativa local`);
                             
                             // Intentar con local
                             img.src = `/static/imgs/${filename}`;
                             
                             // Si falla también el fallback local
                             img.onerror = function() {
-                                console.error(`Failed to load image: ${filename} from both S3 and local storage`);
+                                console.error(`Error al cargar imagen: ${filename} desde S3 y almacenamiento local`);
                                 loadingIndicator.style.display = 'none';
                                 
                                 // Mostrar un placeholder de error
@@ -965,7 +1036,7 @@
                     
                     const addBtn = document.createElement('button');
                     addBtn.className = 'library-action-btn add-btn';
-                    addBtn.title = 'Add to Template';
+                    addBtn.title = 'Agregar a Plantilla';
                     addBtn.innerHTML = '<i class="ri-add-circle-line"></i>';
                     addBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -974,7 +1045,7 @@
                     
                     const downloadBtn = document.createElement('a');
                     downloadBtn.className = 'library-action-btn download-btn-link';
-                    downloadBtn.title = 'Download';
+                    downloadBtn.title = 'Descargar';
                     downloadBtn.innerHTML = '<i class="ri-download-2-line"></i>';
                     
                     // Establecer href temporal mientras se verifica la versión de alta resolución
@@ -1016,7 +1087,7 @@
                 const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, allStickers.length);
                 
                 // Update pagination controls
-                paginationInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+                paginationInfo.textContent = `Página ${currentPage} de ${totalPages}`;
                 prevPageBtn.disabled = currentPage <= 1;
                 nextPageBtn.disabled = currentPage >= totalPages;
                 
