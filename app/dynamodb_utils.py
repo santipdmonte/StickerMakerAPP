@@ -197,12 +197,26 @@ def ensure_tables_exist():
             AttributeDefinitions=[
                 {'AttributeName': 'transaction_id', 'AttributeType': 'S'},
                 {'AttributeName': 'user_id', 'AttributeType': 'S'},
+                {'AttributeName': 'payment_id', 'AttributeType': 'S'},  # Nuevo atributo para payment_id
             ],
             GlobalSecondaryIndexes=[
                 {
                     'IndexName': 'UserIdIndex',
                     'KeySchema': [
                         {'AttributeName': 'user_id', 'KeyType': 'HASH'},
+                    ],
+                    'Projection': {
+                        'ProjectionType': 'ALL'
+                    },
+                    'ProvisionedThroughput': {
+                        'ReadCapacityUnits': 5,
+                        'WriteCapacityUnits': 5
+                    }
+                },
+                {
+                    'IndexName': 'PaymentIdIndex',  # Nuevo índice para búsquedas por payment_id
+                    'KeySchema': [
+                        {'AttributeName': 'payment_id', 'KeyType': 'HASH'},
                     ],
                     'Projection': {
                         'ProjectionType': 'ALL'
@@ -219,6 +233,66 @@ def ensure_tables_exist():
             }
         )
         print(f"Created table {TRANSACTION_TABLE}")
+    
+    # Si la tabla de transacciones ya existe, verificar si tiene el índice PaymentIdIndex
+    # y crearlo si no existe
+    elif TRANSACTION_TABLE in existing_tables:
+        try:
+            # Obtenemos la descripción de la tabla
+            table_description = dynamodb.meta.client.describe_table(TableName=TRANSACTION_TABLE)
+            
+            # Verificamos si el índice ya existe
+            payment_id_index_exists = False
+            if 'GlobalSecondaryIndexes' in table_description['Table']:
+                for index in table_description['Table']['GlobalSecondaryIndexes']:
+                    if index['IndexName'] == 'PaymentIdIndex':
+                        payment_id_index_exists = True
+                        break
+            
+            # Si el índice no existe, lo creamos
+            if not payment_id_index_exists:
+                print(f"Adding PaymentIdIndex to {TRANSACTION_TABLE}...")
+                
+                # Primero verificamos si el atributo payment_id existe en la definición
+                payment_id_defined = False
+                for attr_def in table_description['Table'].get('AttributeDefinitions', []):
+                    if attr_def['AttributeName'] == 'payment_id':
+                        payment_id_defined = True
+                        break
+                
+                # Preparamos las definiciones de atributos según sea necesario
+                attribute_definitions = []
+                if not payment_id_defined:
+                    attribute_definitions.append({
+                        'AttributeName': 'payment_id',
+                        'AttributeType': 'S'
+                    })
+                
+                # Actualizamos la tabla para agregar el índice
+                dynamodb.meta.client.update_table(
+                    TableName=TRANSACTION_TABLE,
+                    AttributeDefinitions=attribute_definitions if attribute_definitions else None,
+                    GlobalSecondaryIndexUpdates=[
+                        {
+                            'Create': {
+                                'IndexName': 'PaymentIdIndex',
+                                'KeySchema': [
+                                    {'AttributeName': 'payment_id', 'KeyType': 'HASH'},
+                                ],
+                                'Projection': {
+                                    'ProjectionType': 'ALL'
+                                },
+                                'ProvisionedThroughput': {
+                                    'ReadCapacityUnits': 5,
+                                    'WriteCapacityUnits': 5
+                                }
+                            }
+                        }
+                    ]
+                )
+                print(f"PaymentIdIndex added to {TRANSACTION_TABLE}")
+        except Exception as e:
+            print(f"Error checking/updating PaymentIdIndex: {e}")
 
 # User Management Functions
 def create_user(email, initial_coins=None, name=None):
@@ -461,29 +535,40 @@ def verify_login_pin(email, pin):
     return None
 
 # Transaction Management Functions
-def create_transaction(user_id, coins_amount, transaction_type, details=None):
+def create_transaction(user_id, coins_amount, transaction_type, details=None, payment_id=None):
     """
     Record a transaction in the transaction table and update user's coin balance
     
     Args:
         user_id (str): The user ID associated with this transaction
         coins_amount (int): Number of coins (positive for additions, negative for subtractions)
-        transaction_type (str): Type of transaction (e.g., 'purchase', 'usage', 'bonus')
+        transaction_type (str): Type of transaction (e.g., 'purchase', 'usage', 'bonus', 'coin_purchase_mp')
         details (dict): Any additional details about the transaction
+        payment_id (str, optional): ID de pago externo para transacciones de compra, usado para idempotencia
         
     Returns:
-        dict: Transaction data
+        dict: Transaction data with additional 'is_existing' field if transaction already existed
     """
     dynamodb = get_dynamodb_resource()
     transaction_table = dynamodb.Table(TRANSACTION_TABLE)
     user_table = dynamodb.Table(USER_TABLE)
     
+    # Si se proporciona payment_id, verificar si ya existe una transacción con ese payment_id
+    if payment_id:
+        existing_transaction = get_transaction_by_payment_id(payment_id)
+        if existing_transaction:
+            print(f"Transaction with payment_id {payment_id} already exists, returning existing transaction")
+            # Marcar la transacción como existente para poder distinguirla
+            existing_transaction['is_existing'] = True
+            return existing_transaction
+
     transaction_id = str(uuid.uuid4())
     timestamp = int(time.time())
     date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
 
-    if transaction_type not in ['purchase', 'usage', 'bonus']:
-        raise ValueError(f"Invalid transaction type: {transaction_type}, must be one of: purchase, usage, bonus")
+    valid_transaction_types = ['purchase', 'usage', 'bonus', 'coin_purchase_mp', 'sticker_generation_authenticated']
+    if transaction_type not in valid_transaction_types:
+        raise ValueError(f"Invalid transaction type: {transaction_type}, must be one of: {', '.join(valid_transaction_types)}")
     
     transaction_data = {
         'transaction_id': transaction_id,
@@ -494,6 +579,10 @@ def create_transaction(user_id, coins_amount, transaction_type, details=None):
         'date': date_str,
         'details': details or {}
     }
+    
+    # Añadir payment_id si está definido
+    if payment_id:
+        transaction_data['payment_id'] = str(payment_id)
     
     # Record the transaction
     transaction_table.put_item(Item=transaction_data)
@@ -521,6 +610,8 @@ def create_transaction(user_id, coins_amount, transaction_type, details=None):
     
     # Return the transaction data and the updated user data
     transaction_data['updated_user'] = response.get('Attributes')
+    # Marcar explícitamente como transacción nueva
+    transaction_data['is_existing'] = False
     return transaction_data
 
 def get_user_transactions(user_id, limit=50):
@@ -544,4 +635,36 @@ def get_user_transactions(user_id, limit=50):
         Limit=limit
     )
     
-    return response.get('Items', []) 
+    return response.get('Items', [])
+
+def get_transaction_by_payment_id(payment_id):
+    """
+    Busca una transacción por su payment_id de Mercado Pago
+    
+    Args:
+        payment_id (str): ID de pago de Mercado Pago
+        
+    Returns:
+        dict or None: Datos de la transacción o None si no se encuentra
+    """
+    if not payment_id:
+        return None
+        
+    dynamodb = get_dynamodb_resource()
+    table = dynamodb.Table(TRANSACTION_TABLE)
+    
+    try:
+        # Usar el índice PaymentIdIndex para buscar eficientemente
+        response = table.query(
+            IndexName='PaymentIdIndex',
+            KeyConditionExpression=Key('payment_id').eq(str(payment_id)),
+            Limit=1  # Solo necesitamos una transacción
+        )
+        
+        items = response.get('Items', [])
+        if items:
+            return items[0]
+        return None
+    except Exception as e:
+        print(f"Error querying transaction by payment_id: {e}")
+        return None 
