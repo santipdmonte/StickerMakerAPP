@@ -175,36 +175,57 @@
 
         .empty-library {
             display: none; /* Start hidden until we know it's empty */
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
-            padding: 60px 20px;
-            color: #64748b;
             width: 100%;
             grid-column: 1 / -1;
+            min-height: 400px;
         }
 
-        .empty-library i {
-            font-size: 5rem;
+        .empty-state-container {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .empty-state-illustration {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            background: rgba(146, 119, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .empty-state-illustration i.ri-gallery-line {
+            font-size: 50px;
             color: var(--primary-color);
-            opacity: 0.4;
-            margin-bottom: 20px;
+        }
+
+        .empty-library h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
         }
 
         .empty-library p {
-            font-size: 1.5rem;
-            font-weight: 500;
-            margin-bottom: 10px;
-        }
-
-        .empty-library span {
-            font-size: 1rem;
-            opacity: 0.8;
+            font-size: 1.1rem;
+            color: #64748b;
+            margin-bottom: 30px;
         }
 
         .create-sticker-btn {
-            margin-top: 30px;
             background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
             color: white;
             border: none;
@@ -212,18 +233,64 @@
             font-family: 'Poppins', sans-serif;
             font-size: 1rem;
             font-weight: 500;
-            border-radius: var(--border-radius);
+            border-radius: 50px;
             cursor: pointer;
             transition: var(--transition-speed);
             box-shadow: 0 10px 25px rgba(124, 93, 250, 0.25);
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            text-decoration: none;
         }
 
         .create-sticker-btn:hover {
             transform: translateY(-3px);
             box-shadow: 0 15px 30px rgba(124, 93, 250, 0.35);
+        }
+
+        .create-sticker-btn i {
+            font-size: 1.2rem;
+        }
+
+        @keyframes fadeInUp {
+            0% {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .empty-state-container {
+                padding: 30px 20px;
+            }
+
+            .empty-state-illustration {
+                width: 100px;
+                height: 100px;
+                margin-bottom: 20px;
+            }
+
+            .empty-state-illustration i.ri-gallery-line {
+                font-size: 40px;
+            }
+
+            .empty-library h2 {
+                font-size: 1.5rem;
+            }
+
+            .empty-library p {
+                font-size: 1rem;
+                margin-bottom: 25px;
+            }
+
+            .create-sticker-btn {
+                padding: 12px 25px;
+            }
         }
 
         /* Loading Animation */
@@ -547,12 +614,16 @@
                 
                 <!-- Empty Library Message (Hidden Initially) -->
                 <div class="empty-library" id="empty-library">
-                    <i class="ri-image-line"></i>
-                    <p>Tu biblioteca de stickers está vacía</p>
-                    <span>¡Generá algunos stickers para verlos acá!</span>
-                    <a href="/" class="create-sticker-btn">
-                        <i class="ri-add-circle-line"></i> Crear un Sticker
-                    </a>
+                    <div class="empty-state-container">
+                        <div class="empty-state-illustration">
+                            <i class="ri-gallery-line"></i>
+                        </div>
+                        <h2>Tu biblioteca de stickers está vacía</h2>
+                        <p>¡Generá algunos stickers para verlos acá!</p>
+                        <a href="/" class="create-sticker-btn">
+                            <i class="ri-sparkle-line"></i> Crear un Sticker
+                        </a>
+                    </div>
                 </div>
             </div>
             
