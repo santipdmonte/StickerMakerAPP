@@ -2937,3 +2937,42 @@ body.modal-open {
         display: none;
     }
 }
+
+.selected-package-info span {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.coins-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 150px;
+    width: 100%;
+    grid-column: 1 / -1;
+    color: var(--text-color);
+}
+
+.coins-loading i {
+    font-size: 2rem;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+}
+
+.coins-loading p {
+    font-size: 1rem;
+}
+
+.rotate {
+    animation: rotate 1.5s linear infinite;
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}

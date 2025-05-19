@@ -198,6 +198,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load user's coins on page load
     loadCoins();
     
+    // Load coin packages from the server
+    loadCoinPackages();
+    
     // Load available styles on page load
     loadStyles();
     
@@ -1676,10 +1679,20 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedPackage = coinPackagesData[packageType];
         const packageData = selectedPackage;
         
+        // Ensure backwards compatibility - use coins if amount is not available
+        if (!packageData.amount && packageData.coins) {
+            packageData.amount = packageData.coins;
+        }
+        
         // Update UI with selected package details
         selectedPackageName.textContent = packageData.name;
         selectedPackageAmount.textContent = packageData.amount;
         selectedPackagePrice.textContent = packageData.price.toFixed(2);
+        
+        // Show the selected currency if available
+        if (packageData.currency_id && selectedPackagePrice.parentElement) {
+            selectedPackagePrice.parentElement.dataset.currency = packageData.currency_id;
+        }
         
         // Reset coupon state when changing packages
         resetCouponState();
@@ -1998,6 +2011,108 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Store finalizePaymentBtn in global scope for other functions to use
     window.finalizePaymentBtn = finalizePaymentBtn;
+
+    // Function to load coin packages from the server
+    function loadCoinPackages() {
+        // Save the existing package data as fallback
+        const fallbackPackages = JSON.parse(JSON.stringify(coinPackagesData));
+        
+        fetch('/api/coins/packages')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to load packages: ${response.status} ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.packages && Object.keys(data.packages).length > 0) {
+                    // Clear existing package data
+                    Object.keys(coinPackagesData).forEach(key => delete coinPackagesData[key]);
+                    
+                    // Add new package data from server
+                    Object.entries(data.packages).forEach(([packageId, packageData]) => {
+                        coinPackagesData[packageId] = {
+                            id: packageId,
+                            name: packageData.name,
+                            amount: packageData.coins,
+                            price: packageData.price,
+                            currency_id: packageData.currency_id
+                        };
+                    });
+                    
+                    console.log('Coin packages loaded from server:', coinPackagesData);
+                } else {
+                    console.warn('No packages found in API response, using fallback data');
+                    // Restore fallback if no packages found
+                    Object.assign(coinPackagesData, fallbackPackages);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading coin packages:', error);
+                // Restore fallback on error
+                Object.assign(coinPackagesData, fallbackPackages);
+            })
+            .finally(() => {
+                // Always update UI
+                updatePackagesUI();
+            });
+    }
+
+    // Function to update UI for coin packages
+    function updatePackagesUI() {
+        const packagesContainer = document.querySelector('.coins-packages');
+        if (!packagesContainer) return;
+        
+        // Clear existing packages
+        packagesContainer.innerHTML = '';
+        
+        // Define explicit order for packages
+        const packageOrder = ['small', 'medium', 'large'];
+        
+        // Create elements for each package in the specified order
+        packageOrder.forEach((packageId, index) => {
+            if (!coinPackagesData[packageId]) return;
+            
+            const packageData = coinPackagesData[packageId];
+            
+            // Ensure backwards compatibility - use coins if amount is not available
+            if (!packageData.amount && packageData.coins) {
+                packageData.amount = packageData.coins;
+            }
+            
+            const packageElement = document.createElement('div');
+            packageElement.className = 'coins-package';
+            packageElement.dataset.package = packageData.id;
+            
+            // Choose icon based on package size
+            let iconClass = 'ri-coin-line';
+            if (packageId === 'medium') iconClass = 'ri-coins-line';
+            if (packageId === 'large') iconClass = 'ri-money-dollar-box-line';
+            
+            // Add badge for medium and large packages
+            let badgeHTML = '';
+            if (packageId === 'medium') {
+                badgeHTML = '<div class="package-badge">Popular</div>';
+            } else if (packageId === 'large') {
+                badgeHTML = '<div class="package-badge">Mejor Valor</div>';
+            }
+            
+            packageElement.innerHTML = `
+                <div class="package-icon"><i class="${iconClass}"></i></div>
+                <h3>${packageData.amount} Monedas</h3>
+                <p class="package-price">$${packageData.price.toFixed(2)}</p>
+                ${badgeHTML}
+                <button class="package-select-btn">Seleccionar</button>
+            `;
+            
+            // Add click event for select button
+            const selectBtn = packageElement.querySelector('.package-select-btn');
+            selectBtn.addEventListener('click', () => selectPackage(packageData.id));
+            
+            // Add package to container
+            packagesContainer.appendChild(packageElement);
+        });
+    }
 });
 
 // Check if there's a pending coin package from a previous session
