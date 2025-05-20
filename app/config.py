@@ -25,8 +25,8 @@ COIN_PACKAGES_CONFIG = {
 }
 
 # Coin configuration from environment variables
-INITIAL_COINS = int(os.getenv('INITIAL_COINS', 15))
-BONUS_COINS = int(os.getenv('BONUS_COINS', 25))
+INITIAL_COINS = 15
+BONUS_COINS = 25
 
 # Get discount coupon settings
 DISCOUNT_COUPON = os.getenv("CUPON", "")
