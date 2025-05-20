@@ -1356,16 +1356,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (quality === 'medium') coinCost = 25;
         else if (quality === 'high') coinCost = 100;
         
-        // Client-side pre-check for coins. currentCoins is a global-like variable in this scope,
-        // updated by loadCoins().
+        // Verifica si tenemos suficientes monedas
         if (currentCoins < coinCost) {
-            showError(`No tenés suficientes monedas. Necesitás ${coinCost} monedas. Actuales: ${currentCoins}`);
-            // Optionally, you could call checkCurrentCoins() here for an immediate server check 
-            // if currentCoins might be stale, but that adds an extra API call.
-            // For now, relying on currentCoins which is refreshed on load and after coin purchases.
-            return;
+            try {
+                // Verificar con el servidor para obtener el balance actualizado
+                const actualCoins = await checkCurrentCoins();
+                if (actualCoins < coinCost) {
+                    showError(`No tenés suficientes monedas. Necesitás ${coinCost} monedas. Actuales: ${actualCoins}`);
+                    return;
+                }
+                // Actualizar el contador local si hay suficientes monedas
+                currentCoins = actualCoins;
+                updateCoinsDisplay();
+            } catch (error) {
+                console.error('Error checking coin balance:', error);
+                showError(`No se pudo verificar el saldo de monedas. Intente nuevamente.`);
+                return;
+            }
         }
         
+        // A partir de aquí, sabemos que hay suficientes monedas para continuar
         loadingSpinner.classList.remove('hidden');
         generateBtn.disabled = true;
         stickerResult.style.display = 'none';
@@ -1398,15 +1408,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: formData
             });
             
-            // const responseText = await response.text(); // DEBUG: Log raw response text
-            // console.log("Backend /generate response text:", responseText);
-            // const data = JSON.parse(responseText); // DEBUG: Parse text manually if response.json() fails
-
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: `Error al generar el sticker. Estado: ${response.status}` }));
+                const errorData = await response.json().catch(() => ({ 
+                    error: `Error al generar el sticker. Estado: ${response.status}` 
+                }));
                 showError(errorData.error || `Error al generar el sticker. Estado: ${response.status}`);
-                // throw new Error(errorData.error || 'Failed to generate sticker'); 
-                // No need to throw if showError already handles user feedback and we don't want to re-enable button yet
             } else {
                 const data = await response.json();
                 if (data.success) {
@@ -1426,14 +1432,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         showSuccess('¡Sticker generado exitosamente!');
                     }
-                    // UI update if no coins left is implicitly handled by loadCoins() -> updateCoinsDisplay() and the pre-check.
                 } else {
                     showError(data.error || 'Error al generar el sticker (error del servidor)');
                 }
             }
         } catch (error) {
             console.error('Error en la función generateSticker:', error);
-            showError('Error al generar el sticker. Por favor, intentá nuevamente.');
+            showError(error.message || 'Error al generar el sticker. Por favor, intentá nuevamente.');
         } finally {
             loadingSpinner.classList.add('hidden');
             generateBtn.disabled = false;
