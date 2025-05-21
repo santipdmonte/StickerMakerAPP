@@ -49,18 +49,6 @@ from dynamodb_utils import (
 from auth_routes import auth_bp
 from coin_routes import coin_bp
 
-
-# Initialize DynamoDB tables and indexes
-if USE_DYNAMODB:
-    try:
-        print("Initializing DynamoDB tables and indexes...")
-        ensure_tables_exist()
-        verify_email_index()
-        print("DynamoDB tables and indexes configured successfully")
-    except Exception as e:
-        print(f"WARNING: Error setting up DynamoDB: {e}")
-        print("The application will continue but DynamoDB operations may fail")
-
 app = Flask(__name__)
 # Configure Flask from configuration
 app.config['SECRET_KEY'] = FLASK_SECRET_KEY
@@ -126,20 +114,20 @@ except Exception as e:
         # En producción, no permitir que la aplicación inicie sin S3 configurado
         raise RuntimeError(error_msg)
 
-# Setup DynamoDB tables if enabled
-if USE_DYNAMODB:
-    try:
-        ensure_tables_exist()
-        verify_email_index()
-        print("DynamoDB tables successfully configured")
-    except Exception as e:
-        error_msg = f"ERROR: DynamoDB configuration is invalid or connection failed: {e}"
-        print(error_msg)
-        if FLASK_ENV == 'development':
-            print("Application will continue but DynamoDB operations will fail.")
-        else:
-            # In production, don't allow the app to start without DynamoDB configured
-            raise RuntimeError(error_msg)
+
+# Setup DB tables if enabled
+try:
+    ensure_tables_exist()
+    verify_email_index()
+    print("DB tables successfully configured")
+except Exception as e:
+    error_msg = f"ERROR: DB configuration is invalid or connection failed: {e}"
+    print(error_msg)
+    if FLASK_ENV == 'development':
+        print("Application will continue but DB operations will fail.")
+    else:
+        # In production, don't allow the app to start without DB configured
+        raise RuntimeError(error_msg)
 
 @app.route('/')
 def index():
