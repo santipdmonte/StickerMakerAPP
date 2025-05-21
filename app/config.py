@@ -3,6 +3,7 @@ import json
 from datetime import timedelta
 from decimal import Decimal
 from dotenv import load_dotenv
+import mercadopago 
 
 # Load environment variables
 load_dotenv()
@@ -80,6 +81,13 @@ DYNAMODB_TRANSACTION_TABLE = os.getenv('DYNAMODB_TRANSACTION_TABLE', 'test-thest
 # Mercado Pago configuration
 MP_ACCESS_TOKEN = os.getenv("PROD_ACCESS_TOKEN")
 MP_PUBLIC_KEY = os.getenv('MP_PUBLIC_KEY', '')
+
+# Configure Mercado Pago SDK
+if not MP_ACCESS_TOKEN:
+    print("Error: PROD_ACCESS_TOKEN not found in .env file.")
+    # Handle the error appropriately, maybe raise an exception or use a default test token
+    # For demonstration, let's allow it to continue but it won't work without a token
+sdk = mercadopago.SDK(MP_ACCESS_TOKEN) if MP_ACCESS_TOKEN else None
 
 # S3 configuration
 USE_S3 = os.getenv('USE_S3', 'True')

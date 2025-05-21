@@ -22,8 +22,6 @@ from config import (
     STICKER_COSTS
 )
 
-# Added Mercado Pago
-import mercadopago 
 
 from generate_sticker import generate_sticker, generate_sticker_with_reference
 from utils import create_placeholder_image, send_sticker_email, create_template_zip
@@ -46,8 +44,9 @@ from dynamodb_utils import (
 )
 
 # Import route blueprints
-from auth_routes import auth_bp
-from coin_routes import coin_bp
+from routes.auth_routes import auth_bp
+from routes.coin_routes import coin_bp
+from routes.payment_routes import payment_bp
 
 app = Flask(__name__)
 # Configure Flask from configuration
@@ -67,6 +66,7 @@ app.config['SESSION_REFRESH_EACH_REQUEST'] = SESSION_REFRESH_EACH_REQUEST
 # Register blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(coin_bp)
+app.register_blueprint(payment_bp)
 
 # Set session to be permanent by default before any request
 @app.before_request
@@ -74,13 +74,6 @@ def make_session_permanent():
     session.permanent = True
 
 # TheStickerHouse - Sticker generation web application
-
-# Configure Mercado Pago SDK
-if not MP_ACCESS_TOKEN:
-    print("Error: PROD_ACCESS_TOKEN not found in .env file.")
-    # Handle the error appropriately, maybe raise an exception or use a default test token
-    # For demonstration, let's allow it to continue but it won't work without a token
-sdk = mercadopago.SDK(MP_ACCESS_TOKEN) if MP_ACCESS_TOKEN else None
 
 # Create static directories if they don't exist
 folder_path = FOLDER_PATH
@@ -446,449 +439,6 @@ def get_history():
         # Fall back to local files
 
 
-# --- Coins System Routes ---
-
-@app.route('/get-coins', methods=['GET'])
-def get_coins():
-    """
-    Return current coin balance from the session or DB
-    """
-    user_id = session.get('user_id')
-    
-    if user_id:
-        # Get latest user data from DB
-        user = get_user(user_id)
-        if user:
-            # Update session with latest coins
-            session['coins'] = user.get('coins', 0)
-    
-    # Make sure coins is set in the session (for non-authenticated users)
-    if 'coins' not in session:
-        session['coins'] = INITIAL_COINS  # Default for non-authenticated users
-        
-        # Asegurarnos de que haya un session_id para visitantes anónimos
-        if not user_id and 'session_id' not in session:
-            session['session_id'] = str(uuid.uuid4())
-    
-    # Return current coin balance from session
-    return jsonify({"coins": session.get('coins', INITIAL_COINS)})
-
-@app.route('/update-coins', methods=['POST'])
-def update_coins():
-    """
-    Update coin balance in the session and DynamoDB if enabled
-    """
-    coins_update = request.json.get('coins', 0)
-    
-    if coins_update == 0:
-        return jsonify({"coins": session.get('coins', 0)})
-    
-    user_id = session.get('user_id')
-    
-    if USE_DYNAMODB and user_id:
-        try:
-            # Determine transaction type based on whether we're adding or removing coins
-            transaction_type = 'usage' if coins_update < 0 else 'bonus'
-            
-            # Record transaction (which also updates the user's coins)
-            transaction = create_transaction(
-                user_id=user_id,
-                coins_amount=coins_update,
-                transaction_type=transaction_type,
-                details={'source': 'app', 'api_route': '/update-coins'}
-            )
-            
-            # Update session with latest coins
-            updated_user = transaction.get('updated_user', {})
-            if updated_user:
-                session['coins'] = updated_user.get('coins', 0)
-        except Exception as e:
-            print(f"Error updating coins in DynamoDB: {e}")
-            # Fall back to session-based coins
-            current_coins = session.get('coins', 0)
-            session['coins'] = max(0, current_coins + coins_update)
-    else:
-        # Visitante anónimo - asegurarnos de que tenga session_id
-        if not user_id and 'session_id' not in session:
-            session['session_id'] = str(uuid.uuid4())
-            
-        # Session-based coin handling for anonymous users
-        current_coins = session.get('coins', 0)
-        session['coins'] = max(0, current_coins + coins_update)
-        
-        # Log transaction for anonymous users
-        identifier = session.get('session_id') if not user_id else user_id
-        app.logger.info(f"Anonymous user (session_id: {identifier}) coin update: {coins_update}, new balance: {session['coins']}")
-    
-    return jsonify({"coins": session.get('coins', 0)})
-
-@app.route('/purchase-coins', methods=['POST'])
-def purchase_coins():
-    """
-    Procesa una solicitud de compra de monedas.
-    Requiere que el usuario esté autenticado y proporcione un package_id válido.
-    """
-    app.logger.info("--- /purchase-coins ---")
-
-    if not request.is_json:
-        app.logger.error("Request is not JSON")
-        return jsonify({"error": "Request must be JSON"}), 400
-    
-    data = request.json
-    
-    user_id = session.get('user_id')
-
-    if not user_id:
-        app.logger.error("No user_id in session, se requiere autenticación para comprar monedas")
-        return jsonify({"error": "Debes iniciar sesión para comprar monedas"}), 401
-    
-    # Coin Package Purchase (Initiate Mercado Pago payment)
-    package_id = data.get('package_id')
-    app.logger.info(f"Solicitud de compra de monedas iniciada para package_id: {package_id} por usuario: {user_id}")
-
-    if not package_id or package_id not in COIN_PACKAGES_CONFIG:
-        app.logger.error(f"Invalid or missing package_id: {package_id}")
-        return jsonify({"error": "Paquete de monedas inválido o no especificado"}), 400
-
-    package_info = COIN_PACKAGES_CONFIG[package_id]
-    
-    payer_info = {}
-    
-    # Obtener información del usuario de la base de datos
-    db_user = get_user(user_id)
-    if not db_user:
-        app.logger.error(f"Usuario {user_id} no encontrado en la base de datos")
-        return jsonify({"error": "Error al recuperar datos del usuario"}), 400
-        
-    payer_info['email'] = db_user.get('email', '')
-    if db_user.get('name'):
-        payer_info['name'] = db_user.get('name')
-
-    if not sdk:
-        app.logger.error("Mercado Pago SDK not configured for coin purchase")
-        return jsonify({"error": "El sistema de pagos no está configurado correctamente"}), 500
-
-    try:
-        timestamp = int(time.time())
-        # External reference: Type_UserID_PackageID_Coins_Timestamp
-        external_reference = f"COINPKG_{user_id}_{package_id}_{package_info['coins']}_{timestamp}"
-
-        preference_data = {
-            "items": [{
-                "title": package_info['name'],
-                "description": f"{package_info['coins']} monedas virtuales para TheStickerHouse",
-                "quantity": 1,
-                "unit_price": package_info['price'],
-                "currency_id": package_info['currency_id']
-            }],
-            "payer": payer_info,
-            "back_urls": {
-                "success": url_for('coin_payment_feedback', _external=True, _scheme='https'),
-                "failure": url_for('coin_payment_feedback', _external=True, _scheme='https'),
-                "pending": url_for('coin_payment_feedback', _external=True, _scheme='https')
-            },
-            "auto_return": "approved",
-            "external_reference": external_reference,
-            "notification_url": url_for('webhook', _external=True, _scheme='https')
-        }
-        
-        app.logger.info(f"Creando preferencia de Mercado Pago. Ref: {external_reference}")
-        preference_response = sdk.preference().create(preference_data)
-
-        if preference_response and isinstance(preference_response, dict) and \
-            preference_response.get("status") in [200, 201] and \
-            preference_response.get("response") and "id" in preference_response["response"]:
-            preference_id = preference_response["response"]["id"]
-            app.logger.info(f"Preferencia creada exitosamente con ID: {preference_id}")
-            return jsonify({"preference_id": preference_id})
-        else:
-            error_message = "Error al crear la preferencia de pago con Mercado Pago"
-            if preference_response and isinstance(preference_response, dict) and preference_response.get("response"):
-                error_message = preference_response["response"].get("message", error_message)
-            elif preference_response and isinstance(preference_response, dict) and preference_response.get("message"):
-                error_message = preference_response.get("message", error_message)
-            app.logger.error(f"Error en creación de preferencia: {error_message}")
-            return jsonify({"error": error_message}), 500
-    except Exception as e:
-        app.logger.error(f"Excepción creando preferencia de pago: {str(e)}", exc_info=True)
-        return jsonify({"error": f"Error crítico al procesar el pago: {str(e)}"}), 500
-
-@app.route('/coin_payment_feedback')
-def coin_payment_feedback():
-    """
-    Maneja el retorno del usuario desde Mercado Pago después de una compra de monedas.
-    Ya no procesa el pago (eso lo hace el webhook), solo actualiza la sesión y
-    redirige al usuario a la página principal.
-    """
-    app.logger.info("--- /coin_payment_feedback ---")
-
-    payment_status = request.args.get('collection_status', '')
-    payment_id = request.args.get('collection_id', '')
-    external_reference = request.args.get('external_reference', '')
-    
-    app.logger.info(f"Callback de pago: Status={payment_status}, ID={payment_id}, ER={external_reference}")
-    
-    # Verificar que el usuario esté autenticado
-    user_id = session.get('user_id')
-    if not user_id:
-        app.logger.warning("Usuario no autenticado en coin_payment_feedback. No se puede actualizar sesión.")
-        return redirect(url_for('index'))
-    
-    # Solo mostramos feedback visual dependiendo del estado del pago
-    if payment_status == 'approved':
-        # Actualizar la sesión con las monedas actuales del usuario
-        if USE_DYNAMODB:
-            user = get_user(user_id)
-            if user:
-                session['coins'] = user.get('coins', 0)
-                app.logger.info(f"Sesión actualizada para usuario {user_id}, monedas: {session['coins']}")
-            else:
-                app.logger.warning(f"No se pudo obtener usuario {user_id} para actualizar sesión")
-        
-        # Opcional: mensaje de éxito
-        # session['payment_success_message'] = "¡Pago exitoso! Las monedas han sido acreditadas a tu cuenta."
-    elif payment_status == 'rejected':
-        app.logger.warning(f"Pago rechazado por Mercado Pago. ID: {payment_id}")
-        # session['payment_error_message'] = "El pago fue rechazado. Por favor, intenta nuevamente."
-    else:
-        app.logger.info(f"Pago con estado {payment_status}. ID: {payment_id}")
-        # session['payment_info_message'] = "El pago está siendo procesado. Las monedas serán acreditadas en breve."
-    
-    return redirect(url_for('index'))
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    """
-    Endpoint para recibir notificaciones de Mercado Pago (IPN)
-    
-    Este endpoint maneja las notificaciones asíncronas de pagos:
-    - Validación de seguridad
-    - Procesamiento de pagos exitosos, fallidos o pendientes
-    - Gestión de idempotencia para evitar procesar pagos duplicados
-    """
-    app.logger.info("--- WEBHOOK recibido de Mercado Pago ---")
-    
-    if not sdk:
-        app.logger.error("Mercado Pago SDK no está configurado para recibir notificaciones.")
-        return '', 200  # Devolver 200 para no recibir reenvíos, aunque hayamos fallado
-    
-    try:
-        # Obtener los datos del webhook
-        data = request.json
-        app.logger.info(f"Datos de webhook recibidos: {data}")
-        
-        # Verificamos el tipo de notificación
-        if 'resource' in data and 'topic' in data:
-            # Formato de webhook clásico de Mercado Pago
-            resource = data.get('resource')
-            topic = data.get('topic')
-            
-            app.logger.info(f"Notificación de tipo {topic}, recurso: {resource}")
-            
-            if topic == 'payment':
-                # Extraer el ID del pago de la URL del recurso
-                payment_id = resource.split('/')[-1]
-                app.logger.info(f"Procesando notificación para pago ID: {payment_id}")
-                
-                # Obtener detalles del pago usando el SDK
-                payment_info = sdk.payment().get(payment_id)
-                
-                if payment_info["status"] == 200:
-                    payment_data = payment_info["response"]
-                    process_payment_webhook(payment_data)
-                else:
-                    app.logger.error(f"Error obteniendo información del pago {payment_id}: {payment_info}")
-            elif topic == 'merchant_order':
-                # Procesar notificación de merchant_order si es necesario
-                app.logger.info(f"Notificación de merchant_order recibida, no se requiere acción en este momento")
-            else:
-                app.logger.warning(f"Tipo de topic no manejado: {topic}")
-        else:
-            # Podría ser otro formato de notificación
-            app.logger.warning(f"Formato de webhook no reconocido: {data}")
-    except Exception as e:
-        app.logger.error(f"Error procesando webhook: {str(e)}", exc_info=True)
-    
-    # Siempre devolvemos 200 OK para evitar reenvíos automáticos
-    return '', 200
-
-def process_payment_webhook(payment_data):
-    """
-    Procesa los datos de un pago notificado por webhook
-    
-    Esta función extrae la información relevante del pago y actualiza
-    la base de datos para reflejar el estado del pago.
-    
-    Args:
-        payment_data (dict): Datos del pago provenientes de Mercado Pago
-    """
-    try:
-        payment_id = payment_data.get('id')
-        status = payment_data.get('status')
-        external_reference = payment_data.get('external_reference')
-        
-        app.logger.info(f"Procesando pago ID: {payment_id}, Status: {status}, ER: {external_reference}")
-        
-        if not external_reference:
-            app.logger.warning(f"Pago {payment_id} sin external_reference, no se puede procesar")
-            return
-        
-        # Primero verificamos si esta transacción ya fue procesada (verificación explícita)
-        if USE_DYNAMODB and payment_id:
-            existing_transaction = get_transaction_by_payment_id(payment_id)
-            if existing_transaction:
-                app.logger.info(f"Pago {payment_id} ya fue procesado anteriormente en transacción {existing_transaction.get('transaction_id')}. No se realiza acción adicional.")
-                return
-        
-        # Solo procesamos pagos aprobados
-        if status == 'approved':
-            # Parsear external_reference: COINPKG_{user_id}_{package_id}_{coins}_{timestamp}
-            ref_parts = external_reference.split('_')
-            
-            if len(ref_parts) == 5 and ref_parts[0] == 'COINPKG':
-                user_id = ref_parts[1]
-                package_id = ref_parts[2]
-                coins_to_add = int(ref_parts[3])
-                
-                if USE_DYNAMODB:
-                    # Verificar si el usuario existe
-                    user = get_user(user_id)
-                    if not user:
-                        app.logger.error(f"Usuario {user_id} no encontrado, no se pueden asignar monedas")
-                        return
-                    
-                    # Crear la transacción (con idempotencia basada en payment_id)
-                    transaction = create_transaction(
-                        user_id=user_id,
-                        coins_amount=coins_to_add,
-                        transaction_type='coin_purchase_mp',
-                        details={
-                            'payment_id': payment_id,
-                            'payment_status': status,
-                            'external_reference': external_reference,
-                            'package_id': package_id,
-                            'source': 'webhook'
-                        },
-                        payment_id=payment_id  # Usar payment_id para idempotencia
-                    )
-                    
-                    # Verificar si la transacción fue realmente creada o si ya existía
-                    is_new_transaction = not transaction.get('is_existing', False)
-                    
-                    if is_new_transaction:
-                        app.logger.info(f"Transacción {transaction['transaction_id']} creada para usuario {user_id}, {coins_to_add} monedas añadidas")
-                    else:
-                        app.logger.info(f"Transacción con payment_id {payment_id} ya existía, no se duplicó")
-                else:
-                    app.logger.warning("USE_DYNAMODB es false, no se pueden procesar pagos mediante webhook sin persistencia")
-            else:
-                app.logger.error(f"Formato de external_reference inválido: {external_reference}")
-        else:
-            app.logger.info(f"Pago con status {status}, no se requiere acción (sólo procesamos 'approved')")
-            
-    except Exception as e:
-        app.logger.error(f"Error procesando datos de pago en webhook: {str(e)}", exc_info=True)
-
-def reconcile_payments():
-    """
-    Función de reconciliación para revisar pagos que podrían no haberse registrado.
-    
-    Esta función consulta a Mercado Pago por pagos aprobados recientes y verifica
-    que todas las transacciones correspondientes estén registradas en la base de datos.
-    Se usa para garantizar que no se pierdan pagos debido a fallos en webhooks.
-    """
-    app.logger.info("Iniciando proceso de reconciliación de pagos...")
-    
-    if not sdk:
-        app.logger.error("Mercado Pago SDK no está configurado para la reconciliación de pagos")
-        return 0
-    
-    try:
-        # Definir el rango de fechas para buscar (últimas 48 horas)
-        yesterday = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
-        today = datetime.now().strftime('%Y-%m-%d')
-        
-        app.logger.info(f"Buscando pagos entre {yesterday} y {today}")
-        
-        # Buscar pagos recientes en Mercado Pago
-        search_params = {
-            "begin_date": yesterday + "T00:00:00.000-03:00",
-            "end_date": today + "T23:59:59.999-03:00",
-            "status": "approved"
-        }
-        
-        payment_search_result = sdk.payment().search(search_params)
-        
-        if payment_search_result["status"] != 200:
-            app.logger.error(f"Error buscando pagos en Mercado Pago: {payment_search_result}")
-            return 0
-        
-        payments = payment_search_result["response"].get("results", [])
-        app.logger.info(f"Se encontraron {len(payments)} pagos aprobados en Mercado Pago")
-        
-        reconciled_count = 0
-        skipped_count = 0
-        
-        # Procesar cada pago encontrado
-        for payment in payments:
-            payment_id = payment.get("id")
-            external_reference = payment.get("external_reference", "")
-            
-            # Solo procesamos pagos relacionados con nuestro sistema
-            if external_reference and external_reference.startswith("COINPKG_"):
-                app.logger.info(f"Verificando pago {payment_id} con referencia {external_reference}...")
-                
-                # Verificar si ya hemos procesado este pago
-                if USE_DYNAMODB:
-                    existing_transaction = get_transaction_by_payment_id(payment_id)
-                    
-                    if existing_transaction:
-                        app.logger.info(f"Pago {payment_id} ya está registrado en la transacción {existing_transaction.get('transaction_id')}")
-                        skipped_count += 1
-                    else:
-                        app.logger.info(f"Pago {payment_id} no registrado, procesando...")
-                        # Procesar el pago como si fuera una notificación de webhook
-                        process_payment_webhook(payment)
-                        reconciled_count += 1
-                else:
-                    app.logger.warning("USE_DYNAMODB es false, no se puede realizar reconciliación sin persistencia")
-            else:
-                app.logger.info(f"Pago {payment_id} no está relacionado con monedas (ER: {external_reference})")
-        
-        app.logger.info(f"Reconciliación completada. {reconciled_count} pagos procesados, {skipped_count} omitidos por ya existir.")
-        return reconciled_count
-        
-    except Exception as e:
-        app.logger.error(f"Error en el proceso de reconciliación: {str(e)}", exc_info=True)
-        return 0
-
-@app.route('/admin/reconcile-payments', methods=['GET'])
-def admin_reconcile_payments():
-    """
-    Ruta administrativa para ejecutar manualmente el proceso de reconciliación
-    Esta ruta ejecuta el proceso y devuelve un informe de los resultados
-    """
-    # TODO: Añadir autenticación/autorización para esta ruta
-    
-    try:
-        result = reconcile_payments()
-        
-        # Preparar respuesta detallada
-        return jsonify({
-            "success": True,
-            "reconciled_payments": result,
-            "message": f"Proceso de reconciliación completado. {result} pagos procesados."
-        })
-    except Exception as e:
-        app.logger.error(f"Error al ejecutar reconciliación desde endpoint: {str(e)}", exc_info=True)
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "message": "Error al ejecutar el proceso de reconciliación"
-        }), 500
-
-# --- End Coins System Routes ---
-
 # --- Mercado Pago Integration ---
 
 @app.route('/create_preference', methods=['POST'])
@@ -965,11 +515,11 @@ def create_preference():
     try:
         # Force HTTPS scheme for external URLs
         # Incluir datos del cliente en las URLs de retorno
-        success_url = url_for('payment_feedback', _external=True, _scheme='https', 
+        success_url = url_for('payment.payment_feedback', _external=True, _scheme='https', 
                              name=name, email=email, address=address)
-        failure_url = url_for('payment_feedback', _external=True, _scheme='https',
+        failure_url = url_for('payment.payment_feedback', _external=True, _scheme='https',
                              name=name, email=email, address=address)
-        pending_url = url_for('payment_feedback', _external=True, _scheme='https',
+        pending_url = url_for('payment.payment_feedback', _external=True, _scheme='https',
                              name=name, email=email, address=address)
         
         back_urls_data = {
@@ -990,7 +540,7 @@ def create_preference():
         "payer": payer,
         "back_urls": back_urls_data, # Use the generated dict
         "auto_return": "approved", # Automatically return for approved payments
-        "notification_url": url_for('webhook', _external=True, _scheme='https') # Para notificaciones asíncronas
+        "notification_url": url_for('payment_bp.webhook', _external=True, _scheme='https') # Para notificaciones asíncronas
     }
     
     # --- Enhanced Logging ---
@@ -1745,6 +1295,9 @@ def get_styles():
         "success": True,
         "styles": styles
     })
+
+
+# -- out of services endpoints --
 
 @app.route('/get-library', methods=['GET'])
 def get_library():
