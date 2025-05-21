@@ -24,6 +24,13 @@ COIN_PACKAGES_CONFIG = {
     'large': {'name': 'Paquete Grande de Monedas', 'coins': 500, 'price': 1997.00, 'currency_id': 'ARS'}
 }
 
+STICKER_STYLE_CONFIG = {
+    'Parche de hilo': 'Diseño estilo parche de hilo bordado con textura de bordado, relieve, y aspecto artesanal.',
+    'Origami': 'Diseño estilo origami con pliegues de papel visibles, aspecto geométrico y texturas de papel doblado.',
+    'Metalico': 'Diseño estilo metálico con acabado brillante, reflejos metálicos, aspecto de acero o aluminio pulido.',
+    'Papel': 'Diseño estilo recorte de papel con textura de papel, sombras sutiles y aspecto artesanal de papel.'
+}
+
 # Coin configuration from environment variables
 INITIAL_COINS = 15
 BONUS_COINS = 25

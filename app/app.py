@@ -18,7 +18,8 @@ from config import (
     SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE,
     SESSION_USE_SIGNER, SESSION_REFRESH_EACH_REQUEST,
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
-    LOW_STICKER_COST, MEDIUM_STICKER_COST, HIGH_STICKER_COST, COIN_PACKAGES_CONFIG
+    LOW_STICKER_COST, MEDIUM_STICKER_COST, HIGH_STICKER_COST, COIN_PACKAGES_CONFIG,
+    STICKER_COSTS
 )
 
 # Added Mercado Pago
@@ -228,11 +229,9 @@ def generate():
     current_coins = 0
 
     # Determine sticker cost based on quality
-    actual_sticker_cost = LOW_STICKER_COST
-    if quality == 'medium':
-        actual_sticker_cost = MEDIUM_STICKER_COST
-    elif quality == 'high':
-        actual_sticker_cost = HIGH_STICKER_COST
+    if quality not in STICKER_COSTS:
+        return jsonify({"error": f"Invalid quality: {quality}. Must be one of: {', '.join(STICKER_COSTS.keys())}"}), 400
+    actual_sticker_cost = STICKER_COSTS[quality]
 
     try:
         if is_logged_in:
@@ -268,13 +267,13 @@ def generate():
             # Usar el identificador correcto para la generación del sticker
             identifier = user_id if is_logged_in else session.get('session_id')
             image_b64, s3_url, high_res_s3_url = generate_sticker_with_reference(
-                prompt, img_path, reference_image_data, quality, user_id=identifier, style=style
+                prompt, img_path, reference_image_data, quality, style=style
             )
         else:
             # Usar el identificador correcto para la generación del sticker
             identifier = user_id if is_logged_in else session.get('session_id')
             image_b64, s3_url, high_res_s3_url = generate_sticker(
-                prompt, img_path, quality, user_id=identifier, style=style
+                prompt, img_path, quality, style=style
             )
         
         if is_logged_in:
