@@ -1,6 +1,6 @@
-# 🖼️ StickerMaker
+# 🖼️ TheStcikerHouse
 
-**StickerMaker** es una aplicación que convierte descripciones de texto o imágenes en stickers listos para imprimir. Ya sea que el usuario describa lo que quiere o suba una imagen, la app genera automáticamente una plantilla de sticker que se puede personalizar, descargar e imprimir.
+**TheStcikerHouse** es una aplicación que convierte descripciones de texto o imágenes en stickers listos para imprimir. Ya sea que el usuario describa lo que quiere o suba una imagen, la app genera automáticamente una plantilla de sticker que se puede personalizar, descargar e imprimir.
 
 ![image](https://github.com/user-attachments/assets/05d7886c-6d9e-477d-9bda-563bf0715be8)
 
