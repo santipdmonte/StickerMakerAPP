@@ -255,7 +255,7 @@ def generate():
             if not session_id:
                 session_id = str(uuid.uuid4())
                 session['session_id'] = session_id
-            filename_user_part = session_id.split('-')[0]
+            filename_user_part = session_id
         else:
             filename_user_part = user_id
 
