@@ -254,25 +254,21 @@ def generate():
             if not session_id:
                 session_id = str(uuid.uuid4())
                 session['session_id'] = session_id
-            filename_user_part = session_id
+            identifier = session_id
         else:
-            filename_user_part = user_id
+            identifier = user_id
 
         timestamp = int(time.time())
-        filename = f"sticker_{filename_user_part}_{timestamp}.png"
+        filename = f"sticker_{identifier}_{timestamp}.png"
         img_path = os.path.join(folder_path, filename)
 
-        image_b64, s3_url, high_res_s3_url = None, None, None
+        image_b64, s3_url, s3_url_high_res = None, None, None
         if mode == 'reference' and reference_image_data:
-            # Usar el identificador correcto para la generación del sticker
-            identifier = user_id if is_logged_in else session.get('session_id')
-            image_b64, s3_url, high_res_s3_url = generate_sticker_with_reference(
+            image_b64, s3_url, s3_url_high_res = generate_sticker_with_reference(
                 prompt, img_path, reference_image_data, quality, style=style
             )
         else:
-            # Usar el identificador correcto para la generación del sticker
-            identifier = user_id if is_logged_in else session.get('session_id')
-            image_b64, s3_url, high_res_s3_url = generate_sticker(
+            image_b64, s3_url, s3_url_high_res = generate_sticker(
                 prompt, img_path, quality, style=style
             )
         
@@ -280,7 +276,7 @@ def generate():
             create_transaction(
                 user_id=user_id,
                 coins_amount=-actual_sticker_cost,
-                transaction_type='usage',  # Changed from 'sticker_generation_authenticated' to 'usage'
+                transaction_type='usage',
                 details={
                     'prompt': prompt, 
                     'quality': quality, 
@@ -297,7 +293,7 @@ def generate():
                 app.logger.warning(f"User {user_id} not found after successful transaction. Session coins might be stale.")
         else:
             session_coins_before_deduction = session.get('coins', INITIAL_COINS)
-            session['coins'] = max(0, session_coins_before_deduction - actual_sticker_cost)
+            session['coins'] = max(0, session_coins_before_deduction - actual_sticker_cost) 
             app.logger.info(f"Anonymous user generated a sticker. Cost: {actual_sticker_cost}. New session coins: {session['coins']}")
 
         s3_urls = session.get('s3_urls', {})
@@ -305,7 +301,7 @@ def generate():
         
         filename_without_ext, ext = os.path.splitext(filename)
         high_res_filename = f"{filename_without_ext}_high{ext}"
-        s3_urls[high_res_filename] = high_res_s3_url
+        s3_urls[high_res_filename] = s3_url_high_res
         
         session['s3_urls'] = s3_urls
         
