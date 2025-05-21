@@ -150,42 +150,15 @@ def index():
     if not user_id and 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
     
-    # Initialize empty template if not exists in session or convert old format to new format
-    # TODO: remove this 'template_stickers' to be stored in session
+    # Initialize empty template if not exists in session
     if 'template_stickers' not in session:
         session['template_stickers'] = [{'filename': 'hat.png', 'quantity': 1}]
-    else:
-        # Convert any string items to object format for backward compatibility
-        template_stickers = session['template_stickers']
-        updated_stickers = []
-        for sticker in template_stickers:
-            if isinstance(sticker, str):
-                updated_stickers.append({'filename': sticker, 'quantity': 1})
-            else:
-                updated_stickers.append(sticker)
-        session['template_stickers'] = updated_stickers
     
-    # Initialize coins for new sessions without authentication (35 monedas)
+    # Initialize coins for new sessions without authentication
     if 'coins' not in session:
-        session['coins'] = INITIAL_COINS  # Start with default coins for new users
+        session['coins'] = INITIAL_COINS
     
-    # Initialize coupon uses if not exists
-    if 'coupon_uses' not in session:
-        session['coupon_uses'] = 0
-    
-    # Remove legacy code - we now use session_id instead for anonymous visitors
-    # if 'user_id' not in session and not USE_DYNAMODB:
-    #     session['user_id'] = str(uuid.uuid4())
-    
-    # Pass coupon info to the template
-    coupon_enabled = COUPON_LIMIT != 0
-    coupon_uses = session.get('coupon_uses', 0)
-    coupon_available = COUPON_LIMIT == -1 or coupon_uses < COUPON_LIMIT
-        
-    return render_template('index.html', 
-                          mp_public_key=MP_PUBLIC_KEY,
-                          coupon_enabled=coupon_enabled,
-                          coupon_available=coupon_available)
+    return render_template('index.html', mp_public_key=MP_PUBLIC_KEY)
 
 @app.route('/generate', methods=['POST'])
 def generate():
