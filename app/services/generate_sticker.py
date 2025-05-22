@@ -4,7 +4,7 @@ import os
 import tempfile
 import logging
 import time
-from utils import save_image, create_placeholder_image
+from utils.utils import save_image, create_placeholder_image
 from openai import OpenAI
 from PIL import Image
 from config import USE_PLACEHOLDER_STICKER, STICKER_STYLE_CONFIG

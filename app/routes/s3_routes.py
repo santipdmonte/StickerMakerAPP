@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, session, redirect, make_response, send_file
 from io import BytesIO
 
-from s3_utils import get_s3_client
+from utils.s3_utils import get_s3_client
 from config import AWS_S3_BUCKET_NAME, S3_STICKERS_FOLDER, S3_TEMPLATES_FOLDER, USE_S3, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
 
 

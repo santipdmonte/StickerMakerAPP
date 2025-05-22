@@ -4,7 +4,7 @@ import uuid
 import time
 from decimal import Decimal
 from datetime import datetime
-from dynamodb_utils import (
+from utils.dynamodb_utils import (
     get_user,
     create_transaction,
     get_user_by_email,

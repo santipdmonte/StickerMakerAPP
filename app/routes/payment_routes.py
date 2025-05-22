@@ -5,14 +5,14 @@ import tempfile
 import time
 from datetime import datetime
 from datetime import datetime, timedelta
-from dynamodb_utils import (
+from utils.dynamodb_utils import (
     get_user,
     create_transaction,
     get_transaction_by_payment_id
 )
 
-from utils import send_sticker_email, create_template_zip
-from s3_utils import get_s3_client, upload_file_to_s3
+from utils.utils import send_sticker_email, create_template_zip
+from utils.s3_utils import get_s3_client, upload_file_to_s3
 from config import sdk, AWS_S3_BUCKET_NAME, S3_STICKERS_FOLDER, S3_TEMPLATES_FOLDER
 
 

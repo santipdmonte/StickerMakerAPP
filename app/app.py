@@ -19,14 +19,14 @@ from config import (
 )
 
 
-from generate_sticker import generate_sticker, generate_sticker_with_reference
-from s3_utils import (
+from services.generate_sticker import generate_sticker, generate_sticker_with_reference
+from utils.s3_utils import (
     get_s3_client, 
     list_files_by_user_id
 )
 
 # Import DynamoDB utils
-from dynamodb_utils import (
+from utils.dynamodb_utils import (
     ensure_tables_exist,
     get_user,
     create_transaction,
