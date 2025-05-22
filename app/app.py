@@ -1,46 +1,36 @@
 import os
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response, send_file
 import time
-import json
-import tempfile
 from io import BytesIO
 import uuid
-from datetime import datetime, timedelta
 
 # Import configuration from config.py
 from config import (
-    INITIAL_COINS, BONUS_COINS, DISCOUNT_COUPON, COUPON_LIMIT,
+    INITIAL_COINS, 
     FOLDER_PATH, TEMPLATES_PATH, REQUIRED_DIRECTORIES,
-    USE_DYNAMODB, USE_S3, MP_ACCESS_TOKEN, MP_PUBLIC_KEY,
+    USE_S3, MP_PUBLIC_KEY,
     AWS_S3_BUCKET_NAME, S3_STICKERS_FOLDER, S3_TEMPLATES_FOLDER,
     CustomJSONEncoder, FLASK_ENV, FLASK_SECRET_KEY,
     JSONIFY_PRETTYPRINT_REGULAR, SESSION_PERMANENT_LIFETIME,
     SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE,
     SESSION_USE_SIGNER, SESSION_REFRESH_EACH_REQUEST,
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
-    LOW_STICKER_COST, MEDIUM_STICKER_COST, HIGH_STICKER_COST, COIN_PACKAGES_CONFIG,
-    STICKER_COSTS, sdk
+    STICKER_COSTS
 )
 
 
 from generate_sticker import generate_sticker, generate_sticker_with_reference
-from utils import create_placeholder_image, send_sticker_email, create_template_zip
 from s3_utils import (
-    upload_file_to_s3, 
-    upload_bytes_to_s3, 
     get_s3_client, 
-    list_files_in_s3_folder,
     list_files_by_user_id
 )
 
 # Import DynamoDB utils
 from dynamodb_utils import (
     ensure_tables_exist,
-    create_user,
     get_user,
     create_transaction,
     verify_email_index,
-    get_transaction_by_payment_id
 )
 
 # Import route blueprints
@@ -340,269 +330,6 @@ def get_history():
         print(f"Error listing S3 files: {e}")
         # Fall back to local files
 
-
-# --- Mercado Pago Integration ---
-
-@app.route('/create_preference', methods=['POST'])
-def create_preference():
-    if not sdk:
-         return jsonify({"error": "Mercado Pago SDK not configured. Check Access Token."}), 500
-         
-    data = request.json
-    name = data.get('name')
-    email = data.get('email')
-    address = data.get('address', '') # Shipping address is required
-    
-    # Check if user is authenticated
-    user_id = session.get('user_id')
-    is_authenticated = user_id is not None
-    
-    # For authenticated users, get their info from the database
-    if is_authenticated and name == 'authenticated' and email == 'authenticated':
-        if USE_DYNAMODB:
-            try:
-                # Get user data from DynamoDB
-                user = get_user(user_id)
-                if user:
-                    name = user.get('name', '')
-                    email = user.get('email', '')
-            except Exception as e:
-                print(f"Error getting user data: {e}")
-                return jsonify({"error": f"Could not retrieve user data: {str(e)}"}), 500
-    
-    # Validate required fields
-    if not all([name, email, address]):
-         return jsonify({"error": "Name, email, and shipping address are required for checkout."}), 400
-
-    # Guardar los datos del cliente en la sesión para tenerlos disponibles en la ruta de retroalimentación
-    session['customer_data'] = {
-        'name': name,
-        'email': email,
-        'address': address
-    }
-
-    template_stickers = session.get('template_stickers', [])
-    if not template_stickers:
-        return jsonify({"error": "Template is empty. Cannot create preference."}), 400
-
-    items = []
-    total_amount = 0
-    for sticker in template_stickers:
-        # --- IMPORTANT: Define your actual pricing logic here ---
-        # This is just a placeholder price. You need to set the real price per sticker.
-        unit_price = 10.00 # Example: $10 per sticker
-        # ---
-        
-        items.append({
-            "title": f"Sticker - {sticker.get('filename', 'Unknown')}",
-            "quantity": sticker.get('quantity', 1),
-            "unit_price": unit_price,
-            "currency_id": "ARS" # Or your country's currency code (e.g., BRL, MXN)
-        })
-        total_amount += sticker.get('quantity', 1) * unit_price
-
-    # Basic payer info
-    payer = {
-        "name": name,
-        "email": email
-        # You can add more payer details if needed (phone, identification, address)
-        # "address": { "street_name": address ... } 
-    }
-
-    # Define back URLs dynamically using url_for
-    # Ensure your server is accessible externally for Mercado Pago callbacks
-    base_url = request.url_root
-    
-    # --- Generate Back URLs ---
-    try:
-        # Force HTTPS scheme for external URLs
-        # Incluir datos del cliente en las URLs de retorno
-        success_url = url_for('payment.payment_feedback', _external=True, _scheme='https', 
-                             name=name, email=email, address=address)
-        failure_url = url_for('payment.payment_feedback', _external=True, _scheme='https',
-                             name=name, email=email, address=address)
-        pending_url = url_for('payment.payment_feedback', _external=True, _scheme='https',
-                             name=name, email=email, address=address)
-        
-        back_urls_data = {
-            "success": success_url,
-            "failure": failure_url,
-            "pending": pending_url
-        }
-        # Log the generated URLs
-        print(f"Generated Back URLs (Forced HTTPS): {back_urls_data}") 
-        
-    except Exception as url_gen_err:
-        print(f"Error generating back URLs: {url_gen_err}")
-        return jsonify({"error": f"Failed to generate callback URLs: {str(url_gen_err)}"}), 500
-    # --- End Generate Back URLs ---
-
-    preference_data = {
-        "items": items,
-        "payer": payer,
-        "back_urls": back_urls_data, # Use the generated dict
-        "auto_return": "approved", # Automatically return for approved payments
-        "notification_url": url_for('payment_bp.webhook', _external=True, _scheme='https') # Para notificaciones asíncronas
-    }
-    
-    # --- Enhanced Logging ---
-    print("--- Creating Preference ---")
-    print("Preference Data Sent:")
-    try:
-        print(json.dumps(preference_data, indent=2))
-    except Exception as json_err:
-        print(f"(Could not serialize preference_data for logging: {json_err})")
-        print(preference_data) # Print raw if JSON fails
-    print("-------------------------")
-    # --- End Enhanced Logging ---
-    
-    try:
-        preference_response = sdk.preference().create(preference_data)
-        
-        # --- Enhanced Logging ---
-        print("Preference Response Received:")
-        try:
-            print(json.dumps(preference_response, indent=2))
-        except Exception as json_err:
-            print(f"(Could not serialize preference_response for logging: {json_err})")
-            print(preference_response) # Print raw if JSON fails
-        print("-------------------------")
-        # --- End Enhanced Logging ---
-
-        # Check if response structure is as expected before accessing keys
-        if preference_response and isinstance(preference_response, dict) and preference_response.get("status") in [200, 201] and "response" in preference_response and "id" in preference_response["response"]:
-            preference = preference_response["response"]
-            print(f"Successfully Created Preference ID: {preference['id']}") 
-            return jsonify({"preference_id": preference['id']})
-        else:
-            # Log unexpected response structure
-            print("Error: Unexpected response structure from Mercado Pago SDK.")
-            error_message = "Failed to create payment preference due to unexpected response."
-            if preference_response and isinstance(preference_response, dict) and "response" in preference_response and "message" in preference_response["response"]:
-                error_message = f"Mercado Pago Error: {preference_response['response']['message']}"
-            elif preference_response and isinstance(preference_response, dict) and "message" in preference_response:
-                 error_message = f"Mercado Pago Error: {preference_response['message']}"
-                 
-            return jsonify({"error": error_message}), 500
-            
-    except Exception as e:
-        print(f"Error creating preference: {e}")
-        # Add more specific details if available from the exception
-        error_detail = str(e)
-        if hasattr(e, 'response') and e.response is not None:
-             try:
-                 error_detail = e.response.text # Or e.response.json()
-             except:
-                 pass # Keep original exception string if response parsing fails
-        print(f"Detailed Error: {error_detail}")
-        return jsonify({"error": f"Failed to create payment preference: {error_detail}"}), 500
-
-@app.route('/payment_feedback')
-def payment_feedback():
-    # Handle the user returning from Mercado Pago
-    # You get payment status info in query parameters
-    status = request.args.get('status')
-    payment_id = request.args.get('payment_id')
-    preference_id = request.args.get('preference_id')
-    
-    # You can use this info to show a specific message to the user
-    # or update the order status in your database
-    
-    feedback_message = "Payment process completed."
-    if status == 'approved':
-        feedback_message = f"Payment successful! Payment ID: {payment_id}"
-        
-        # Obtener los datos del cliente
-        customer_data = session.get('customer_data', {})
-        
-        # Obtener la lista de archivos de stickers
-        template_stickers = session.get('template_stickers', [])
-        
-        # Get S3 URLs from session
-        s3_urls = session.get('s3_urls', {})
-        sticker_s3_urls = {}
-        
-        # Preparar lista de URLs de S3 para el correo
-        for sticker in template_stickers:
-            if isinstance(sticker, dict):
-                filename = sticker.get('filename', '')
-                if filename and filename in s3_urls:
-                    sticker_s3_urls[filename] = s3_urls[filename]
-        
-        # Create a template ZIP package if there are multiple stickers
-        template_zip_path = None
-        template_s3_url = None
-        
-        if len(sticker_s3_urls) > 1 and USE_S3:
-            # En este caso, necesitamos descargar las imágenes temporalmente
-            # para crear el ZIP y luego subirlo a S3
-            temp_dir = tempfile.mkdtemp()
-            temp_files = []
-            
-            try:
-                # Descargar archivos temporalmente para crear el ZIP
-                s3_client = get_s3_client()
-                bucket = AWS_S3_BUCKET_NAME
-                
-                for filename, url in sticker_s3_urls.items():
-                    # Obtener key de S3 desde URL
-                    key = f"{S3_STICKERS_FOLDER}/{filename}"
-                    temp_file_path = os.path.join(temp_dir, filename)
-                    
-                    # Descargar archivo
-                    s3_client.download_file(bucket, key, temp_file_path)
-                    temp_files.append(temp_file_path)
-                
-                # Crear template zip
-                if temp_files:
-                    template_name = f"plantilla_{int(time.time())}.zip"
-                    template_zip_path = os.path.join(temp_dir, template_name)
-                    
-                    if create_template_zip(temp_files, template_zip_path):
-                        # Upload to S3
-                        success, url = upload_file_to_s3(
-                            template_zip_path,
-                            template_name,
-                            folder=S3_TEMPLATES_FOLDER
-                        )
-                        if success:
-                            template_s3_url = url
-                
-            finally:
-                # Limpiar archivos temporales
-                for file in temp_files:
-                    if os.path.exists(file):
-                        os.remove(file)
-                if template_zip_path and os.path.exists(template_zip_path):
-                    os.remove(template_zip_path)
-                os.rmdir(temp_dir)
-        
-        # Enviar correo electrónico al diseñador y al cliente con enlaces a los archivos
-        if sticker_s3_urls:
-            # If we have a template URL, add it to the s3_urls
-            if template_s3_url:
-                sticker_s3_urls['__template__'] = template_s3_url
-                
-            # Enviar solo con URLs de S3, sin archivos locales
-            send_sticker_email(customer_data, [], sticker_s3_urls)
-            print(f"Correo enviado con éxito para el pago {payment_id}")
-        else:
-            print(f"No se encontraron URLs de stickers para adjuntar al correo para el pago {payment_id}")
-                
-        # Limpiar la sesión después del pago exitoso
-        session['template_stickers'] = []
-        # Limpiar los datos del cliente y URLs de S3 de la sesión
-        for key in ['customer_data', 's3_urls']:
-            if key in session:
-                session.pop(key)
-                
-    elif status == 'failure':
-        feedback_message = "Payment failed. Please try again or contact support."
-    elif status == 'pending':
-        feedback_message = "Payment is pending. We will notify you upon confirmation."
-    
-    # Simple redirect back to index for now
-    return redirect(url_for('index'))
 
 # --- End Mercado Pago Integration ---
 
