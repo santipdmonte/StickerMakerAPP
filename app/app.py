@@ -335,9 +335,9 @@ def get_history():
 
 # --- End Mercado Pago Integration ---
 
-@app.route('/library')
-def library():
-    return render_template('library.html', mp_public_key=MP_PUBLIC_KEY)
+@app.route('/history')
+def history():
+    return render_template('history.html', mp_public_key=MP_PUBLIC_KEY)
 
 
 @app.route('/setup-dirs')
@@ -457,114 +457,6 @@ def get_styles():
         "styles": styles
     })
 
-
-# -- out of services endpoints --
-
-@app.route('/get-library', methods=['GET'])
-def get_library():
-    # Out of service
-    return jsonify({
-        "success": False,
-        "message": "Library is out of service"
-    }), 503
-
-    # # Permitir solicitud de tamaño específico de página para paginación
-    # page = request.args.get('page', 1, type=int)
-    # items_per_page = request.args.get('items_per_page', 0, type=int)  # 0 = todos los items
-    
-    # # Get sticker files - check S3 first if enabled, fall back to local files
-    # sticker_files = []
-    
-    # if USE_S3:
-    #     try:
-    #         # Get files from S3 stickers folder
-    #         s3_files = list_files_in_s3_folder(S3_STICKERS_FOLDER)
-            
-    #         # Extract just the filenames without folder prefix
-    #         for file_key in s3_files:
-    #             filename = os.path.basename(file_key)
-    #             if filename.endswith('.png'):
-    #                 sticker_files.append(filename)
-                    
-    #         if sticker_files:
-    #             # Ordenar por fecha descendente (asumiendo que el nombre del archivo contiene timestamp)
-    #             try:
-    #                 sticker_files.sort(key=lambda x: os.path.basename(x), reverse=True)
-    #             except:
-    #                 pass
-                    
-    #             total_items = len(sticker_files)
-                
-    #             # Aplicar paginación si se solicitó
-    #             if items_per_page > 0:
-    #                 start_idx = (page - 1) * items_per_page
-    #                 end_idx = start_idx + items_per_page
-    #                 paginated_files = sticker_files[start_idx:end_idx]
-    #             else:
-    #                 paginated_files = sticker_files
-                
-    #             return jsonify({
-    #                 "success": True,
-    #                 "stickers": paginated_files,
-    #                 "total_items": total_items,
-    #                 "page": page,
-    #                 "items_per_page": items_per_page,
-    #                 "total_pages": (total_items + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
-    #                 "source": "s3"
-    #             })
-    #     except Exception as e:
-    #         print(f"Error listing S3 files: {e}")
-    #         # Fall back to local files
-    
-    # # If S3 failed or is disabled, check local files
-    # try:
-    #     for file in os.listdir(folder_path):
-    #         if file.endswith('.png'):
-    #             sticker_files.append(file)
-        
-    #     if sticker_files:
-    #         # Ordenar por fecha descendente (asumiendo que el nombre del archivo contiene timestamp)
-    #         try:
-    #             sticker_files.sort(key=lambda x: os.path.basename(x), reverse=True)
-    #         except:
-    #             pass
-                
-    #         total_items = len(sticker_files)
-            
-    #         # Aplicar paginación si se solicitó
-    #         if items_per_page > 0:
-    #             start_idx = (page - 1) * items_per_page
-    #             end_idx = start_idx + items_per_page
-    #             paginated_files = sticker_files[start_idx:end_idx]
-    #         else:
-    #             paginated_files = sticker_files
-            
-    #         return jsonify({
-    #             "success": True,
-    #             "stickers": paginated_files,
-    #             "total_items": total_items,
-    #             "page": page,
-    #             "items_per_page": items_per_page,
-    #             "total_pages": (total_items + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
-    #             "source": "local"
-    #         })
-    #     else:
-    #         return jsonify({
-    #             "success": True,
-    #             "stickers": [],
-    #             "total_items": 0,
-    #             "page": 1,
-    #             "items_per_page": items_per_page,
-    #             "total_pages": 0,
-    #             "source": "local"
-    #         })
-            
-    # except Exception as e:
-    #     return jsonify({
-    #         "error": str(e),
-    #         "success": False,
-    #         "stickers": []
-    #     }), 500
 
 
 if __name__ == '__main__':

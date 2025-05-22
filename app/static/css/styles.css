@@ -1238,9 +1238,9 @@ body.modal-open {
     display: none !important;
 }
 
-/* Library Styles */
+/* History Styles */
 
-.library-page-btn {
+.history-page-btn {
     background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
     color: white;
     border: none;
@@ -1259,12 +1259,12 @@ body.modal-open {
     margin-left: 10px;
 }
 
-.library-page-btn:hover {
+.history-page-btn:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 20px rgba(124, 93, 250, 0.3);
 }
 
-.library-page-btn i {
+.history-page-btn i {
     font-size: 1.2rem;
 }
 
@@ -1440,7 +1440,7 @@ body.modal-open {
 }
 
 /* Actualizar los estilos de los botones en el header */
-.header-left .library-toggle-btn,
+.header-left .history-toggle-btn,
 .header-right .buy-coins-btn {
     position: static;
     transform: none;
@@ -1610,13 +1610,13 @@ body.modal-open {
         padding-left: 0;
     }
     
-    .library-page-btn {
+    .history-page-btn {
         font-size: 0.8rem;
         padding: 8px 10px;
         margin-left: 0;
     }
     
-    .library-page-btn i {
+    .history-page-btn i {
         font-size: 1rem;
     }
     
@@ -2882,8 +2882,8 @@ body.modal-open {
     }
 }
 
-/* Library button styles */
-.library-page-btn {
+/* history button styles */
+.history-page-btn {
     background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
     color: white;
     border: none;
@@ -2902,19 +2902,19 @@ body.modal-open {
     margin-left: 10px;
 }
 
-.library-page-btn:hover {
+.history-page-btn:hover {
     transform: translateY(-3px);
     box-shadow: 0 8px 20px rgba(124, 93, 250, 0.3);
 }
 
-.library-page-btn i {
+.history-page-btn i {
     font-size: 1.2rem;
 }
 
 /* Mobile styles for circular buttons */
 @media (max-width: 768px) {
     .login-btn,
-    .library-page-btn {
+    .history-page-btn {
         width: 40px;
         height: 40px;
         border-radius: 50%;
@@ -2926,14 +2926,14 @@ body.modal-open {
     }
     
     .login-btn i,
-    .library-page-btn i {
+    .history-page-btn i {
         margin-right: 0;
         font-size: 1.3rem;
     }
     
     /* Hide text on mobile */
     .login-btn span,
-    .library-page-btn span {
+    .history-page-btn span {
         display: none;
     }
 }

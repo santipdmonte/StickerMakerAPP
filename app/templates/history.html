@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TheStickerHouse - Biblioteca</title>
+    <title>TheStickerHouse - Historial</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,8 +30,8 @@
             --input-border: #dfe3fa;
         }
         
-        /* Additional styles for the library page */
-        .library-page-container {
+        /* Additional styles for the history page */
+        .history-page-container {
             max-width: 1200px;
             width: 100%;
             margin: 0 auto;
@@ -41,7 +41,7 @@
             background-color: var(--bg-color);
         }
 
-        .library-page-title {
+        .history-page-title {
             text-align: center;
             margin-bottom: 30px;
             display: flex;
@@ -50,7 +50,7 @@
             gap: 10px;
         }
 
-        .library-page-title h1 {
+        .history-page-title h1 {
             font-size: 2.5rem;
             background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
             -webkit-background-clip: text;
@@ -59,12 +59,12 @@
             margin-bottom: 10px;
         }
 
-        .library-page-title i {
+        .history-page-title i {
             font-size: 2.5rem;
             color: var(--primary-color);
         }
 
-        .library-page-grid {
+        .history-page-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(var(--card-width), 1fr));
             gap: 25px;
@@ -72,7 +72,7 @@
             min-height: 400px; /* Ensure a minimum height for the grid */
         }
 
-        .library-page-item {
+        .history-page-item {
             background-color: var(--card-bg);
             border-radius: var(--card-border-radius);
             box-shadow: var(--standard-shadow);
@@ -87,19 +87,19 @@
             width: 100%;
         }
 
-        .library-page-item:hover {
+        .history-page-item:hover {
             transform: translateY(-5px);
             box-shadow: var(--hover-shadow);
         }
 
-        .library-page-item img {
+        .history-page-item img {
             width: 100%;
             height: 160px;
             object-fit: contain;
             margin-bottom: 15px;
         }
 
-        .library-page-actions-new {
+        .history-page-actions-new {
             position: absolute;
             bottom: 10px;
             right: 10px;
@@ -108,7 +108,7 @@
             z-index: 2;
         }
 
-        .library-action-btn {
+        .history-action-btn {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -135,12 +135,12 @@
             color: white;
         }
 
-        .library-action-btn:hover {
+        .history-action-btn:hover {
             transform: scale(1.1) translateY(-2px);
             box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
         }
 
-        .library-action-btn i {
+        .history-action-btn i {
             margin: 0;
             line-height: 1;
         }
@@ -173,7 +173,7 @@
             box-shadow: 0 15px 30px rgba(124, 93, 250, 0.35);
         }
 
-        .empty-library {
+        .empty-history {
             display: none; /* Start hidden until we know it's empty */
             align-items: center;
             justify-content: center;
@@ -213,13 +213,13 @@
             color: var(--primary-color);
         }
 
-        .empty-library h2 {
+        .empty-history h2 {
             font-size: 1.8rem;
             margin-bottom: 10px;
             color: var(--primary-color);
         }
 
-        .empty-library p {
+        .empty-history p {
             font-size: 1.1rem;
             color: #64748b;
             margin-bottom: 30px;
@@ -279,11 +279,11 @@
                 font-size: 40px;
             }
 
-            .empty-library h2 {
+            .empty-history h2 {
                 font-size: 1.5rem;
             }
 
-            .empty-library p {
+            .empty-history p {
                 font-size: 1rem;
                 margin-bottom: 25px;
             }
@@ -368,22 +368,22 @@
         }
 
         @media (max-width: 768px) {
-            .library-page-grid {
+            .history-page-grid {
                 grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
                 gap: 15px;
                 padding: 10px;
             }
 
-            .library-page-item {
+            .history-page-item {
                 height: 200px; /* Altura más pequeña para móviles */
                 padding: 12px;
             }
 
-            .library-page-item img {
+            .history-page-item img {
                 height: 130px;
             }
 
-            .library-action-btn {
+            .history-action-btn {
                 width: 32px;
                 height: 32px;
                 font-size: 1rem;
@@ -399,35 +399,35 @@
         }
 
         @media (max-width: 480px) {
-            .library-page-grid {
+            .history-page-grid {
                 grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
                 gap: 10px;
             }
 
-            .library-page-item {
+            .history-page-item {
                 height: 180px;
                 padding: 10px;
             }
 
-            .library-page-item img {
+            .history-page-item img {
                 height: 110px;
             }
 
-            .library-page-title h1 {
+            .history-page-title h1 {
                 font-size: 2rem;
             }
 
-            .library-page-title i {
+            .history-page-title i {
                 font-size: 2rem;
             }
         }
 
         @media (min-width: 992px) {
-            .library-page-grid {
+            .history-page-grid {
                 grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             }
 
-            .library-page-item {
+            .history-page-item {
                 height: 230px;
             }
         }
@@ -596,29 +596,29 @@
     </style>
 </head>
 <body>
-    <div class="library-page-container">
+    <div class="history-page-container">
         <header>
-            <div class="library-page-title">
+            <div class="history-page-title">
                 <i class="ri-gallery-line"></i>
-                <h1>Biblioteca de Stickers</h1>
+                <h1>Historial de Stickers</h1>
             </div>
         </header>
         
         <main>
-            <div class="library-page-grid" id="library-page-grid">
+            <div class="history-page-grid" id="history-page-grid">
                 <!-- Loading Animation -->
                 <div class="loading-container" id="loading-container">
                     <div class="spinner"></div>
                     <div class="loading-text">Cargando stickers...</div>
                 </div>
                 
-                <!-- Empty Library Message (Hidden Initially) -->
-                <div class="empty-library" id="empty-library">
+                <!-- Empty history Message (Hidden Initially) -->
+                <div class="empty-history" id="empty-history">
                     <div class="empty-state-container">
                         <div class="empty-state-illustration">
                             <i class="ri-gallery-line"></i>
                         </div>
-                        <h2>Tu biblioteca de stickers está vacía</h2>
+                        <h2>Tu historial de stickers está vacía</h2>
                         <p>¡Generá algunos stickers para verlos acá!</p>
                         <a href="/" class="create-sticker-btn">
                             <i class="ri-sparkle-line"></i> Crear un Sticker
@@ -673,8 +673,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // Get UI elements
-            const libraryGrid = document.getElementById('library-page-grid');
-            const emptyLibrary = document.getElementById('empty-library');
+            const historyGrid = document.getElementById('history-page-grid');
+            const emptyHistory = document.getElementById('empty-history');
             const loadingContainer = document.getElementById('loading-container');
             const stickerViewModal = document.getElementById('sticker-view-modal');
             const modalStickerImage = document.getElementById('modal-sticker-image');
@@ -866,11 +866,11 @@
                 });
             }
             
-            // Load stickers from library
-            function loadLibraryStickers(page = 1, useServerPagination = true) {
+            // Load stickers from History
+            function loadHistoryStickers(page = 1, useServerPagination = true) {
                 // Show loading, hide empty state
                 loadingContainer.style.display = 'flex';
-                emptyLibrary.style.display = 'none';
+                emptyHistory.style.display = 'none';
                 
                 // Si usamos paginación del servidor, configuramos los parámetros
                 let url = '/get-history';
@@ -903,7 +903,7 @@
                                 paginationControls.style.display = totalPages > 1 ? 'flex' : 'none';
                                 
                                 // Limpiar grid actual
-                                const existingStickers = libraryGrid.querySelectorAll('.library-page-item');
+                                const existingStickers = historyGrid.querySelectorAll('.history-page-item');
                                 existingStickers.forEach(item => item.remove());
                                 
                                 // Renderizar stickers de esta página
@@ -917,19 +917,19 @@
                             
                             // Ocultar estados de carga y vacío
                             loadingContainer.style.display = 'none';
-                            emptyLibrary.style.display = 'none';
+                            emptyHistory.style.display = 'none';
                         } else {
                             // No hay stickers, mostrar estado vacío
                             loadingContainer.style.display = 'none';
-                            emptyLibrary.style.display = 'flex';
+                            emptyHistory.style.display = 'flex';
                             paginationControls.style.display = 'none';
                         }
                     })
                     .catch(error => {
-                        console.error('Error al cargar stickers de la biblioteca:', error);
+                        console.error('Error al cargar stickers del historial:', error);
                         showError('Error al cargar los stickers');
                         loadingContainer.style.display = 'none';
-                        emptyLibrary.style.display = 'flex';
+                        emptyHistory.style.display = 'flex';
                         paginationControls.style.display = 'none';
                     });
             }
@@ -938,7 +938,7 @@
             function renderStickers(stickers) {
                 stickers.forEach(filename => {
                     const stickerItem = document.createElement('div');
-                    stickerItem.className = 'library-page-item';
+                    stickerItem.className = 'history-page-item';
                     
                     const imgContainer = document.createElement('div');
                     imgContainer.className = 'sticker-image-container';
@@ -1032,10 +1032,10 @@
                     });
                     
                     const actionsDiv = document.createElement('div');
-                    actionsDiv.className = 'library-page-actions-new';
+                    actionsDiv.className = 'history-page-actions-new';
                     
                     const addBtn = document.createElement('button');
-                    addBtn.className = 'library-action-btn add-btn';
+                    addBtn.className = 'history-action-btn add-btn';
                     addBtn.title = 'Agregar a Plantilla';
                     addBtn.innerHTML = '<i class="ri-add-circle-line"></i>';
                     addBtn.addEventListener('click', (e) => {
@@ -1044,7 +1044,7 @@
                     });
                     
                     const downloadBtn = document.createElement('a');
-                    downloadBtn.className = 'library-action-btn download-btn-link';
+                    downloadBtn.className = 'history-action-btn download-btn-link';
                     downloadBtn.title = 'Descargar';
                     downloadBtn.innerHTML = '<i class="ri-download-2-line"></i>';
                     
@@ -1063,20 +1063,20 @@
                     actionsDiv.appendChild(downloadBtn);
                     stickerItem.appendChild(actionsDiv);
                     
-                    libraryGrid.appendChild(stickerItem);
+                    historyGrid.appendChild(stickerItem);
                 });
             }
 
             // Función para renderizar stickers para la página actual (paginación del cliente)
             function renderStickersPage() {
                 // Clear any existing stickers (excluding the empty/loading messages)
-                const existingStickers = libraryGrid.querySelectorAll('.library-page-item');
+                const existingStickers = historyGrid.querySelectorAll('.history-page-item');
                 existingStickers.forEach(item => item.remove());
                 
                 if (allStickers.length === 0) {
                     // No stickers to display
                     loadingContainer.style.display = 'none';
-                    emptyLibrary.style.display = 'flex';
+                    emptyHistory.style.display = 'flex';
                     paginationControls.style.display = 'none';
                     return;
                 }
@@ -1099,7 +1099,7 @@
                 
                 // Hide loading and empty states
                 loadingContainer.style.display = 'none';
-                emptyLibrary.style.display = 'none';
+                emptyHistory.style.display = 'none';
                 
                 // Render stickers for this page
                 renderStickers(pageStickers);
@@ -1110,11 +1110,11 @@
                 if (currentPage > 1) {
                     // Mostrar el estado de carga
                     loadingContainer.style.display = 'flex';
-                    const existingStickers = libraryGrid.querySelectorAll('.library-page-item');
+                    const existingStickers = historyGrid.querySelectorAll('.history-page-item');
                     existingStickers.forEach(item => item.remove());
                     
                     // Cargar la página anterior desde el servidor
-                    loadLibraryStickers(currentPage - 1, true);
+                    loadHistoryStickers(currentPage - 1, true);
                     
                     // Scroll to top for best UX
                     window.scrollTo(0, 0);
@@ -1125,11 +1125,11 @@
                 if (currentPage < totalPages) {
                     // Mostrar el estado de carga
                     loadingContainer.style.display = 'flex';
-                    const existingStickers = libraryGrid.querySelectorAll('.library-page-item');
+                    const existingStickers = historyGrid.querySelectorAll('.history-page-item');
                     existingStickers.forEach(item => item.remove());
                     
                     // Cargar la siguiente página desde el servidor
-                    loadLibraryStickers(currentPage + 1, true);
+                    loadHistoryStickers(currentPage + 1, true);
                     
                     // Scroll to top for best UX
                     window.scrollTo(0, 0);
@@ -1137,7 +1137,7 @@
             });
 
             // Load stickers when page loads (página 1 con paginación del servidor)
-            loadLibraryStickers(1, true);
+            loadHistoryStickers(1, true);
 
             // Función para obtener la URL de alta resolución
             function getHighResUrl(url, filename) {
