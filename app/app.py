@@ -1,64 +1,44 @@
 import os
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response, send_file
 import time
-import json
-import tempfile
 from io import BytesIO
 import uuid
-from datetime import datetime, timedelta
 
 # Import configuration from config.py
 from config import (
-    INITIAL_COINS, BONUS_COINS, DISCOUNT_COUPON, COUPON_LIMIT,
+    INITIAL_COINS, 
     FOLDER_PATH, TEMPLATES_PATH, REQUIRED_DIRECTORIES,
-    USE_DYNAMODB, USE_S3, MP_ACCESS_TOKEN, MP_PUBLIC_KEY,
+    USE_S3, MP_PUBLIC_KEY,
     AWS_S3_BUCKET_NAME, S3_STICKERS_FOLDER, S3_TEMPLATES_FOLDER,
     CustomJSONEncoder, FLASK_ENV, FLASK_SECRET_KEY,
     JSONIFY_PRETTYPRINT_REGULAR, SESSION_PERMANENT_LIFETIME,
     SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE,
     SESSION_USE_SIGNER, SESSION_REFRESH_EACH_REQUEST,
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
-    LOW_STICKER_COST, MEDIUM_STICKER_COST, HIGH_STICKER_COST, COIN_PACKAGES_CONFIG
+    STICKER_COSTS
 )
 
-# Added Mercado Pago
-import mercadopago 
 
-from generate_sticker import generate_sticker, generate_sticker_with_reference
-from utils import create_placeholder_image, send_sticker_email, create_template_zip
-from s3_utils import (
-    upload_file_to_s3, 
-    upload_bytes_to_s3, 
+from services.generate_sticker import generate_sticker, generate_sticker_with_reference
+from utils.s3_utils import (
     get_s3_client, 
-    list_files_in_s3_folder,
     list_files_by_user_id
 )
 
 # Import DynamoDB utils
-from dynamodb_utils import (
+from utils.dynamodb_utils import (
     ensure_tables_exist,
-    create_user,
     get_user,
     create_transaction,
     verify_email_index,
-    get_transaction_by_payment_id
 )
 
 # Import route blueprints
-from auth_routes import auth_bp
-from coin_routes import coin_bp
-
-
-# Initialize DynamoDB tables and indexes
-if USE_DYNAMODB:
-    try:
-        print("Initializing DynamoDB tables and indexes...")
-        ensure_tables_exist()
-        verify_email_index()
-        print("DynamoDB tables and indexes configured successfully")
-    except Exception as e:
-        print(f"WARNING: Error setting up DynamoDB: {e}")
-        print("The application will continue but DynamoDB operations may fail")
+from routes.auth_routes import auth_bp
+from routes.coin_routes import coin_bp
+from routes.payment_routes import payment_bp
+from routes.template_routes import template_bp
+from routes.s3_routes import s3_bp
 
 app = Flask(__name__)
 # Configure Flask from configuration
@@ -78,6 +58,9 @@ app.config['SESSION_REFRESH_EACH_REQUEST'] = SESSION_REFRESH_EACH_REQUEST
 # Register blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(coin_bp)
+app.register_blueprint(payment_bp)
+app.register_blueprint(template_bp)
+app.register_blueprint(s3_bp)
 
 # Set session to be permanent by default before any request
 @app.before_request
@@ -85,13 +68,6 @@ def make_session_permanent():
     session.permanent = True
 
 # TheStickerHouse - Sticker generation web application
-
-# Configure Mercado Pago SDK
-if not MP_ACCESS_TOKEN:
-    print("Error: PROD_ACCESS_TOKEN not found in .env file.")
-    # Handle the error appropriately, maybe raise an exception or use a default test token
-    # For demonstration, let's allow it to continue but it won't work without a token
-sdk = mercadopago.SDK(MP_ACCESS_TOKEN) if MP_ACCESS_TOKEN else None
 
 # Create static directories if they don't exist
 folder_path = FOLDER_PATH
@@ -125,20 +101,20 @@ except Exception as e:
         # En producción, no permitir que la aplicación inicie sin S3 configurado
         raise RuntimeError(error_msg)
 
-# Setup DynamoDB tables if enabled
-if USE_DYNAMODB:
-    try:
-        ensure_tables_exist()
-        verify_email_index()
-        print("DynamoDB tables successfully configured")
-    except Exception as e:
-        error_msg = f"ERROR: DynamoDB configuration is invalid or connection failed: {e}"
-        print(error_msg)
-        if FLASK_ENV == 'development':
-            print("Application will continue but DynamoDB operations will fail.")
-        else:
-            # In production, don't allow the app to start without DynamoDB configured
-            raise RuntimeError(error_msg)
+
+# Setup DB tables if enabled
+try:
+    ensure_tables_exist()
+    verify_email_index()
+    print("DB tables successfully configured")
+except Exception as e:
+    error_msg = f"ERROR: DB configuration is invalid or connection failed: {e}"
+    print(error_msg)
+    if FLASK_ENV == 'development':
+        print("Application will continue but DB operations will fail.")
+    else:
+        # In production, don't allow the app to start without DB configured
+        raise RuntimeError(error_msg)
 
 @app.route('/')
 def index():
@@ -161,42 +137,15 @@ def index():
     if not user_id and 'session_id' not in session:
         session['session_id'] = str(uuid.uuid4())
     
-    # Initialize empty template if not exists in session or convert old format to new format
-    # TODO: remove this 'template_stickers' to be stored in session
+    # Initialize empty template if not exists in session
     if 'template_stickers' not in session:
-        session['template_stickers'] = [{'filename': 'hat.png', 'quantity': 1}]
-    else:
-        # Convert any string items to object format for backward compatibility
-        template_stickers = session['template_stickers']
-        updated_stickers = []
-        for sticker in template_stickers:
-            if isinstance(sticker, str):
-                updated_stickers.append({'filename': sticker, 'quantity': 1})
-            else:
-                updated_stickers.append(sticker)
-        session['template_stickers'] = updated_stickers
+        session['template_stickers'] = []
     
-    # Initialize coins for new sessions without authentication (35 monedas)
+    # Initialize coins for new sessions without authentication
     if 'coins' not in session:
-        session['coins'] = INITIAL_COINS  # Start with default coins for new users
+        session['coins'] = INITIAL_COINS
     
-    # Initialize coupon uses if not exists
-    if 'coupon_uses' not in session:
-        session['coupon_uses'] = 0
-    
-    # Remove legacy code - we now use session_id instead for anonymous visitors
-    # if 'user_id' not in session and not USE_DYNAMODB:
-    #     session['user_id'] = str(uuid.uuid4())
-    
-    # Pass coupon info to the template
-    coupon_enabled = COUPON_LIMIT != 0
-    coupon_uses = session.get('coupon_uses', 0)
-    coupon_available = COUPON_LIMIT == -1 or coupon_uses < COUPON_LIMIT
-        
-    return render_template('index.html', 
-                          mp_public_key=MP_PUBLIC_KEY,
-                          coupon_enabled=coupon_enabled,
-                          coupon_available=coupon_available)
+    return render_template('index.html', mp_public_key=MP_PUBLIC_KEY)
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -228,11 +177,9 @@ def generate():
     current_coins = 0
 
     # Determine sticker cost based on quality
-    actual_sticker_cost = LOW_STICKER_COST
-    if quality == 'medium':
-        actual_sticker_cost = MEDIUM_STICKER_COST
-    elif quality == 'high':
-        actual_sticker_cost = HIGH_STICKER_COST
+    if quality not in STICKER_COSTS:
+        return jsonify({"error": f"Invalid quality: {quality}. Must be one of: {', '.join(STICKER_COSTS.keys())}"}), 400
+    actual_sticker_cost = STICKER_COSTS[quality]
 
     try:
         if is_logged_in:
@@ -255,33 +202,29 @@ def generate():
             if not session_id:
                 session_id = str(uuid.uuid4())
                 session['session_id'] = session_id
-            filename_user_part = session_id
+            identifier = session_id
         else:
-            filename_user_part = user_id
+            identifier = user_id
 
         timestamp = int(time.time())
-        filename = f"sticker_{filename_user_part}_{timestamp}.png"
+        filename = f"sticker_{identifier}_{timestamp}.png"
         img_path = os.path.join(folder_path, filename)
 
-        image_b64, s3_url, high_res_s3_url = None, None, None
+        image_b64, s3_url, s3_url_high_res = None, None, None
         if mode == 'reference' and reference_image_data:
-            # Usar el identificador correcto para la generación del sticker
-            identifier = user_id if is_logged_in else session.get('session_id')
-            image_b64, s3_url, high_res_s3_url = generate_sticker_with_reference(
-                prompt, img_path, reference_image_data, quality, user_id=identifier, style=style
+            image_b64, s3_url, s3_url_high_res = generate_sticker_with_reference(
+                prompt, img_path, reference_image_data, quality, style=style
             )
         else:
-            # Usar el identificador correcto para la generación del sticker
-            identifier = user_id if is_logged_in else session.get('session_id')
-            image_b64, s3_url, high_res_s3_url = generate_sticker(
-                prompt, img_path, quality, user_id=identifier, style=style
+            image_b64, s3_url, s3_url_high_res = generate_sticker(
+                prompt, img_path, quality, style=style
             )
         
         if is_logged_in:
             create_transaction(
                 user_id=user_id,
                 coins_amount=-actual_sticker_cost,
-                transaction_type='usage',  # Changed from 'sticker_generation_authenticated' to 'usage'
+                transaction_type='usage',
                 details={
                     'prompt': prompt, 
                     'quality': quality, 
@@ -298,7 +241,7 @@ def generate():
                 app.logger.warning(f"User {user_id} not found after successful transaction. Session coins might be stale.")
         else:
             session_coins_before_deduction = session.get('coins', INITIAL_COINS)
-            session['coins'] = max(0, session_coins_before_deduction - actual_sticker_cost)
+            session['coins'] = max(0, session_coins_before_deduction - actual_sticker_cost) 
             app.logger.info(f"Anonymous user generated a sticker. Cost: {actual_sticker_cost}. New session coins: {session['coins']}")
 
         s3_urls = session.get('s3_urls', {})
@@ -306,7 +249,7 @@ def generate():
         
         filename_without_ext, ext = os.path.splitext(filename)
         high_res_filename = f"{filename_without_ext}_high{ext}"
-        s3_urls[high_res_filename] = high_res_s3_url
+        s3_urls[high_res_filename] = s3_url_high_res
         
         session['s3_urls'] = s3_urls
         
@@ -326,205 +269,6 @@ def generate():
         app.logger.error(f"Error during sticker generation for user {user_id}: {str(e)}", exc_info=True)
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-@app.route('/add-to-template', methods=['POST'])
-def add_to_template():
-    data = request.json
-    filename = data.get('filename', '')
-    quantity = data.get('quantity', 1)  # Default quantity is 1
-    
-    if not filename:
-        return jsonify({"error": "No sticker provided"}), 400
-    
-    # Get current template stickers from session
-    template_stickers = session.get('template_stickers', [])
-    
-    # Check if sticker already exists in template
-    existing_index = next((i for i, sticker in enumerate(template_stickers) 
-                         if isinstance(sticker, dict) and sticker.get('filename') == filename), None)
-    
-    if existing_index is not None:
-        # Update existing sticker quantity
-        template_stickers[existing_index]['quantity'] += quantity
-    else:
-        # Add the new sticker to the template with quantity
-        template_stickers.append({
-            'filename': filename,
-            'quantity': quantity
-        })
-    
-    # Update session
-    session['template_stickers'] = template_stickers
-    
-    return jsonify({
-        "success": True, 
-        "template_stickers": template_stickers
-    })
-
-@app.route('/update-quantity', methods=['POST'])
-def update_quantity():
-    data = request.json
-    filename = data.get('filename', '')
-    quantity = data.get('quantity', 1)
-    
-    if not filename:
-        return jsonify({"error": "No sticker specified for update"}), 400
-    
-    # Get current template stickers from session
-    template_stickers = session.get('template_stickers', [])
-    
-    # Find the sticker and update quantity
-    for sticker in template_stickers:
-        if isinstance(sticker, dict) and sticker.get('filename') == filename:
-            sticker['quantity'] = max(1, quantity)  # Ensure quantity is at least 1
-            break
-    
-    # Update session
-    session['template_stickers'] = template_stickers
-    
-    return jsonify({
-        "success": True, 
-        "template_stickers": template_stickers
-    })
-
-@app.route('/get-template', methods=['GET'])
-def get_template():
-    template_stickers = session.get('template_stickers', [])
-    return jsonify({
-        "template_stickers": template_stickers
-    })
-
-@app.route('/remove-from-template', methods=['POST'])
-def remove_from_template():
-    data = request.json
-    filename = data.get('filename', '')
-    
-    if not filename:
-        return jsonify({"error": "No sticker specified for removal"}), 400
-    
-    # Get current template stickers from session
-    template_stickers = session.get('template_stickers', [])
-    
-    # Remove the sticker if it exists in the template
-    template_stickers = [s for s in template_stickers 
-                        if not (isinstance(s, dict) and s.get('filename') == filename)]
-    
-    # Update session
-    session['template_stickers'] = template_stickers
-    
-    return jsonify({
-        "success": True, 
-        "template_stickers": template_stickers
-    })
-
-@app.route('/clear-template', methods=['POST'])
-def clear_template():
-    # Reset template to only include the default hat sticker
-    session['template_stickers'] = [{'filename': 'hat.png', 'quantity': 1}]
-    
-    return jsonify({
-        "success": True,
-        "template_stickers": session['template_stickers']
-    })
-
-@app.route('/get-library', methods=['GET'])
-def get_library():
-    # Permitir solicitud de tamaño específico de página para paginación
-    page = request.args.get('page', 1, type=int)
-    items_per_page = request.args.get('items_per_page', 0, type=int)  # 0 = todos los items
-    
-    # Get sticker files - check S3 first if enabled, fall back to local files
-    sticker_files = []
-    
-    if USE_S3:
-        try:
-            # Get files from S3 stickers folder
-            s3_files = list_files_in_s3_folder(S3_STICKERS_FOLDER)
-            
-            # Extract just the filenames without folder prefix
-            for file_key in s3_files:
-                filename = os.path.basename(file_key)
-                if filename.endswith('.png'):
-                    sticker_files.append(filename)
-                    
-            if sticker_files:
-                # Ordenar por fecha descendente (asumiendo que el nombre del archivo contiene timestamp)
-                try:
-                    sticker_files.sort(key=lambda x: os.path.basename(x), reverse=True)
-                except:
-                    pass
-                    
-                total_items = len(sticker_files)
-                
-                # Aplicar paginación si se solicitó
-                if items_per_page > 0:
-                    start_idx = (page - 1) * items_per_page
-                    end_idx = start_idx + items_per_page
-                    paginated_files = sticker_files[start_idx:end_idx]
-                else:
-                    paginated_files = sticker_files
-                
-                return jsonify({
-                    "success": True,
-                    "stickers": paginated_files,
-                    "total_items": total_items,
-                    "page": page,
-                    "items_per_page": items_per_page,
-                    "total_pages": (total_items + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
-                    "source": "s3"
-                })
-        except Exception as e:
-            print(f"Error listing S3 files: {e}")
-            # Fall back to local files
-    
-    # If S3 failed or is disabled, check local files
-    try:
-        for file in os.listdir(folder_path):
-            if file.endswith('.png'):
-                sticker_files.append(file)
-        
-        if sticker_files:
-            # Ordenar por fecha descendente (asumiendo que el nombre del archivo contiene timestamp)
-            try:
-                sticker_files.sort(key=lambda x: os.path.basename(x), reverse=True)
-            except:
-                pass
-                
-            total_items = len(sticker_files)
-            
-            # Aplicar paginación si se solicitó
-            if items_per_page > 0:
-                start_idx = (page - 1) * items_per_page
-                end_idx = start_idx + items_per_page
-                paginated_files = sticker_files[start_idx:end_idx]
-            else:
-                paginated_files = sticker_files
-            
-            return jsonify({
-                "success": True,
-                "stickers": paginated_files,
-                "total_items": total_items,
-                "page": page,
-                "items_per_page": items_per_page,
-                "total_pages": (total_items + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
-                "source": "local"
-            })
-        else:
-            return jsonify({
-                "success": True,
-                "stickers": [],
-                "total_items": 0,
-                "page": 1,
-                "items_per_page": items_per_page,
-                "total_pages": 0,
-                "source": "local"
-            })
-            
-    except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "success": False,
-            "stickers": []
-        }), 500
 
 @app.route('/get-history', methods=['GET'])
 def get_history():
@@ -548,53 +292,16 @@ def get_history():
     # Get sticker files - check S3 first if enabled, fall back to local files
     sticker_files = []
     
-    if USE_S3:
-        try:
-            # Get files from S3 stickers folder filtered by user_id or session_id
-            s3_files = list_files_by_user_id(identifier, S3_STICKERS_FOLDER)
-            
-            # Extract just the filenames without folder prefix
-            for file_key in s3_files:
-                filename = os.path.basename(file_key)
-                if filename.endswith('.png'):
-                    sticker_files.append(filename)
-                    
-            if sticker_files:
-                # Ordenar por fecha descendente (asumiendo que el nombre del archivo contiene timestamp)
-                try:
-                    sticker_files.sort(key=lambda x: os.path.basename(x), reverse=True)
-                except:
-                    pass
-                    
-                total_items = len(sticker_files)
-                
-                # Aplicar paginación si se solicitó
-                if items_per_page > 0:
-                    start_idx = (page - 1) * items_per_page
-                    end_idx = start_idx + items_per_page
-                    paginated_files = sticker_files[start_idx:end_idx]
-                else:
-                    paginated_files = sticker_files
-                
-                return jsonify({
-                    "success": True,
-                    "stickers": paginated_files,
-                    "total_items": total_items,
-                    "page": page,
-                    "items_per_page": items_per_page,
-                    "total_pages": (total_items + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
-                    "source": "s3"
-                })
-        except Exception as e:
-            print(f"Error listing S3 files: {e}")
-            # Fall back to local files
-    
-    # If S3 failed or is disabled, check local files
     try:
-        for file in os.listdir(folder_path):
-            if file.endswith('.png') and file.startswith(f"sticker_{identifier}_"):
-                sticker_files.append(file)
+        # Get files from S3 stickers folder filtered by user_id or session_id
+        s3_files = list_files_by_user_id(identifier, S3_STICKERS_FOLDER)
         
+        # Extract just the filenames without folder prefix
+        for file_key in s3_files:
+            filename = os.path.basename(file_key)
+            if filename.endswith('.png'):
+                sticker_files.append(filename)
+                
         if sticker_files:
             # Ordenar por fecha descendente (asumiendo que el nombre del archivo contiene timestamp)
             try:
@@ -619,730 +326,12 @@ def get_history():
                 "page": page,
                 "items_per_page": items_per_page,
                 "total_pages": (total_items + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
-                "source": "local"
-            })
-        else:
-            return jsonify({
-                "success": True,
-                "stickers": [],
-                "total_items": 0,
-                "page": 1,
-                "items_per_page": items_per_page,
-                "total_pages": 0,
-                "source": "local"
+                "source": "s3"
             })
     except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "success": False,
-            "stickers": []
-        }), 500
+        print(f"Error listing S3 files: {e}")
+        # Fall back to local files
 
-# --- Coins System Routes ---
-
-@app.route('/get-coins', methods=['GET'])
-def get_coins():
-    """
-    Return current coin balance from the session or DB
-    """
-    user_id = session.get('user_id')
-    
-    if user_id:
-        # Get latest user data from DB
-        user = get_user(user_id)
-        if user:
-            # Update session with latest coins
-            session['coins'] = user.get('coins', 0)
-    
-    # Make sure coins is set in the session (for non-authenticated users)
-    if 'coins' not in session:
-        session['coins'] = INITIAL_COINS  # Default for non-authenticated users
-        
-        # Asegurarnos de que haya un session_id para visitantes anónimos
-        if not user_id and 'session_id' not in session:
-            session['session_id'] = str(uuid.uuid4())
-    
-    # Return current coin balance from session
-    return jsonify({"coins": session.get('coins', INITIAL_COINS)})
-
-@app.route('/update-coins', methods=['POST'])
-def update_coins():
-    """
-    Update coin balance in the session and DynamoDB if enabled
-    """
-    coins_update = request.json.get('coins', 0)
-    
-    if coins_update == 0:
-        return jsonify({"coins": session.get('coins', 0)})
-    
-    user_id = session.get('user_id')
-    
-    if USE_DYNAMODB and user_id:
-        try:
-            # Determine transaction type based on whether we're adding or removing coins
-            transaction_type = 'usage' if coins_update < 0 else 'bonus'
-            
-            # Record transaction (which also updates the user's coins)
-            transaction = create_transaction(
-                user_id=user_id,
-                coins_amount=coins_update,
-                transaction_type=transaction_type,
-                details={'source': 'app', 'api_route': '/update-coins'}
-            )
-            
-            # Update session with latest coins
-            updated_user = transaction.get('updated_user', {})
-            if updated_user:
-                session['coins'] = updated_user.get('coins', 0)
-        except Exception as e:
-            print(f"Error updating coins in DynamoDB: {e}")
-            # Fall back to session-based coins
-            current_coins = session.get('coins', 0)
-            session['coins'] = max(0, current_coins + coins_update)
-    else:
-        # Visitante anónimo - asegurarnos de que tenga session_id
-        if not user_id and 'session_id' not in session:
-            session['session_id'] = str(uuid.uuid4())
-            
-        # Session-based coin handling for anonymous users
-        current_coins = session.get('coins', 0)
-        session['coins'] = max(0, current_coins + coins_update)
-        
-        # Log transaction for anonymous users
-        identifier = session.get('session_id') if not user_id else user_id
-        app.logger.info(f"Anonymous user (session_id: {identifier}) coin update: {coins_update}, new balance: {session['coins']}")
-    
-    return jsonify({"coins": session.get('coins', 0)})
-
-@app.route('/purchase-coins', methods=['POST'])
-def purchase_coins():
-    """
-    Procesa una solicitud de compra de monedas.
-    Requiere que el usuario esté autenticado y proporcione un package_id válido.
-    """
-    app.logger.info("--- /purchase-coins ---")
-
-    if not request.is_json:
-        app.logger.error("Request is not JSON")
-        return jsonify({"error": "Request must be JSON"}), 400
-    
-    data = request.json
-    
-    user_id = session.get('user_id')
-
-    if not user_id:
-        app.logger.error("No user_id in session, se requiere autenticación para comprar monedas")
-        return jsonify({"error": "Debes iniciar sesión para comprar monedas"}), 401
-    
-    # Coin Package Purchase (Initiate Mercado Pago payment)
-    package_id = data.get('package_id')
-    app.logger.info(f"Solicitud de compra de monedas iniciada para package_id: {package_id} por usuario: {user_id}")
-
-    if not package_id or package_id not in COIN_PACKAGES_CONFIG:
-        app.logger.error(f"Invalid or missing package_id: {package_id}")
-        return jsonify({"error": "Paquete de monedas inválido o no especificado"}), 400
-
-    package_info = COIN_PACKAGES_CONFIG[package_id]
-    
-    payer_info = {}
-    
-    # Obtener información del usuario de la base de datos
-    db_user = get_user(user_id)
-    if not db_user:
-        app.logger.error(f"Usuario {user_id} no encontrado en la base de datos")
-        return jsonify({"error": "Error al recuperar datos del usuario"}), 400
-        
-    payer_info['email'] = db_user.get('email', '')
-    if db_user.get('name'):
-        payer_info['name'] = db_user.get('name')
-
-    if not sdk:
-        app.logger.error("Mercado Pago SDK not configured for coin purchase")
-        return jsonify({"error": "El sistema de pagos no está configurado correctamente"}), 500
-
-    try:
-        timestamp = int(time.time())
-        # External reference: Type_UserID_PackageID_Coins_Timestamp
-        external_reference = f"COINPKG_{user_id}_{package_id}_{package_info['coins']}_{timestamp}"
-
-        preference_data = {
-            "items": [{
-                "title": package_info['name'],
-                "description": f"{package_info['coins']} monedas virtuales para TheStickerHouse",
-                "quantity": 1,
-                "unit_price": package_info['price'],
-                "currency_id": package_info['currency_id']
-            }],
-            "payer": payer_info,
-            "back_urls": {
-                "success": url_for('coin_payment_feedback', _external=True, _scheme='https'),
-                "failure": url_for('coin_payment_feedback', _external=True, _scheme='https'),
-                "pending": url_for('coin_payment_feedback', _external=True, _scheme='https')
-            },
-            "auto_return": "approved",
-            "external_reference": external_reference,
-            "notification_url": url_for('webhook', _external=True, _scheme='https')
-        }
-        
-        app.logger.info(f"Creando preferencia de Mercado Pago. Ref: {external_reference}")
-        preference_response = sdk.preference().create(preference_data)
-
-        if preference_response and isinstance(preference_response, dict) and \
-            preference_response.get("status") in [200, 201] and \
-            preference_response.get("response") and "id" in preference_response["response"]:
-            preference_id = preference_response["response"]["id"]
-            app.logger.info(f"Preferencia creada exitosamente con ID: {preference_id}")
-            return jsonify({"preference_id": preference_id})
-        else:
-            error_message = "Error al crear la preferencia de pago con Mercado Pago"
-            if preference_response and isinstance(preference_response, dict) and preference_response.get("response"):
-                error_message = preference_response["response"].get("message", error_message)
-            elif preference_response and isinstance(preference_response, dict) and preference_response.get("message"):
-                error_message = preference_response.get("message", error_message)
-            app.logger.error(f"Error en creación de preferencia: {error_message}")
-            return jsonify({"error": error_message}), 500
-    except Exception as e:
-        app.logger.error(f"Excepción creando preferencia de pago: {str(e)}", exc_info=True)
-        return jsonify({"error": f"Error crítico al procesar el pago: {str(e)}"}), 500
-
-@app.route('/coin_payment_feedback')
-def coin_payment_feedback():
-    """
-    Maneja el retorno del usuario desde Mercado Pago después de una compra de monedas.
-    Ya no procesa el pago (eso lo hace el webhook), solo actualiza la sesión y
-    redirige al usuario a la página principal.
-    """
-    app.logger.info("--- /coin_payment_feedback ---")
-
-    payment_status = request.args.get('collection_status', '')
-    payment_id = request.args.get('collection_id', '')
-    external_reference = request.args.get('external_reference', '')
-    
-    app.logger.info(f"Callback de pago: Status={payment_status}, ID={payment_id}, ER={external_reference}")
-    
-    # Verificar que el usuario esté autenticado
-    user_id = session.get('user_id')
-    if not user_id:
-        app.logger.warning("Usuario no autenticado en coin_payment_feedback. No se puede actualizar sesión.")
-        return redirect(url_for('index'))
-    
-    # Solo mostramos feedback visual dependiendo del estado del pago
-    if payment_status == 'approved':
-        # Actualizar la sesión con las monedas actuales del usuario
-        if USE_DYNAMODB:
-            user = get_user(user_id)
-            if user:
-                session['coins'] = user.get('coins', 0)
-                app.logger.info(f"Sesión actualizada para usuario {user_id}, monedas: {session['coins']}")
-            else:
-                app.logger.warning(f"No se pudo obtener usuario {user_id} para actualizar sesión")
-        
-        # Opcional: mensaje de éxito
-        # session['payment_success_message'] = "¡Pago exitoso! Las monedas han sido acreditadas a tu cuenta."
-    elif payment_status == 'rejected':
-        app.logger.warning(f"Pago rechazado por Mercado Pago. ID: {payment_id}")
-        # session['payment_error_message'] = "El pago fue rechazado. Por favor, intenta nuevamente."
-    else:
-        app.logger.info(f"Pago con estado {payment_status}. ID: {payment_id}")
-        # session['payment_info_message'] = "El pago está siendo procesado. Las monedas serán acreditadas en breve."
-    
-    return redirect(url_for('index'))
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    """
-    Endpoint para recibir notificaciones de Mercado Pago (IPN)
-    
-    Este endpoint maneja las notificaciones asíncronas de pagos:
-    - Validación de seguridad
-    - Procesamiento de pagos exitosos, fallidos o pendientes
-    - Gestión de idempotencia para evitar procesar pagos duplicados
-    """
-    app.logger.info("--- WEBHOOK recibido de Mercado Pago ---")
-    
-    if not sdk:
-        app.logger.error("Mercado Pago SDK no está configurado para recibir notificaciones.")
-        return '', 200  # Devolver 200 para no recibir reenvíos, aunque hayamos fallado
-    
-    try:
-        # Obtener los datos del webhook
-        data = request.json
-        app.logger.info(f"Datos de webhook recibidos: {data}")
-        
-        # Verificamos el tipo de notificación
-        if 'resource' in data and 'topic' in data:
-            # Formato de webhook clásico de Mercado Pago
-            resource = data.get('resource')
-            topic = data.get('topic')
-            
-            app.logger.info(f"Notificación de tipo {topic}, recurso: {resource}")
-            
-            if topic == 'payment':
-                # Extraer el ID del pago de la URL del recurso
-                payment_id = resource.split('/')[-1]
-                app.logger.info(f"Procesando notificación para pago ID: {payment_id}")
-                
-                # Obtener detalles del pago usando el SDK
-                payment_info = sdk.payment().get(payment_id)
-                
-                if payment_info["status"] == 200:
-                    payment_data = payment_info["response"]
-                    process_payment_webhook(payment_data)
-                else:
-                    app.logger.error(f"Error obteniendo información del pago {payment_id}: {payment_info}")
-            elif topic == 'merchant_order':
-                # Procesar notificación de merchant_order si es necesario
-                app.logger.info(f"Notificación de merchant_order recibida, no se requiere acción en este momento")
-            else:
-                app.logger.warning(f"Tipo de topic no manejado: {topic}")
-        else:
-            # Podría ser otro formato de notificación
-            app.logger.warning(f"Formato de webhook no reconocido: {data}")
-    except Exception as e:
-        app.logger.error(f"Error procesando webhook: {str(e)}", exc_info=True)
-    
-    # Siempre devolvemos 200 OK para evitar reenvíos automáticos
-    return '', 200
-
-def process_payment_webhook(payment_data):
-    """
-    Procesa los datos de un pago notificado por webhook
-    
-    Esta función extrae la información relevante del pago y actualiza
-    la base de datos para reflejar el estado del pago.
-    
-    Args:
-        payment_data (dict): Datos del pago provenientes de Mercado Pago
-    """
-    try:
-        payment_id = payment_data.get('id')
-        status = payment_data.get('status')
-        external_reference = payment_data.get('external_reference')
-        
-        app.logger.info(f"Procesando pago ID: {payment_id}, Status: {status}, ER: {external_reference}")
-        
-        if not external_reference:
-            app.logger.warning(f"Pago {payment_id} sin external_reference, no se puede procesar")
-            return
-        
-        # Primero verificamos si esta transacción ya fue procesada (verificación explícita)
-        if USE_DYNAMODB and payment_id:
-            existing_transaction = get_transaction_by_payment_id(payment_id)
-            if existing_transaction:
-                app.logger.info(f"Pago {payment_id} ya fue procesado anteriormente en transacción {existing_transaction.get('transaction_id')}. No se realiza acción adicional.")
-                return
-        
-        # Solo procesamos pagos aprobados
-        if status == 'approved':
-            # Parsear external_reference: COINPKG_{user_id}_{package_id}_{coins}_{timestamp}
-            ref_parts = external_reference.split('_')
-            
-            if len(ref_parts) == 5 and ref_parts[0] == 'COINPKG':
-                user_id = ref_parts[1]
-                package_id = ref_parts[2]
-                coins_to_add = int(ref_parts[3])
-                
-                if USE_DYNAMODB:
-                    # Verificar si el usuario existe
-                    user = get_user(user_id)
-                    if not user:
-                        app.logger.error(f"Usuario {user_id} no encontrado, no se pueden asignar monedas")
-                        return
-                    
-                    # Crear la transacción (con idempotencia basada en payment_id)
-                    transaction = create_transaction(
-                        user_id=user_id,
-                        coins_amount=coins_to_add,
-                        transaction_type='coin_purchase_mp',
-                        details={
-                            'payment_id': payment_id,
-                            'payment_status': status,
-                            'external_reference': external_reference,
-                            'package_id': package_id,
-                            'source': 'webhook'
-                        },
-                        payment_id=payment_id  # Usar payment_id para idempotencia
-                    )
-                    
-                    # Verificar si la transacción fue realmente creada o si ya existía
-                    is_new_transaction = not transaction.get('is_existing', False)
-                    
-                    if is_new_transaction:
-                        app.logger.info(f"Transacción {transaction['transaction_id']} creada para usuario {user_id}, {coins_to_add} monedas añadidas")
-                    else:
-                        app.logger.info(f"Transacción con payment_id {payment_id} ya existía, no se duplicó")
-                else:
-                    app.logger.warning("USE_DYNAMODB es false, no se pueden procesar pagos mediante webhook sin persistencia")
-            else:
-                app.logger.error(f"Formato de external_reference inválido: {external_reference}")
-        else:
-            app.logger.info(f"Pago con status {status}, no se requiere acción (sólo procesamos 'approved')")
-            
-    except Exception as e:
-        app.logger.error(f"Error procesando datos de pago en webhook: {str(e)}", exc_info=True)
-
-def reconcile_payments():
-    """
-    Función de reconciliación para revisar pagos que podrían no haberse registrado.
-    
-    Esta función consulta a Mercado Pago por pagos aprobados recientes y verifica
-    que todas las transacciones correspondientes estén registradas en la base de datos.
-    Se usa para garantizar que no se pierdan pagos debido a fallos en webhooks.
-    """
-    app.logger.info("Iniciando proceso de reconciliación de pagos...")
-    
-    if not sdk:
-        app.logger.error("Mercado Pago SDK no está configurado para la reconciliación de pagos")
-        return 0
-    
-    try:
-        # Definir el rango de fechas para buscar (últimas 48 horas)
-        yesterday = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
-        today = datetime.now().strftime('%Y-%m-%d')
-        
-        app.logger.info(f"Buscando pagos entre {yesterday} y {today}")
-        
-        # Buscar pagos recientes en Mercado Pago
-        search_params = {
-            "begin_date": yesterday + "T00:00:00.000-03:00",
-            "end_date": today + "T23:59:59.999-03:00",
-            "status": "approved"
-        }
-        
-        payment_search_result = sdk.payment().search(search_params)
-        
-        if payment_search_result["status"] != 200:
-            app.logger.error(f"Error buscando pagos en Mercado Pago: {payment_search_result}")
-            return 0
-        
-        payments = payment_search_result["response"].get("results", [])
-        app.logger.info(f"Se encontraron {len(payments)} pagos aprobados en Mercado Pago")
-        
-        reconciled_count = 0
-        skipped_count = 0
-        
-        # Procesar cada pago encontrado
-        for payment in payments:
-            payment_id = payment.get("id")
-            external_reference = payment.get("external_reference", "")
-            
-            # Solo procesamos pagos relacionados con nuestro sistema
-            if external_reference and external_reference.startswith("COINPKG_"):
-                app.logger.info(f"Verificando pago {payment_id} con referencia {external_reference}...")
-                
-                # Verificar si ya hemos procesado este pago
-                if USE_DYNAMODB:
-                    existing_transaction = get_transaction_by_payment_id(payment_id)
-                    
-                    if existing_transaction:
-                        app.logger.info(f"Pago {payment_id} ya está registrado en la transacción {existing_transaction.get('transaction_id')}")
-                        skipped_count += 1
-                    else:
-                        app.logger.info(f"Pago {payment_id} no registrado, procesando...")
-                        # Procesar el pago como si fuera una notificación de webhook
-                        process_payment_webhook(payment)
-                        reconciled_count += 1
-                else:
-                    app.logger.warning("USE_DYNAMODB es false, no se puede realizar reconciliación sin persistencia")
-            else:
-                app.logger.info(f"Pago {payment_id} no está relacionado con monedas (ER: {external_reference})")
-        
-        app.logger.info(f"Reconciliación completada. {reconciled_count} pagos procesados, {skipped_count} omitidos por ya existir.")
-        return reconciled_count
-        
-    except Exception as e:
-        app.logger.error(f"Error en el proceso de reconciliación: {str(e)}", exc_info=True)
-        return 0
-
-@app.route('/admin/reconcile-payments', methods=['GET'])
-def admin_reconcile_payments():
-    """
-    Ruta administrativa para ejecutar manualmente el proceso de reconciliación
-    Esta ruta ejecuta el proceso y devuelve un informe de los resultados
-    """
-    # TODO: Añadir autenticación/autorización para esta ruta
-    
-    try:
-        result = reconcile_payments()
-        
-        # Preparar respuesta detallada
-        return jsonify({
-            "success": True,
-            "reconciled_payments": result,
-            "message": f"Proceso de reconciliación completado. {result} pagos procesados."
-        })
-    except Exception as e:
-        app.logger.error(f"Error al ejecutar reconciliación desde endpoint: {str(e)}", exc_info=True)
-        return jsonify({
-            "success": False,
-            "error": str(e),
-            "message": "Error al ejecutar el proceso de reconciliación"
-        }), 500
-
-# --- End Coins System Routes ---
-
-# --- Mercado Pago Integration ---
-
-@app.route('/create_preference', methods=['POST'])
-def create_preference():
-    if not sdk:
-         return jsonify({"error": "Mercado Pago SDK not configured. Check Access Token."}), 500
-         
-    data = request.json
-    name = data.get('name')
-    email = data.get('email')
-    address = data.get('address', '') # Shipping address is required
-    
-    # Check if user is authenticated
-    user_id = session.get('user_id')
-    is_authenticated = user_id is not None
-    
-    # For authenticated users, get their info from the database
-    if is_authenticated and name == 'authenticated' and email == 'authenticated':
-        if USE_DYNAMODB:
-            try:
-                # Get user data from DynamoDB
-                user = get_user(user_id)
-                if user:
-                    name = user.get('name', '')
-                    email = user.get('email', '')
-            except Exception as e:
-                print(f"Error getting user data: {e}")
-                return jsonify({"error": f"Could not retrieve user data: {str(e)}"}), 500
-    
-    # Validate required fields
-    if not all([name, email, address]):
-         return jsonify({"error": "Name, email, and shipping address are required for checkout."}), 400
-
-    # Guardar los datos del cliente en la sesión para tenerlos disponibles en la ruta de retroalimentación
-    session['customer_data'] = {
-        'name': name,
-        'email': email,
-        'address': address
-    }
-
-    template_stickers = session.get('template_stickers', [])
-    if not template_stickers:
-        return jsonify({"error": "Template is empty. Cannot create preference."}), 400
-
-    items = []
-    total_amount = 0
-    for sticker in template_stickers:
-        # --- IMPORTANT: Define your actual pricing logic here ---
-        # This is just a placeholder price. You need to set the real price per sticker.
-        unit_price = 10.00 # Example: $10 per sticker
-        # ---
-        
-        items.append({
-            "title": f"Sticker - {sticker.get('filename', 'Unknown')}",
-            "quantity": sticker.get('quantity', 1),
-            "unit_price": unit_price,
-            "currency_id": "ARS" # Or your country's currency code (e.g., BRL, MXN)
-        })
-        total_amount += sticker.get('quantity', 1) * unit_price
-
-    # Basic payer info
-    payer = {
-        "name": name,
-        "email": email
-        # You can add more payer details if needed (phone, identification, address)
-        # "address": { "street_name": address ... } 
-    }
-
-    # Define back URLs dynamically using url_for
-    # Ensure your server is accessible externally for Mercado Pago callbacks
-    base_url = request.url_root
-    
-    # --- Generate Back URLs ---
-    try:
-        # Force HTTPS scheme for external URLs
-        # Incluir datos del cliente en las URLs de retorno
-        success_url = url_for('payment_feedback', _external=True, _scheme='https', 
-                             name=name, email=email, address=address)
-        failure_url = url_for('payment_feedback', _external=True, _scheme='https',
-                             name=name, email=email, address=address)
-        pending_url = url_for('payment_feedback', _external=True, _scheme='https',
-                             name=name, email=email, address=address)
-        
-        back_urls_data = {
-            "success": success_url,
-            "failure": failure_url,
-            "pending": pending_url
-        }
-        # Log the generated URLs
-        print(f"Generated Back URLs (Forced HTTPS): {back_urls_data}") 
-        
-    except Exception as url_gen_err:
-        print(f"Error generating back URLs: {url_gen_err}")
-        return jsonify({"error": f"Failed to generate callback URLs: {str(url_gen_err)}"}), 500
-    # --- End Generate Back URLs ---
-
-    preference_data = {
-        "items": items,
-        "payer": payer,
-        "back_urls": back_urls_data, # Use the generated dict
-        "auto_return": "approved", # Automatically return for approved payments
-        "notification_url": url_for('webhook', _external=True, _scheme='https') # Para notificaciones asíncronas
-    }
-    
-    # --- Enhanced Logging ---
-    print("--- Creating Preference ---")
-    print("Preference Data Sent:")
-    try:
-        print(json.dumps(preference_data, indent=2))
-    except Exception as json_err:
-        print(f"(Could not serialize preference_data for logging: {json_err})")
-        print(preference_data) # Print raw if JSON fails
-    print("-------------------------")
-    # --- End Enhanced Logging ---
-    
-    try:
-        preference_response = sdk.preference().create(preference_data)
-        
-        # --- Enhanced Logging ---
-        print("Preference Response Received:")
-        try:
-            print(json.dumps(preference_response, indent=2))
-        except Exception as json_err:
-            print(f"(Could not serialize preference_response for logging: {json_err})")
-            print(preference_response) # Print raw if JSON fails
-        print("-------------------------")
-        # --- End Enhanced Logging ---
-
-        # Check if response structure is as expected before accessing keys
-        if preference_response and isinstance(preference_response, dict) and preference_response.get("status") in [200, 201] and "response" in preference_response and "id" in preference_response["response"]:
-            preference = preference_response["response"]
-            print(f"Successfully Created Preference ID: {preference['id']}") 
-            return jsonify({"preference_id": preference['id']})
-        else:
-            # Log unexpected response structure
-            print("Error: Unexpected response structure from Mercado Pago SDK.")
-            error_message = "Failed to create payment preference due to unexpected response."
-            if preference_response and isinstance(preference_response, dict) and "response" in preference_response and "message" in preference_response["response"]:
-                error_message = f"Mercado Pago Error: {preference_response['response']['message']}"
-            elif preference_response and isinstance(preference_response, dict) and "message" in preference_response:
-                 error_message = f"Mercado Pago Error: {preference_response['message']}"
-                 
-            return jsonify({"error": error_message}), 500
-            
-    except Exception as e:
-        print(f"Error creating preference: {e}")
-        # Add more specific details if available from the exception
-        error_detail = str(e)
-        if hasattr(e, 'response') and e.response is not None:
-             try:
-                 error_detail = e.response.text # Or e.response.json()
-             except:
-                 pass # Keep original exception string if response parsing fails
-        print(f"Detailed Error: {error_detail}")
-        return jsonify({"error": f"Failed to create payment preference: {error_detail}"}), 500
-
-@app.route('/payment_feedback')
-def payment_feedback():
-    # Handle the user returning from Mercado Pago
-    # You get payment status info in query parameters
-    status = request.args.get('status')
-    payment_id = request.args.get('payment_id')
-    preference_id = request.args.get('preference_id')
-    
-    # You can use this info to show a specific message to the user
-    # or update the order status in your database
-    
-    feedback_message = "Payment process completed."
-    if status == 'approved':
-        feedback_message = f"Payment successful! Payment ID: {payment_id}"
-        
-        # Obtener los datos del cliente
-        customer_data = session.get('customer_data', {})
-        
-        # Obtener la lista de archivos de stickers
-        template_stickers = session.get('template_stickers', [])
-        
-        # Get S3 URLs from session
-        s3_urls = session.get('s3_urls', {})
-        sticker_s3_urls = {}
-        
-        # Preparar lista de URLs de S3 para el correo
-        for sticker in template_stickers:
-            if isinstance(sticker, dict):
-                filename = sticker.get('filename', '')
-                if filename and filename in s3_urls:
-                    sticker_s3_urls[filename] = s3_urls[filename]
-        
-        # Create a template ZIP package if there are multiple stickers
-        template_zip_path = None
-        template_s3_url = None
-        
-        if len(sticker_s3_urls) > 1 and USE_S3:
-            # En este caso, necesitamos descargar las imágenes temporalmente
-            # para crear el ZIP y luego subirlo a S3
-            temp_dir = tempfile.mkdtemp()
-            temp_files = []
-            
-            try:
-                # Descargar archivos temporalmente para crear el ZIP
-                s3_client = get_s3_client()
-                bucket = AWS_S3_BUCKET_NAME
-                
-                for filename, url in sticker_s3_urls.items():
-                    # Obtener key de S3 desde URL
-                    key = f"{S3_STICKERS_FOLDER}/{filename}"
-                    temp_file_path = os.path.join(temp_dir, filename)
-                    
-                    # Descargar archivo
-                    s3_client.download_file(bucket, key, temp_file_path)
-                    temp_files.append(temp_file_path)
-                
-                # Crear template zip
-                if temp_files:
-                    template_name = f"plantilla_{int(time.time())}.zip"
-                    template_zip_path = os.path.join(temp_dir, template_name)
-                    
-                    if create_template_zip(temp_files, template_zip_path):
-                        # Upload to S3
-                        success, url = upload_file_to_s3(
-                            template_zip_path,
-                            template_name,
-                            folder=S3_TEMPLATES_FOLDER
-                        )
-                        if success:
-                            template_s3_url = url
-                
-            finally:
-                # Limpiar archivos temporales
-                for file in temp_files:
-                    if os.path.exists(file):
-                        os.remove(file)
-                if template_zip_path and os.path.exists(template_zip_path):
-                    os.remove(template_zip_path)
-                os.rmdir(temp_dir)
-        
-        # Enviar correo electrónico al diseñador y al cliente con enlaces a los archivos
-        if sticker_s3_urls:
-            # If we have a template URL, add it to the s3_urls
-            if template_s3_url:
-                sticker_s3_urls['__template__'] = template_s3_url
-                
-            # Enviar solo con URLs de S3, sin archivos locales
-            send_sticker_email(customer_data, [], sticker_s3_urls)
-            print(f"Correo enviado con éxito para el pago {payment_id}")
-        else:
-            print(f"No se encontraron URLs de stickers para adjuntar al correo para el pago {payment_id}")
-                
-        # Limpiar la sesión después del pago exitoso
-        session['template_stickers'] = []
-        # Limpiar los datos del cliente y URLs de S3 de la sesión
-        for key in ['customer_data', 's3_urls']:
-            if key in session:
-                session.pop(key)
-                
-    elif status == 'failure':
-        feedback_message = "Payment failed. Please try again or contact support."
-    elif status == 'pending':
-        feedback_message = "Payment is pending. We will notify you upon confirmation."
-    
-    # Simple redirect back to index for now
-    return redirect(url_for('index'))
 
 # --- End Mercado Pago Integration ---
 
@@ -1350,476 +339,6 @@ def payment_feedback():
 def library():
     return render_template('library.html', mp_public_key=MP_PUBLIC_KEY)
 
-@app.route('/img/<filename>')
-def get_image(filename):
-    """
-    Sirve imágenes exclusivamente desde S3
-    """
-    print(f"[GET_IMAGE] Accessing image: {filename}")
-    
-    # 1. Intentar obtener URL de la sesión primero
-    s3_urls = session.get('s3_urls', {})
-    if filename in s3_urls:
-        print(f"[GET_IMAGE] Image URL found in session cache: {filename}")
-        url = s3_urls[filename]
-        print(f"[GET_IMAGE] Redirecting to cached S3 URL: {url}")
-        
-        # En lugar de redireccionar directamente, intentar descargar y servir
-        # para evitar problemas de CORS cuando se usa en un canvas
-        try:
-            s3_client = get_s3_client()
-            bucket = AWS_S3_BUCKET_NAME
-            key = f"{S3_STICKERS_FOLDER}/{filename}"
-            
-            # Descargar el archivo a memoria
-            file_obj = BytesIO()
-            s3_client.download_fileobj(Bucket=bucket, Key=key, Fileobj=file_obj)
-            file_obj.seek(0)
-            
-            # Determinar el tipo de contenido
-            content_type = 'image/png'
-            if filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
-                content_type = 'image/jpeg'
-            elif filename.lower().endswith('.gif'):
-                content_type = 'image/gif'
-                
-            # Añadir cabeceras CORS
-            response = make_response(send_file(
-                file_obj,
-                mimetype=content_type,
-                as_attachment=False,
-                download_name=filename
-            ))
-            response.headers['Access-Control-Allow-Origin'] = '*'
-            response.headers['Access-Control-Allow-Methods'] = 'GET'
-            response.headers['Cache-Control'] = 'public, max-age=86400'  # Cache por 24 horas
-            
-            return response
-        except Exception as e:
-            print(f"[GET_IMAGE] Error downloading from S3, using redirect: {e}")
-            # Si falla, usar redirección como fallback
-            return redirect(url)
-    
-    # 2. Si no está en la sesión, verificar si existe en S3 y crear una URL firmada
-    try:
-        s3_client = get_s3_client()
-        bucket = AWS_S3_BUCKET_NAME
-        
-        if not bucket:
-            error_msg = "S3 bucket name not specified in environment variables"
-            print(f"[GET_IMAGE] Error: {error_msg}")
-            return f"Configuration error: {error_msg}", 500
-        
-        # Lista de posibles rutas a probar en S3
-        possible_keys = [
-            f"{S3_STICKERS_FOLDER}/{filename}",  # Ruta estándar con carpeta stickers
-            filename,                           # Directamente en la raíz del bucket
-            f"stickers/{filename}",             # Carpeta stickers estándar (por si S3_STICKERS_FOLDER es diferente)
-            f"images/{filename}",               # Otra posible carpeta
-            f"imgs/{filename}"                  # Otra posible carpeta
-        ]
-        
-        # Probar cada posible ruta
-        found_key = None
-        for key in possible_keys:
-            print(f"[GET_IMAGE] Checking if object exists in S3: {bucket}/{key}")
-            try:
-                s3_client.head_object(Bucket=bucket, Key=key)
-                print(f"[GET_IMAGE] ✓ Object found in S3: {bucket}/{key}")
-                found_key = key
-                break
-            except Exception as e:
-                print(f"[GET_IMAGE] ✗ Object not found at {key}: {str(e)}")
-        
-        # Si se encontró el archivo, intentar descargarlo y servirlo
-        if found_key:
-            try:
-                print(f"[GET_IMAGE] Downloading and serving: {bucket}/{found_key}")
-                # Descargar el archivo a memoria
-                file_obj = BytesIO()
-                s3_client.download_fileobj(Bucket=bucket, Key=found_key, Fileobj=file_obj)
-                file_obj.seek(0)
-                
-                # Generar URL prefirmada para futuras peticiones
-                presigned_url = s3_client.generate_presigned_url(
-                    'get_object',
-                    Params={'Bucket': bucket, 'Key': found_key},
-                    ExpiresIn=3600  # URL válida por 1 hora
-                )
-                
-                # Guardar URL en la sesión para futuras solicitudes
-                s3_urls[filename] = presigned_url
-                session['s3_urls'] = s3_urls
-                
-                # Determinar el tipo de contenido
-                content_type = 'image/png'
-                if filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
-                    content_type = 'image/jpeg'
-                elif filename.lower().endswith('.gif'):
-                    content_type = 'image/gif'
-                
-                # Añadir cabeceras CORS
-                response = make_response(send_file(
-                    file_obj,
-                    mimetype=content_type,
-                    as_attachment=False,
-                    download_name=filename
-                ))
-                
-                # Añadir cabeceras CORS y cache
-                response.headers['Access-Control-Allow-Origin'] = '*'
-                response.headers['Access-Control-Allow-Methods'] = 'GET'
-                response.headers['Cache-Control'] = 'public, max-age=86400'  # Cache por 24 horas
-                
-                return response
-            except Exception as e:
-                print(f"[GET_IMAGE] Error serving file directly, using redirect: {e}")
-                # Si falla, usar redirección como fallback
-                return redirect(presigned_url)
-        else:
-            print(f"[GET_IMAGE] ✗ File {filename} not found in any expected S3 location")
-            return f"Image {filename} not found in S3", 404
-    except Exception as e:
-        error_msg = f"Error accessing S3: {str(e)}"
-        print(f"[GET_IMAGE] {error_msg}")
-        return error_msg, 500
-
-@app.route('/debug-s3')
-def debug_s3():
-    """
-    Ruta de diagnóstico para verificar la conexión a S3 y listar archivos
-    """
-    debug_info = {
-        "s3_enabled": USE_S3,
-        "environment_vars": {
-            "aws_access_key_present": bool(AWS_ACCESS_KEY_ID),
-            "aws_secret_key_present": bool(AWS_SECRET_ACCESS_KEY),
-            "bucket_name": AWS_S3_BUCKET_NAME,
-            "region": AWS_REGION
-        },
-        "stickers_folder": S3_STICKERS_FOLDER,
-        "files": [],
-        "errors": []
-    }
-    
-    try:
-        # Intentar conectar a S3
-        s3_client = get_s3_client()
-        debug_info["connection"] = "Success"
-        
-        # Verificar si el bucket existe
-        bucket = AWS_S3_BUCKET_NAME
-        
-        if not bucket:
-            debug_info["errors"].append("AWS_S3_BUCKET_NAME not set in environment variables")
-        else:
-            try:
-                # Verificar si el bucket existe
-                s3_client.head_bucket(Bucket=bucket)
-                debug_info["bucket_exists"] = True
-                
-                # Listar objetos en el bucket
-                folder_prefix = S3_STICKERS_FOLDER + "/"
-                response = s3_client.list_objects_v2(
-                    Bucket=bucket,
-                    Prefix=folder_prefix,
-                    MaxKeys=10  # Limitar a 10 resultados para ser breve
-                )
-                
-                if 'Contents' in response:
-                    # Añadir detalles de los archivos encontrados
-                    for obj in response['Contents']:
-                        # Crear URL prefirmada para cada objeto
-                        presigned_url = s3_client.generate_presigned_url(
-                            'get_object',
-                            Params={'Bucket': bucket, 'Key': obj['Key']},
-                            ExpiresIn=3600
-                        )
-                        
-                        debug_info["files"].append({
-                            "key": obj['Key'],
-                            "size": obj['Size'],
-                            "last_modified": str(obj['LastModified']),
-                            "url": presigned_url
-                        })
-                else:
-                    debug_info["errors"].append(f"No files found in {folder_prefix}")
-                    
-                # Intentar verificar la existencia de un archivo específico (uno que debería existir)
-                if debug_info["files"]:
-                    sample_key = debug_info["files"][0]["key"]
-                    try:
-                        s3_client.head_object(Bucket=bucket, Key=sample_key)
-                        debug_info["sample_file_check"] = f"File {sample_key} exists"
-                    except Exception as e:
-                        debug_info["errors"].append(f"Error checking {sample_key}: {str(e)}")
-            
-            except Exception as e:
-                debug_info["errors"].append(f"Error accessing bucket or listing objects: {str(e)}")
-    
-    except Exception as e:
-        debug_info["connection"] = "Failed"
-        debug_info["errors"].append(f"Connection error: {str(e)}")
-    
-    return jsonify(debug_info)
-
-@app.route('/direct-s3-img/<filename>')
-def direct_s3_image(filename):
-    """
-    Método alternativo: Descarga directamente la imagen de S3 y la sirve,
-    sin usar redirección
-    """
-    print(f"[DIRECT-S3] Starting direct image access for: {filename}")
-    
-    try:
-        print("[DIRECT-S3] Getting S3 client...")
-        s3_client = get_s3_client()
-        print("[DIRECT-S3] Got S3 client successfully")
-        
-        bucket = AWS_S3_BUCKET_NAME
-        print(f"[DIRECT-S3] Using bucket: {bucket}")
-        
-        if not bucket:
-            error_msg = "AWS_S3_BUCKET_NAME not set in environment variables"
-            print(f"[DIRECT-S3] ERROR: {error_msg}")
-            return f"Configuration error: {error_msg}", 500
-        
-        # Lista de posibles rutas a probar
-        possible_keys = [
-            f"{S3_STICKERS_FOLDER}/{filename}",
-            filename,
-            f"stickers/{filename}",
-            f"images/{filename}",
-            f"imgs/{filename}"
-        ]
-        
-        # Primero, listar todos los objetos en el bucket para diagnóstico
-        try:
-            print(f"[DIRECT-S3] Listing objects in bucket: {bucket} to find possible matches")
-            all_objects = s3_client.list_objects_v2(Bucket=bucket)
-            
-            if 'Contents' in all_objects and all_objects['Contents']:
-                print(f"[DIRECT-S3] ✓ Found {len(all_objects['Contents'])} objects in bucket")
-                
-                # Buscar posibles coincidencias para diagnóstico
-                possible_matches = []
-                for obj in all_objects['Contents']:
-                    key = obj['Key']
-                    if filename in key:
-                        possible_matches.append(key)
-                
-                if possible_matches:
-                    print(f"[DIRECT-S3] Possible matches found for {filename}:")
-                    for match in possible_matches:
-                        print(f"[DIRECT-S3]   - {match}")
-                    
-                    # Añadir las coincidencias encontradas a las rutas a probar
-                    possible_keys.extend(possible_matches)
-                else:
-                    print(f"[DIRECT-S3] No filename matches for {filename} in bucket contents")
-            else:
-                print(f"[DIRECT-S3] Warning: No objects found in bucket {bucket}")
-        except Exception as e:
-            print(f"[DIRECT-S3] Error listing bucket contents: {str(e)}")
-        
-        # Intentar encontrar y descargar el archivo
-        for key in possible_keys:
-            try:
-                print(f"[DIRECT-S3] Attempting to download: {bucket}/{key}")
-                
-                # Verificar si el objeto existe
-                try:
-                    s3_client.head_object(Bucket=bucket, Key=key)
-                    print(f"[DIRECT-S3] ✓ Object exists: {bucket}/{key}")
-                except Exception as e:
-                    print(f"[DIRECT-S3] ✗ Object does not exist: {bucket}/{key} - {str(e)}")
-                    continue
-                
-                # Descargar el objeto a un buffer en memoria
-                file_obj = BytesIO()
-                s3_client.download_fileobj(Bucket=bucket, Key=key, Fileobj=file_obj)
-                
-                # Resetear la posición del buffer
-                file_obj.seek(0)
-                
-                # Determinar el tipo de contenido
-                content_type = 'image/png'  # Por defecto
-                if filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg'):
-                    content_type = 'image/jpeg'
-                elif filename.lower().endswith('.gif'):
-                    content_type = 'image/gif'
-                
-                print(f"[DIRECT-S3] ✓ Success! Serving image from {bucket}/{key}")
-                
-                # Guardar la ruta correcta para futuras referencias
-                s3_urls = session.get('s3_urls', {})
-                
-                # Crear URL prefirmada para esta imagen
-                presigned_url = s3_client.generate_presigned_url(
-                    'get_object',
-                    Params={'Bucket': bucket, 'Key': key},
-                    ExpiresIn=3600
-                )
-                
-                # Guardar la URL para futuras solicitudes
-                s3_urls[filename] = presigned_url
-                session['s3_urls'] = s3_urls
-                
-                # Crear respuesta con cabeceras CORS
-                response = make_response(send_file(
-                    file_obj,
-                    mimetype=content_type,
-                    as_attachment=False,
-                    download_name=filename
-                ))
-                
-                # Añadir cabeceras CORS y cache
-                response.headers['Access-Control-Allow-Origin'] = '*'
-                response.headers['Access-Control-Allow-Methods'] = 'GET'
-                response.headers['Cache-Control'] = 'public, max-age=86400'  # Cache por 24 horas
-                
-                return response
-                
-            except Exception as e:
-                print(f"[DIRECT-S3] Error with {key}: {str(e)}")
-                continue
-        
-        # Si llegamos aquí, no pudimos encontrar el archivo
-        print(f"[DIRECT-S3] ✗ Image {filename} not found in any location in S3 bucket")
-        return f"Image {filename} not found in S3 bucket", 404
-        
-    except Exception as e:
-        error_msg = f"Error accessing S3: {str(e)}"
-        print(f"[DIRECT-S3] Error: {error_msg}")
-        return error_msg, 500
-
-@app.route('/debug-s3-bucket')
-def debug_s3_bucket():
-    """
-    Endpoint para mostrar la estructura completa del bucket y verificar credenciales
-    """
-    debug_info = {
-        "aws_check": {},
-        "bucket_info": {},
-        "folder_structure": {},
-        "sample_files": [],
-        "errors": []
-    }
-    
-    # Use AWS configuration from config.py
-    aws_access_key = AWS_ACCESS_KEY_ID
-    aws_secret_key = AWS_SECRET_ACCESS_KEY
-    aws_region = AWS_REGION
-    bucket_name = AWS_S3_BUCKET_NAME
-    
-    debug_info["aws_check"] = {
-        "aws_access_key_present": bool(aws_access_key),
-        "aws_secret_key_present": bool(aws_secret_key),
-        "aws_region": aws_region,
-        "bucket_name": bucket_name,
-        "s3_stickers_folder": S3_STICKERS_FOLDER,
-        "s3_templates_folder": S3_TEMPLATES_FOLDER
-    }
-    
-    if not aws_access_key or not aws_secret_key:
-        debug_info["errors"].append("AWS credentials missing or incomplete")
-        return jsonify(debug_info)
-    
-    if not bucket_name:
-        debug_info["errors"].append("AWS_S3_BUCKET_NAME not set")
-        return jsonify(debug_info)
-    
-    # Verificar conexión a AWS
-    try:
-        # Intentar crear cliente S3
-        s3_client = get_s3_client()
-        debug_info["aws_check"]["connection"] = "Success"
-        
-        # Verificar que el bucket existe
-        try:
-            s3_client.head_bucket(Bucket=bucket_name)
-            debug_info["bucket_info"]["exists"] = True
-        except Exception as e:
-            debug_info["bucket_info"]["exists"] = False
-            debug_info["bucket_info"]["error"] = str(e)
-            debug_info["errors"].append(f"Bucket {bucket_name} does not exist or not accessible: {str(e)}")
-            return jsonify(debug_info)
-        
-        # Listar objetos en el bucket (raíz)
-        try:
-            response = s3_client.list_objects_v2(Bucket=bucket_name, Delimiter='/')
-            
-            if 'CommonPrefixes' in response:
-                folders = [prefix['Prefix'] for prefix in response['CommonPrefixes']]
-                debug_info["folder_structure"]["root_folders"] = folders
-            else:
-                debug_info["folder_structure"]["root_folders"] = []
-            
-            if 'Contents' in response:
-                files = [obj['Key'] for obj in response['Contents']]
-                debug_info["folder_structure"]["root_files"] = files
-            else:
-                debug_info["folder_structure"]["root_files"] = []
-        except Exception as e:
-            debug_info["errors"].append(f"Error listing bucket root: {str(e)}")
-        
-        # Listar objetos en la carpeta de stickers
-        try:
-            response = s3_client.list_objects_v2(
-                Bucket=bucket_name, 
-                Prefix=f"{S3_STICKERS_FOLDER}/",
-                MaxKeys=20
-            )
-            
-            if 'Contents' in response:
-                files = [obj['Key'] for obj in response['Contents']]
-                debug_info["folder_structure"]["stickers_folder"] = files
-                
-                # Obtener algunos ejemplos
-                sample_count = min(5, len(response['Contents']))
-                for i in range(sample_count):
-                    obj = response['Contents'][i]
-                    try:
-                        url = s3_client.generate_presigned_url(
-                            'get_object',
-                            Params={'Bucket': bucket_name, 'Key': obj['Key']},
-                            ExpiresIn=3600
-                        )
-                        debug_info["sample_files"].append({
-                            "key": obj['Key'],
-                            "url": url,
-                            "size": obj['Size'],
-                            "last_modified": str(obj['LastModified'])
-                        })
-                    except Exception as e:
-                        debug_info["errors"].append(f"Error generating URL for {obj['Key']}: {str(e)}")
-            else:
-                debug_info["folder_structure"]["stickers_folder"] = []
-                debug_info["errors"].append(f"No files found in {S3_STICKERS_FOLDER}/ folder")
-        except Exception as e:
-            debug_info["errors"].append(f"Error listing stickers folder: {str(e)}")
-        
-        # Probar con 'stickers/' como alternativa si no se encontraron archivos
-        if not debug_info["folder_structure"].get("stickers_folder"):
-            try:
-                response = s3_client.list_objects_v2(
-                    Bucket=bucket_name, 
-                    Prefix="stickers/",
-                    MaxKeys=5
-                )
-                
-                if 'Contents' in response:
-                    files = [obj['Key'] for obj in response['Contents']]
-                    debug_info["folder_structure"]["alternate_stickers_folder"] = files
-                    debug_info["notes"] = f"Found files in 'stickers/' instead of '{S3_STICKERS_FOLDER}/'"
-            except Exception:
-                pass
-        
-    except Exception as e:
-        debug_info["aws_check"]["connection"] = "Failed"
-        debug_info["errors"].append(f"Error connecting to AWS: {str(e)}")
-    
-    return jsonify(debug_info)
 
 @app.route('/setup-dirs')
 def setup_directories():
@@ -1937,6 +456,116 @@ def get_styles():
         "success": True,
         "styles": styles
     })
+
+
+# -- out of services endpoints --
+
+@app.route('/get-library', methods=['GET'])
+def get_library():
+    # Out of service
+    return jsonify({
+        "success": False,
+        "message": "Library is out of service"
+    }), 503
+
+    # # Permitir solicitud de tamaño específico de página para paginación
+    # page = request.args.get('page', 1, type=int)
+    # items_per_page = request.args.get('items_per_page', 0, type=int)  # 0 = todos los items
+    
+    # # Get sticker files - check S3 first if enabled, fall back to local files
+    # sticker_files = []
+    
+    # if USE_S3:
+    #     try:
+    #         # Get files from S3 stickers folder
+    #         s3_files = list_files_in_s3_folder(S3_STICKERS_FOLDER)
+            
+    #         # Extract just the filenames without folder prefix
+    #         for file_key in s3_files:
+    #             filename = os.path.basename(file_key)
+    #             if filename.endswith('.png'):
+    #                 sticker_files.append(filename)
+                    
+    #         if sticker_files:
+    #             # Ordenar por fecha descendente (asumiendo que el nombre del archivo contiene timestamp)
+    #             try:
+    #                 sticker_files.sort(key=lambda x: os.path.basename(x), reverse=True)
+    #             except:
+    #                 pass
+                    
+    #             total_items = len(sticker_files)
+                
+    #             # Aplicar paginación si se solicitó
+    #             if items_per_page > 0:
+    #                 start_idx = (page - 1) * items_per_page
+    #                 end_idx = start_idx + items_per_page
+    #                 paginated_files = sticker_files[start_idx:end_idx]
+    #             else:
+    #                 paginated_files = sticker_files
+                
+    #             return jsonify({
+    #                 "success": True,
+    #                 "stickers": paginated_files,
+    #                 "total_items": total_items,
+    #                 "page": page,
+    #                 "items_per_page": items_per_page,
+    #                 "total_pages": (total_items + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
+    #                 "source": "s3"
+    #             })
+    #     except Exception as e:
+    #         print(f"Error listing S3 files: {e}")
+    #         # Fall back to local files
+    
+    # # If S3 failed or is disabled, check local files
+    # try:
+    #     for file in os.listdir(folder_path):
+    #         if file.endswith('.png'):
+    #             sticker_files.append(file)
+        
+    #     if sticker_files:
+    #         # Ordenar por fecha descendente (asumiendo que el nombre del archivo contiene timestamp)
+    #         try:
+    #             sticker_files.sort(key=lambda x: os.path.basename(x), reverse=True)
+    #         except:
+    #             pass
+                
+    #         total_items = len(sticker_files)
+            
+    #         # Aplicar paginación si se solicitó
+    #         if items_per_page > 0:
+    #             start_idx = (page - 1) * items_per_page
+    #             end_idx = start_idx + items_per_page
+    #             paginated_files = sticker_files[start_idx:end_idx]
+    #         else:
+    #             paginated_files = sticker_files
+            
+    #         return jsonify({
+    #             "success": True,
+    #             "stickers": paginated_files,
+    #             "total_items": total_items,
+    #             "page": page,
+    #             "items_per_page": items_per_page,
+    #             "total_pages": (total_items + items_per_page - 1) // items_per_page if items_per_page > 0 else 1,
+    #             "source": "local"
+    #         })
+    #     else:
+    #         return jsonify({
+    #             "success": True,
+    #             "stickers": [],
+    #             "total_items": 0,
+    #             "page": 1,
+    #             "items_per_page": items_per_page,
+    #             "total_pages": 0,
+    #             "source": "local"
+    #         })
+            
+    # except Exception as e:
+    #     return jsonify({
+    #         "error": str(e),
+    #         "success": False,
+    #         "stickers": []
+    #     }), 500
+
 
 if __name__ == '__main__':
     # Add host='0.0.0.0' to listen on all interfaces, necessary when using SERVER_NAME with dev server

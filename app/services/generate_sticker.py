@@ -4,15 +4,15 @@ import os
 import tempfile
 import logging
 import time
-from utils import save_image, create_placeholder_image
+from utils.utils import save_image, create_placeholder_image
 from openai import OpenAI
 from PIL import Image
-from config import USE_PLACEHOLDER_STICKER
+from config import USE_PLACEHOLDER_STICKER, STICKER_STYLE_CONFIG
 
 # Configurar logging
 logger = logging.getLogger(__name__)
 
-def generate_sticker(prompt, img_path, quality='low', user_id=None, style=None):
+def generate_sticker(user_prompt, img_path, quality='low', style=None):
     
     # Check if we should use placeholder instead of actual generation
     if USE_PLACEHOLDER_STICKER:
@@ -21,26 +21,18 @@ def generate_sticker(prompt, img_path, quality='low', user_id=None, style=None):
         
     client = OpenAI()
     
-    # Aplicar estilo específico si se selecciona uno
     style_prompt = ""
-    if style:
-        if style == "Parche de hilo":
-            style_prompt = "Diseño estilo parche de hilo bordado con textura de bordado, relieve, y aspecto artesanal."
-        elif style == "Origami":
-            style_prompt = "Diseño estilo origami con pliegues de papel visibles, aspecto geométrico y texturas de papel doblado."
-        elif style == "Metalico":
-            style_prompt = "Diseño estilo metálico con acabado brillante, reflejos metálicos, aspecto de acero o aluminio pulido."
-        elif style == "Papel":
-            style_prompt = "Diseño estilo recorte de papel con textura de papel, sombras sutiles y aspecto artesanal de papel."
+    if style and style in STICKER_STYLE_CONFIG:
+        style_prompt = STICKER_STYLE_CONFIG[style]
     
     # Format the prompt with the sticker style wrapper
     formatted_prompt = f"""
 <style> 
-Genera estilo sticker 
+Genera la imagen estilo sticker, fondo trasparente y un borde blanco de 10px de grosor 
 {style_prompt}
 </style>
 <User input>
-{prompt}
+{user_prompt}
 </User input>
 """
     
@@ -52,32 +44,23 @@ Genera estilo sticker
         size="1024x1024"
     )
 
-    # save_image now returns a tuple (image_b64, s3_url, high_res_s3_url)
+    # save_image now returns a tuple (image_b64, s3_url, s3_url_high_res_)
     image_data = save_image(result, img_path)
     return image_data
 
 
-def generate_sticker_with_reference(prompt, img_path, img_base64, quality='low', user_id=None, style=None):
+def generate_sticker_with_reference(user_prompt, img_path, img_base64, quality='low', style=None):
     # Check if we should use placeholder instead of actual generation
     if USE_PLACEHOLDER_STICKER:
         logger.info("Using placeholder sticker instead of actual generation with reference")
-        time.sleep(2)  # Add 2 second delay to simulate processing
         return create_placeholder_image(img_path)
         
     client = OpenAI()
     
-    # Aplicar estilo específico si se selecciona uno
     style_prompt = ""
-    if style:
-        if style == "Parche de hilo":
-            style_prompt = "Diseño estilo parche de hilo bordado con textura de bordado, relieve, y aspecto artesanal."
-        elif style == "Origami":
-            style_prompt = "Diseño estilo origami con pliegues de papel visibles, aspecto geométrico y texturas de papel doblado."
-        elif style == "Metalico":
-            style_prompt = "Diseño estilo metálico con acabado brillante, reflejos metálicos, aspecto de acero o aluminio pulido."
-        elif style == "Papel":
-            style_prompt = "Diseño estilo recorte de papel con textura de papel, sombras sutiles y aspecto artesanal de papel."
-    
+    if style and style in STICKER_STYLE_CONFIG:
+        style_prompt = STICKER_STYLE_CONFIG[style]
+
     # Format the prompt with the sticker style wrapper
     formatted_prompt = f"""
 <style> 
@@ -85,13 +68,9 @@ Genera estilo sticker
 {style_prompt}
 </style>
 <User input>
-{prompt}
+{user_prompt}
 </User input>
 """
-    
-    # Log para depuración
-    platform_info = f"user_id: {user_id}, quality: {quality}"
-    logger.info(f"Generando sticker con referencia. Platform info: {platform_info}")
     
     try:
         # Convert base64 to image file

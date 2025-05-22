@@ -1,14 +1,16 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, url_for, current_app
 import json
+import uuid
+import time
 from decimal import Decimal
 from datetime import datetime
-from dynamodb_utils import (
+from utils.dynamodb_utils import (
     get_user,
     create_transaction,
     get_user_by_email,
     get_user_transactions
 )
-from config import INITIAL_COINS, BONUS_COINS, COIN_PACKAGES_CONFIG, STICKER_COSTS
+from config import INITIAL_COINS, BONUS_COINS, COIN_PACKAGES_CONFIG, STICKER_COSTS, sdk
 
 coin_bp = Blueprint('coin', __name__)
 
@@ -23,6 +25,171 @@ def sanitize_dynamodb_response(data):
         return float(data)
     else:
         return data
+    
+@coin_bp.route('/get-coins', methods=['GET'])
+def get_coins():
+    """
+    Return current coin balance from the session or DB
+    """
+    user_id = session.get('user_id')
+    
+    if user_id:
+        # Get latest user data from DB
+        user = get_user(user_id)
+        if user:
+            # Update session with latest coins
+            session['coins'] = user.get('coins', 0)
+    
+    # Make sure coins is set in the session (for non-authenticated users)
+    if 'coins' not in session:
+        session['coins'] = INITIAL_COINS  # Default for non-authenticated users
+        
+        # Asegurarnos de que haya un session_id para visitantes anónimos
+        if not user_id and 'session_id' not in session:
+            session['session_id'] = str(uuid.uuid4())
+    
+    # Return current coin balance from session
+    return jsonify({"coins": session.get('coins', INITIAL_COINS)})
+
+@coin_bp.route('/update-coins', methods=['POST'])
+def update_coins():
+    """
+    Update coin balance in the session and DynamoDB if enabled
+    """
+    coins_update = request.json.get('coins', 0)
+    
+    if coins_update == 0:
+        return jsonify({"coins": session.get('coins', 0)})
+    
+    user_id = session.get('user_id')
+    
+    if user_id:
+        try:
+            # Determine transaction type based on whether we're adding or removing coins
+            transaction_type = 'usage' if coins_update < 0 else 'bonus'
+            
+            # Record transaction (which also updates the user's coins)
+            transaction = create_transaction(
+                user_id=user_id,
+                coins_amount=coins_update,
+                transaction_type=transaction_type,
+                details={'source': 'app', 'api_route': '/update-coins'}
+            )
+            
+            # Update session with latest coins
+            updated_user = transaction.get('updated_user', {})
+            if updated_user:
+                session['coins'] = updated_user.get('coins', 0)
+        except Exception as e:
+            print(f"Error updating coins in DynamoDB: {e}")
+            # Fall back to session-based coins
+            current_coins = session.get('coins', 0)
+            session['coins'] = max(0, current_coins + coins_update)
+    else:
+        # Visitante anónimo - asegurarnos de que tenga session_id
+        if not user_id and 'session_id' not in session:
+            session['session_id'] = str(uuid.uuid4())
+            
+        # Session-based coin handling for anonymous users
+        current_coins = session.get('coins', 0)
+        session['coins'] = max(0, current_coins + coins_update)
+        
+        # Log transaction for anonymous users
+        identifier = session.get('session_id') if not user_id else user_id
+        current_app.logger.info(f"Anonymous user (session_id: {identifier}) coin update: {coins_update}, new balance: {session['coins']}")
+    
+    return jsonify({"coins": session.get('coins', 0)})
+
+@coin_bp.route('/purchase-coins', methods=['POST'])
+def purchase_coins():
+    """
+    Procesa una solicitud de compra de monedas.
+    Requiere que el usuario esté autenticado y proporcione un package_id válido.
+    """
+    current_app.logger.info("--- /purchase-coins ---")
+
+    if not request.is_json:
+        current_app.logger.error("Request is not JSON")
+        return jsonify({"error": "Request must be JSON"}), 400
+    
+    data = request.json
+    
+    user_id = session.get('user_id')
+
+    if not user_id:
+        current_app.logger.error("No user_id in session, se requiere autenticación para comprar monedas")
+        return jsonify({"error": "Debes iniciar sesión para comprar monedas"}), 401
+    
+    # Coin Package Purchase (Initiate Mercado Pago payment)
+    package_id = data.get('package_id')
+    current_app.logger.info(f"Solicitud de compra de monedas iniciada para package_id: {package_id} por usuario: {user_id}")
+
+    if not package_id or package_id not in COIN_PACKAGES_CONFIG:
+        current_app.logger.error(f"Invalid or missing package_id: {package_id}")
+        return jsonify({"error": "Paquete de monedas inválido o no especificado"}), 400
+
+    package_info = COIN_PACKAGES_CONFIG[package_id]
+    
+    payer_info = {}
+    
+    # Obtener información del usuario de la base de datos
+    db_user = get_user(user_id)
+    if not db_user:
+        current_app.logger.error(f"Usuario {user_id} no encontrado en la base de datos")
+        return jsonify({"error": "Error al recuperar datos del usuario"}), 400
+        
+    payer_info['email'] = db_user.get('email', '')
+    if db_user.get('name'):
+        payer_info['name'] = db_user.get('name')
+
+    if not sdk:
+        current_app.logger.error("Mercado Pago SDK not configured for coin purchase")
+        return jsonify({"error": "El sistema de pagos no está configurado correctamente"}), 500
+
+    try:
+        timestamp = int(time.time())
+        # External reference: Type_UserID_PackageID_Coins_Timestamp
+        external_reference = f"COINPKG_{user_id}_{package_id}_{package_info['coins']}_{timestamp}"
+
+        preference_data = {
+            "items": [{
+                "title": package_info['name'],
+                "description": f"{package_info['coins']} monedas virtuales para TheStickerHouse",
+                "quantity": 1,
+                "unit_price": package_info['price'],
+                "currency_id": package_info['currency_id']
+            }],
+            "payer": payer_info,
+            "back_urls": {
+                "success": url_for('payment.coin_payment_feedback', _external=True, _scheme='https'),
+                "failure": url_for('payment.coin_payment_feedback', _external=True, _scheme='https'),
+                "pending": url_for('payment.coin_payment_feedback', _external=True, _scheme='https')
+            },
+            "auto_return": "approved",
+            "external_reference": external_reference,
+            "notification_url": url_for('payment.webhook', _external=True, _scheme='https')
+        }
+        
+        current_app.logger.info(f"Creando preferencia de Mercado Pago. Ref: {external_reference}")
+        preference_response = sdk.preference().create(preference_data)
+
+        if preference_response and isinstance(preference_response, dict) and \
+            preference_response.get("status") in [200, 201] and \
+            preference_response.get("response") and "id" in preference_response["response"]:
+            preference_id = preference_response["response"]["id"]
+            current_app.logger.info(f"Preferencia creada exitosamente con ID: {preference_id}")
+            return jsonify({"preference_id": preference_id})
+        else:
+            error_message = "Error al crear la preferencia de pago con Mercado Pago"
+            if preference_response and isinstance(preference_response, dict) and preference_response.get("response"):
+                error_message = preference_response["response"].get("message", error_message)
+            elif preference_response and isinstance(preference_response, dict) and preference_response.get("message"):
+                error_message = preference_response.get("message", error_message)
+            current_app.logger.error(f"Error en creación de preferencia: {error_message}")
+            return jsonify({"error": error_message}), 500
+    except Exception as e:
+        current_app.logger.error(f"Excepción creando preferencia de pago: {str(e)}", exc_info=True)
+        return jsonify({"error": f"Error crítico al procesar el pago: {str(e)}"}), 500
 
 @coin_bp.route('/api/coins/balance', methods=['GET'])
 def get_coin_balance():
@@ -58,7 +225,7 @@ def get_coin_balance():
     })
 
 @coin_bp.route('/api/coins/purchase', methods=['POST'])
-def purchase_coins():
+def purchase_coins_api():
     """
     Process a coin purchase
     """

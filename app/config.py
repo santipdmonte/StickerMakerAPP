@@ -3,6 +3,7 @@ import json
 from datetime import timedelta
 from decimal import Decimal
 from dotenv import load_dotenv
+import mercadopago 
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +23,13 @@ COIN_PACKAGES_CONFIG = {
     'small': {'name': 'Paquete Pequeño de Monedas', 'coins': 100, 'price': 1000.00, 'currency_id': 'ARS'},
     'medium': {'name': 'Paquete Mediano de Monedas', 'coins': 300, 'price': 1699.00, 'currency_id': 'ARS'},
     'large': {'name': 'Paquete Grande de Monedas', 'coins': 500, 'price': 1997.00, 'currency_id': 'ARS'}
+}
+
+STICKER_STYLE_CONFIG = {
+    'Parche de hilo': 'Diseño estilo parche de hilo bordado con textura de bordado, relieve, y aspecto artesanal.',
+    'Origami': 'Diseño estilo origami con pliegues de papel visibles, aspecto geométrico y texturas de papel doblado.',
+    'Metalico': 'Diseño estilo metálico con acabado brillante, reflejos metálicos, aspecto de acero o aluminio pulido.',
+    'Papel': 'Diseño estilo recorte de papel con textura de papel, sombras sutiles y aspecto artesanal de papel.'
 }
 
 # Coin configuration from environment variables
@@ -73,6 +81,13 @@ DYNAMODB_TRANSACTION_TABLE = os.getenv('DYNAMODB_TRANSACTION_TABLE', 'test-thest
 # Mercado Pago configuration
 MP_ACCESS_TOKEN = os.getenv("PROD_ACCESS_TOKEN")
 MP_PUBLIC_KEY = os.getenv('MP_PUBLIC_KEY', '')
+
+# Configure Mercado Pago SDK
+if not MP_ACCESS_TOKEN:
+    print("Error: PROD_ACCESS_TOKEN not found in .env file.")
+    # Handle the error appropriately, maybe raise an exception or use a default test token
+    # For demonstration, let's allow it to continue but it won't work without a token
+sdk = mercadopago.SDK(MP_ACCESS_TOKEN) if MP_ACCESS_TOKEN else None
 
 # S3 configuration
 USE_S3 = os.getenv('USE_S3', 'True')

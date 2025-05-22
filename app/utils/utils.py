@@ -8,13 +8,13 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
-from s3_utils import upload_file_to_s3, upload_bytes_to_s3, S3_STICKERS_FOLDER, S3_TEMPLATES_FOLDER
+from utils.s3_utils import upload_file_to_s3, upload_bytes_to_s3, S3_STICKERS_FOLDER, S3_TEMPLATES_FOLDER
 from datetime import datetime
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
-def save_image(result, img_path, use_s3=True):
+def save_image(result, img_path):
     """
     Process image and upload exclusively to S3 in two resolutions:
     1. Original high resolution (1024x1024)
@@ -23,10 +23,9 @@ def save_image(result, img_path, use_s3=True):
     Args:
         result: The image generation result with b64_json data
         img_path: Path used only for filename reference, file not saved locally
-        use_s3: Parameter kept for backward compatibility, ignored (always True)
         
     Returns:
-        tuple: (image_base64, s3_url, high_res_s3_url)
+        tuple: (image_base64, s3_url, s3_url_high_res)
     """
     image_base64 = result.data[0].b64_json
     image_bytes = base64.b64decode(image_base64)
@@ -52,7 +51,7 @@ def save_image(result, img_path, use_s3=True):
     )
     
     if success_high:
-        high_res_s3_url = result_high
+        s3_url_high_res = result_high
         logger.info(f"Successfully uploaded high resolution image to S3: {high_res_filename}")
     else:
         error_msg = f"Failed to upload high resolution image to S3: {result_high}"
@@ -83,7 +82,7 @@ def save_image(result, img_path, use_s3=True):
         logger.error(error_msg)
         raise RuntimeError(error_msg)
     
-    return image_base64, s3_url, high_res_s3_url
+    return image_base64, s3_url, s3_url_high_res
 
 
 def create_placeholder_image(img_path, use_s3=True):

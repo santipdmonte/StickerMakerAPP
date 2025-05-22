@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, session
 import json
 from decimal import Decimal
 from datetime import datetime
-from dynamodb_utils import (
+from utils.dynamodb_utils import (
     create_user, 
     get_user, 
     get_user_by_email, 
@@ -12,7 +12,7 @@ from dynamodb_utils import (
     create_transaction,
     get_user_transactions
 )
-from utils import send_login_email
+from utils.utils import send_login_email
 from config import INITIAL_COINS, BONUS_COINS
 
 auth_bp = Blueprint('auth', __name__)
