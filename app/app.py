@@ -47,6 +47,7 @@ from dynamodb_utils import (
 from routes.auth_routes import auth_bp
 from routes.coin_routes import coin_bp
 from routes.payment_routes import payment_bp
+from routes.template_routes import template_bp
 
 app = Flask(__name__)
 # Configure Flask from configuration
@@ -67,6 +68,7 @@ app.config['SESSION_REFRESH_EACH_REQUEST'] = SESSION_REFRESH_EACH_REQUEST
 app.register_blueprint(auth_bp)
 app.register_blueprint(coin_bp)
 app.register_blueprint(payment_bp)
+app.register_blueprint(template_bp)
 
 # Set session to be permanent by default before any request
 @app.before_request
@@ -145,7 +147,7 @@ def index():
     
     # Initialize empty template if not exists in session
     if 'template_stickers' not in session:
-        session['template_stickers'] = [{'filename': 'hat.png', 'quantity': 1}]
+        session['template_stickers'] = []
     
     # Initialize coins for new sessions without authentication
     if 'coins' not in session:
@@ -274,106 +276,6 @@ def generate():
     except Exception as e:
         app.logger.error(f"Error during sticker generation for user {user_id}: {str(e)}", exc_info=True)
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
-
-@app.route('/add-to-template', methods=['POST'])
-def add_to_template():
-    data = request.json
-    filename = data.get('filename', '')
-    quantity = data.get('quantity', 1)  # Default quantity is 1
-    
-    if not filename:
-        return jsonify({"error": "No sticker provided"}), 400
-    
-    # Get current template stickers from session
-    template_stickers = session.get('template_stickers', [])
-    
-    # Check if sticker already exists in template
-    existing_index = next((i for i, sticker in enumerate(template_stickers) 
-                         if isinstance(sticker, dict) and sticker.get('filename') == filename), None)
-    
-    if existing_index is not None:
-        # Update existing sticker quantity
-        template_stickers[existing_index]['quantity'] += quantity
-    else:
-        # Add the new sticker to the template with quantity
-        template_stickers.append({
-            'filename': filename,
-            'quantity': quantity
-        })
-    
-    # Update session
-    session['template_stickers'] = template_stickers
-    
-    return jsonify({
-        "success": True, 
-        "template_stickers": template_stickers
-    })
-
-@app.route('/update-quantity', methods=['POST'])
-def update_quantity():
-    data = request.json
-    filename = data.get('filename', '')
-    quantity = data.get('quantity', 1)
-    
-    if not filename:
-        return jsonify({"error": "No sticker specified for update"}), 400
-    
-    # Get current template stickers from session
-    template_stickers = session.get('template_stickers', [])
-    
-    # Find the sticker and update quantity
-    for sticker in template_stickers:
-        if isinstance(sticker, dict) and sticker.get('filename') == filename:
-            sticker['quantity'] = max(1, quantity)  # Ensure quantity is at least 1
-            break
-    
-    # Update session
-    session['template_stickers'] = template_stickers
-    
-    return jsonify({
-        "success": True, 
-        "template_stickers": template_stickers
-    })
-
-@app.route('/get-template', methods=['GET'])
-def get_template():
-    template_stickers = session.get('template_stickers', [])
-    return jsonify({
-        "template_stickers": template_stickers
-    })
-
-@app.route('/remove-from-template', methods=['POST'])
-def remove_from_template():
-    data = request.json
-    filename = data.get('filename', '')
-    
-    if not filename:
-        return jsonify({"error": "No sticker specified for removal"}), 400
-    
-    # Get current template stickers from session
-    template_stickers = session.get('template_stickers', [])
-    
-    # Remove the sticker if it exists in the template
-    template_stickers = [s for s in template_stickers 
-                        if not (isinstance(s, dict) and s.get('filename') == filename)]
-    
-    # Update session
-    session['template_stickers'] = template_stickers
-    
-    return jsonify({
-        "success": True, 
-        "template_stickers": template_stickers
-    })
-
-@app.route('/clear-template', methods=['POST'])
-def clear_template():
-    # Reset template to only include the default hat sticker
-    session['template_stickers'] = [{'filename': 'hat.png', 'quantity': 1}]
-    
-    return jsonify({
-        "success": True,
-        "template_stickers": session['template_stickers']
-    })
 
 
 @app.route('/get-history', methods=['GET'])
