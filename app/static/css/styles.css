@@ -2764,7 +2764,7 @@ body.modal-open {
 }
 
 .quality-options.quality-high::after {
-    left: calc(5px + 66.66%); /* Position for High */
+    left: calc(100% - 33.33% - 5px);
 }
 
 .quality-options input[type="radio"]:nth-of-type(1):checked ~ label:nth-of-type(1) {
