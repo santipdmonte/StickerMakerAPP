@@ -1426,7 +1426,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Backend now handles coin deduction. Refresh local coin display.
                     loadCoins(); 
                     
-                    resultsSection.scrollIntoView({ behavior: 'smooth' });
                     if (hasReferenceImage) {
                         showSuccess('¡Sticker generado con imagen de referencia!');
                     } else {
