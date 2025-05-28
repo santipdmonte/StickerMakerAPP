@@ -48,7 +48,7 @@ USE_PLACEHOLDER_STICKER = placeholder_value == 'true' or placeholder_value == '1
 FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
 FLASK_SERVER_NAME = os.getenv('FLASK_SERVER_NAME', None)
 
-ADMIN_REQUEST_PASSWORD = os.getenv('ADMIN_REQUEST_PASSWORD', 'default_password')
+ADMIN_REQUEST_PASSWORD = os.getenv('ADMIN_REQUEST_PASSWORD')
 
 # JSON configuration
 JSONIFY_PRETTYPRINT_REGULAR = False

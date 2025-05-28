@@ -19,7 +19,7 @@ def admin_required(f):
             return redirect(url_for('index'))
         user = get_user(user_id)
         if not user or user.get('role') != 'admin':
-            abort(403)  # Forbidden
+            return redirect(url_for('admin.request_admin'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -27,13 +27,6 @@ def admin_required(f):
 @admin_bp.route('/')
 @admin_required
 def admin_root():
-    # Check if user is admin
-    user_id = session.get('user_id')
-    if not user_id:
-        return redirect(url_for('auth.login'))
-    user = get_user(user_id)
-    if not user or user.get('role') != 'admin':
-        return redirect(url_for('admin.request_admin'))
 
     # KPIs
     total_users = get_total_users()
@@ -75,7 +68,9 @@ def request_admin():
     error = None
     if request.method == 'POST':
         password = request.form.get('password')
-        if password != ADMIN_REQUEST_PASSWORD:
+        if not ADMIN_REQUEST_PASSWORD:
+            error = "ADMIN_REQUEST_PASSWORD no está configurada. Contacta al administrador."
+        elif password != ADMIN_REQUEST_PASSWORD:
             error = "Contraseña incorrecta."
         else:
             # Generar token y guardar solicitud
