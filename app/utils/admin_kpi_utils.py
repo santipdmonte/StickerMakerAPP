@@ -81,4 +81,25 @@ def get_recent_admin_requests(limit=5):
     )
     # Ordenar por fecha descendente y limitar
     items = sorted(response.get('Items', []), key=lambda x: x.get('created_at', 0), reverse=True)
-    return items[:limit] 
+    return items[:limit]
+
+def get_paid_users(days=30):
+    """
+    Cuenta la cantidad de usuarios únicos que compraron monedas en los últimos X días.
+    """
+    dynamodb = get_dynamodb_resource()
+    table = dynamodb.Table(TRANSACTION_TABLE)
+    since = int(time.time()) - days * 86400
+    response = table.scan(
+        FilterExpression='transaction_type = :coin_purchase AND #timestamp >= :since',
+        ExpressionAttributeNames={'#timestamp': 'timestamp'},
+        ExpressionAttributeValues={
+            ':coin_purchase': 'coin_purchase_mp',
+            ':since': since
+        }
+    )
+    user_ids = set()
+    for item in response.get('Items', []):
+        if 'user_id' in item:
+            user_ids.add(item['user_id'])
+    return len(user_ids) 

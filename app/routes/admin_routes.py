@@ -5,7 +5,7 @@ from config import ADMIN_REQUEST_PASSWORD
 from utils.utils import send_admin_request_email, format_timestamp
 from utils.admin_kpi_utils import (
     get_total_users, get_new_users, get_active_users, get_total_transactions,
-    get_total_revenue, get_average_order_value, get_recent_admin_requests
+    get_total_revenue, get_average_order_value, get_recent_admin_requests, get_paid_users
 )
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -43,6 +43,7 @@ def admin_root():
     total_revenue = get_total_revenue()
     avg_order_value = get_average_order_value()
     recent_admin_requests = get_recent_admin_requests(5)
+    paid_users = get_paid_users(30)
 
     # Formatear fechas
     for req in recent_admin_requests:
@@ -56,6 +57,7 @@ def admin_root():
         total_transactions=total_transactions,
         total_revenue=total_revenue,
         avg_order_value=avg_order_value,
+        paid_users=paid_users,
         recent_admin_requests=recent_admin_requests
     )
 
