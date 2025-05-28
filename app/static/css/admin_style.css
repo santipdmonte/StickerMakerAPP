@@ -1,0 +1,135 @@
+:root {
+    --primary-color: #7c5dfa;
+    --secondary-color: #9277ff;
+    --accent-color: #ff6b9b;
+    --text-color: #252b42;
+    --bg-color: #f8fafc;
+    --card-bg: #fff;
+    --card-shadow: 0 8px 32px rgba(124, 93, 250, 0.10);
+    --border-radius: 18px;
+    --input-border: #e4e8f0;
+    --transition: all 0.3s cubic-bezier(.4,0,.2,1);
+    --kpi-shadow: 0 2px 12px rgba(124, 93, 250, 0.10);
+    --kpi-hover: #f3f0ff;
+    --table-row-alt: #f8f6ff;
+    --status-pending: #ffb347;
+    --status-approved: #4ade80;
+}
+
+body {
+    background: linear-gradient(135deg, #f0f4ff 0%, #f8fafc 100%);
+}
+
+.admin-dashboard-container {
+    max-width: 1200px;
+    margin: 40px auto;
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    padding: 48px 36px 36px 36px;
+}
+
+.admin-kpi-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    margin-bottom: 48px;
+    justify-content: space-between;
+}
+
+.admin-kpi-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--kpi-shadow);
+    padding: 32px 36px;
+    min-width: 200px;
+    flex: 1 1 200px;
+    text-align: center;
+    border: 2px solid var(--primary-color);
+    transition: var(--transition);
+    cursor: pointer;
+}
+.admin-kpi-card:hover {
+    background: var(--kpi-hover);
+    box-shadow: 0 6px 24px rgba(124, 93, 250, 0.18);
+    border-color: var(--secondary-color);
+}
+
+.admin-kpi-title {
+    font-size: 1.15em;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.admin-kpi-value {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: var(--text-color);
+    margin-bottom: 2px;
+    letter-spacing: -1px;
+}
+
+.admin-requests-section {
+    margin-top: 48px;
+}
+
+.admin-requests-section h2 {
+    color: var(--primary-color);
+    font-size: 1.5em;
+    margin-bottom: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+.admin-requests-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(124, 93, 250, 0.08);
+}
+
+.admin-requests-table th, .admin-requests-table td {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--input-border);
+    text-align: left;
+}
+
+.admin-requests-table th {
+    background: var(--primary-color);
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.05em;
+    letter-spacing: 0.5px;
+}
+
+.admin-requests-table tr:nth-child(even) td {
+    background: var(--table-row-alt);
+}
+
+.admin-requests-table tr:last-child td {
+    border-bottom: none;
+}
+
+.status-pending {
+    color: var(--status-pending);
+    font-weight: 600;
+}
+.status-approved {
+    color: var(--status-approved);
+    font-weight: 600;
+}
+
+@media (max-width: 900px) {
+    .admin-kpi-row {
+        flex-direction: column;
+        gap: 18px;
+    }
+    .admin-dashboard-container {
+        padding: 18px 6px;
+    }
+} 

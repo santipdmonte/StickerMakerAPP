@@ -2,7 +2,7 @@ from flask import Blueprint, request, session, redirect, url_for, render_templat
 from utils.dynamodb_utils import get_user, create_admin_request, get_admin_request, approve_admin_request, update_user_role
 from functools import wraps
 from config import ADMIN_REQUEST_PASSWORD
-from utils.utils import send_admin_request_email
+from utils.utils import send_admin_request_email, format_timestamp
 from utils.admin_kpi_utils import (
     get_total_users, get_new_users, get_active_users, get_total_transactions,
     get_total_revenue, get_average_order_value, get_recent_admin_requests
@@ -43,6 +43,10 @@ def admin_root():
     total_revenue = get_total_revenue()
     avg_order_value = get_average_order_value()
     recent_admin_requests = get_recent_admin_requests(5)
+
+    # Formatear fechas
+    for req in recent_admin_requests:
+        req['created_at_str'] = format_timestamp(req.get('created_at'))
 
     return render_template(
         'admin/admin.html',

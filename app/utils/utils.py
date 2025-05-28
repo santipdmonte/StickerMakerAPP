@@ -431,3 +431,14 @@ def send_admin_request_email(user_email, validation_url):
     except Exception as e:
         logger.error(f"Error sending admin request email: {e}")
         return False
+
+
+def format_timestamp(ts):
+    """
+    Convierte un timestamp (int, float o str) a una fecha legible (YYYY-MM-DD HH:MM).
+    Si no es válido, retorna el valor original como string.
+    """
+    try:
+        return datetime.fromtimestamp(int(ts)).strftime('%Y-%m-%d %H:%M')
+    except Exception:
+        return str(ts)
