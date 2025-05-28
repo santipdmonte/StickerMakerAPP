@@ -9,12 +9,13 @@ from datetime import datetime
 from config import (
     INITIAL_COINS, BONUS_COINS,
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
-    DYNAMODB_USER_TABLE, DYNAMODB_TRANSACTION_TABLE
+    DYNAMODB_USER_TABLE, DYNAMODB_TRANSACTION_TABLE, DYNAMODB_REQUEST_TABLE
 )
 
 # Define table variables from config
 USER_TABLE = DYNAMODB_USER_TABLE
 TRANSACTION_TABLE = DYNAMODB_TRANSACTION_TABLE
+ADMIN_REQUEST_TABLE = DYNAMODB_REQUEST_TABLE
 
 # Function to check if table is ready (not in CREATING or UPDATING state)
 def is_table_ready(table_name):
@@ -150,8 +151,6 @@ def ensure_tables_exist():
     Ensures that the DynamoDB tables exist, creates them if they don't.
     """
     dynamodb = get_dynamodb_resource()
-    
-    # Check if tables exist
     existing_tables = dynamodb.meta.client.list_tables()['TableNames']
     
     # Create user table if it doesn't exist
@@ -294,8 +293,25 @@ def ensure_tables_exist():
         except Exception as e:
             print(f"Error checking/updating PaymentIdIndex: {e}")
 
+    # Tabla de solicitudes de admin
+    if ADMIN_REQUEST_TABLE not in existing_tables:
+        dynamodb.create_table(
+            TableName=ADMIN_REQUEST_TABLE,
+            KeySchema=[
+                {'AttributeName': 'token', 'KeyType': 'HASH'},
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'token', 'AttributeType': 'S'},
+            ],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 5,
+                'WriteCapacityUnits': 5
+            }
+        )
+        print(f"Created table {ADMIN_REQUEST_TABLE}")
+
 # User Management Functions
-def create_user(email, initial_coins=None, name=None):
+def create_user(email, initial_coins=None, name=None, role='user', referral=None):
     """
     Create a new user with the provided email.
     
@@ -303,6 +319,8 @@ def create_user(email, initial_coins=None, name=None):
         email (str): User's email address
         initial_coins (int): Initial number of coins to assign (defaults to BONUS_COINS env var)
         name (str): User's name
+        role (str): User role (default 'user')
+        referral (str): Referral code or source (optional)
         
     Returns:
         dict: User data including user_id
@@ -329,12 +347,17 @@ def create_user(email, initial_coins=None, name=None):
         'coins': initial_coins,
         'created_at': timestamp,
         'updated_at': timestamp,
-        'last_login': timestamp
+        'last_login': timestamp,
+        'role': role,
+        'status': 'active',
+        'referral': referral
     }
     
-    # Add name if provided
+    # Add optional fields if provided
     if name:
         user_data['name'] = name
+    if referral:
+        user_data['referral'] = referral
     
     table.put_item(Item=user_data)
     return user_data
@@ -667,4 +690,48 @@ def get_transaction_by_payment_id(payment_id):
         return None
     except Exception as e:
         print(f"Error querying transaction by payment_id: {e}")
-        return None 
+        return None
+
+# Admin Functions
+def create_admin_request(user_id, email):
+    token = str(uuid.uuid4())
+    timestamp = int(time.time())
+    item = {
+        'token': token,
+        'user_id': user_id,
+        'email': email,
+        'created_at': timestamp,
+        'status': 'pending'
+    }
+    dynamodb = get_dynamodb_resource()
+    table = dynamodb.Table(ADMIN_REQUEST_TABLE)
+    table.put_item(Item=item)
+    return token
+
+def get_admin_request(token):
+    dynamodb = get_dynamodb_resource()
+    table = dynamodb.Table(ADMIN_REQUEST_TABLE)
+    response = table.get_item(Key={'token': token})
+    return response.get('Item')
+
+def approve_admin_request(token):
+    dynamodb = get_dynamodb_resource()
+    table = dynamodb.Table(ADMIN_REQUEST_TABLE)
+    table.update_item(
+        Key={'token': token},
+        UpdateExpression='SET #s = :s',
+        ExpressionAttributeNames={'#s': 'status'},
+        ExpressionAttributeValues={':s': 'approved'}
+    )
+
+def update_user_role(user_id, new_role):
+    dynamodb = get_dynamodb_resource()
+    table = dynamodb.Table(USER_TABLE)
+    response = table.update_item(
+        Key={'user_id': user_id},
+        UpdateExpression='SET #r = :role',
+        ExpressionAttributeNames={'#r': 'role'},
+        ExpressionAttributeValues={':role': new_role},
+        ReturnValues='ALL_NEW'
+    )
+    return response.get('Attributes') 

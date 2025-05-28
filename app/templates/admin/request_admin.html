@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Solicitar acceso de administrador</title>
+</head>
+<body>
+    <h2>Solicitar acceso de administrador</h2>
+    {% if error %}
+        <p style="color:red;">{{ error }}</p>
+    {% endif %}
+    <form method="post">
+        <label for="password">Contraseña especial:</label>
+        <input type="password" name="password" id="password" required>
+        <button type="submit">Solicitar acceso</button>
+    </form>
+</body>
+</html> 

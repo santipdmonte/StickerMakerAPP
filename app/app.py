@@ -39,6 +39,7 @@ from routes.coin_routes import coin_bp
 from routes.payment_routes import payment_bp
 from routes.template_routes import template_bp
 from routes.s3_routes import s3_bp
+from routes.admin_routes import admin_bp
 
 app = Flask(__name__)
 # Configure Flask from configuration
@@ -61,6 +62,7 @@ app.register_blueprint(coin_bp)
 app.register_blueprint(payment_bp)
 app.register_blueprint(template_bp)
 app.register_blueprint(s3_bp)
+app.register_blueprint(admin_bp)
 
 # Set session to be permanent by default before any request
 @app.before_request
@@ -221,18 +223,23 @@ def generate():
             )
         
         if is_logged_in:
+            details = {
+                'prompt': prompt,
+                'quality': quality,
+                'mode': mode,
+                'style': style or 'default',
+                'filename': filename,
+                'cost': actual_sticker_cost,
+                'included_image': bool(reference_image_data),
+                'image_url': s3_url if reference_image_data else '',
+                'used_style': bool(style),
+                'style_description': style if style else ''
+            }
             create_transaction(
                 user_id=user_id,
                 coins_amount=-actual_sticker_cost,
                 transaction_type='usage',
-                details={
-                    'prompt': prompt, 
-                    'quality': quality, 
-                    'mode': mode,
-                    'style': style or 'default',
-                    'filename': filename,
-                    'cost': actual_sticker_cost
-                }
+                details=details
             )
             user_after_deduction = get_user(user_id)
             if user_after_deduction:

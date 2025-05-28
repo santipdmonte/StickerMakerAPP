@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/static/css/admin_style.css">
+</head>
+<body>
+    <div class="admin-dashboard-container">
+        <h1 style="background: linear-gradient(45deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; background-clip: text; color: transparent; font-size: 2.5rem; margin-bottom: 32px; letter-spacing: -1px;">Admin Dashboard</h1>
+        <div class="admin-kpi-row">
+            <div class="admin-kpi-card">
+                <div class="admin-kpi-title">Total Users</div>
+                <div class="admin-kpi-value">{{ total_users }}</div>
+            </div>
+            <div class="admin-kpi-card">
+                <div class="admin-kpi-title">New Users (7d)</div>
+                <div class="admin-kpi-value">{{ new_users }}</div>
+            </div>
+            <div class="admin-kpi-card">
+                <div class="admin-kpi-title">Active Users (24h)</div>
+                <div class="admin-kpi-value">{{ active_users }}</div>
+            </div>
+            <div class="admin-kpi-card">
+                <div class="admin-kpi-title">Paid Users (30d)</div>
+                <div class="admin-kpi-value">{{ paid_users }}</div>
+            </div>
+            <div class="admin-kpi-card">
+                <div class="admin-kpi-title">Total Transactions</div>
+                <div class="admin-kpi-value">{{ total_transactions }}</div>
+            </div>
+            <div class="admin-kpi-card">
+                <div class="admin-kpi-title">Total Revenue</div>
+                <div class="admin-kpi-value">{{ total_revenue }}</div>
+            </div>
+            <div class="admin-kpi-card">
+                <div class="admin-kpi-title">Avg. Order Value</div>
+                <div class="admin-kpi-value">{{ avg_order_value|round(2) }}</div>
+            </div>
+        </div>
+
+        <div class="admin-requests-section">
+            <h2>Recent Admin Requests</h2>
+            {% if recent_admin_requests and recent_admin_requests|length > 0 %}
+            <table class="admin-requests-table">
+                <tr>
+                    <th>Email</th>
+                    <th>Requested At</th>
+                    <th>Status</th>
+                </tr>
+                {% for req in recent_admin_requests %}
+                <tr>
+                    <td>{{ req.email }}</td>
+                    <td>{{ req.created_at_str }}</td>
+                    <td class="status-{{ req.status }}">{{ req.status }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+                <p>No pending admin requests.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html> 

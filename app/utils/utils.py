@@ -382,3 +382,63 @@ def send_login_email(email, pin, name=None):
     except Exception as e:
         print(f"Error sending email: {str(e)}")
         raise
+
+
+def send_admin_request_email(user_email, validation_url):
+    """
+    Envía un correo al superadmin para validar la solicitud de admin de un usuario.
+    Args:
+        user_email (str): Email del usuario que solicita admin
+        validation_url (str): URL de validación para el superadmin
+    Returns:
+        bool: True si el correo se envió correctamente, False en caso contrario
+    """
+    try:
+        smtp_user = os.getenv('SMTP_USER')
+        if not smtp_user:
+            logger.error("SMTP_USER not found in environment variables")
+            return False
+        sender_email = smtp_user
+        receivers = ["santiagopedemonte02@gmail.com"]
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = ", ".join(receivers)
+        msg['Subject'] = "Solicitud de admin - The Sticker House"
+        body = f"""
+        <html>
+        <body>
+            <h2>Solicitud de admin</h2>
+            <p>El usuario <strong>{user_email}</strong> solicita ser administrador.</p>
+            <p>Para aprobar la solicitud, haz clic en el siguiente enlace:</p>
+            <p><a href='{validation_url}' target='_blank'>Aprobar solicitud de admin</a></p>
+            <p>Si no reconoces esta solicitud, ignora este correo.</p>
+        </body>
+        </html>
+        """
+        msg.attach(MIMEText(body, 'html'))
+        smtp_server = os.getenv('SMTP_SERVER')
+        smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        smtp_password = os.getenv('SMTP_PASSWORD')
+        if not smtp_server or not smtp_user or not smtp_password:
+            logger.error("SMTP credentials not found in environment variables")
+            return False
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        logger.error(f"Error sending admin request email: {e}")
+        return False
+
+
+def format_timestamp(ts):
+    """
+    Convierte un timestamp (int, float o str) a una fecha legible (YYYY-MM-DD HH:MM).
+    Si no es válido, retorna el valor original como string.
+    """
+    try:
+        return datetime.fromtimestamp(int(ts)).strftime('%Y-%m-%d %H:%M')
+    except Exception:
+        return str(ts)

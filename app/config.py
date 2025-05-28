@@ -48,6 +48,8 @@ USE_PLACEHOLDER_STICKER = placeholder_value == 'true' or placeholder_value == '1
 FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
 FLASK_SERVER_NAME = os.getenv('FLASK_SERVER_NAME', None)
 
+ADMIN_REQUEST_PASSWORD = os.getenv('ADMIN_REQUEST_PASSWORD')
+
 # JSON configuration
 JSONIFY_PRETTYPRINT_REGULAR = False
 
@@ -77,6 +79,7 @@ USE_DYNAMODB = os.getenv('USE_DYNAMODB', 'True').lower() == 'true'
 # DynamoDB table names
 DYNAMODB_USER_TABLE = os.getenv('DYNAMODB_USER_TABLE', 'test-thestickerhouse-users')
 DYNAMODB_TRANSACTION_TABLE = os.getenv('DYNAMODB_TRANSACTION_TABLE', 'test-thestickerhouse-transactions')
+DYNAMODB_REQUEST_TABLE = os.getenv('DYNAMODB_REQUEST_TABLE', 'test-thestickerhouse-admin-requests')
 
 # Mercado Pago configuration
 MP_ACCESS_TOKEN = os.getenv("PROD_ACCESS_TOKEN")
