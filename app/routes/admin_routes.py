@@ -3,6 +3,10 @@ from utils.dynamodb_utils import get_user, create_admin_request, get_admin_reque
 from functools import wraps
 from config import ADMIN_REQUEST_PASSWORD
 from utils.utils import send_admin_request_email
+from utils.admin_kpi_utils import (
+    get_total_users, get_new_users, get_active_users, get_total_transactions,
+    get_total_revenue, get_average_order_value, get_recent_admin_requests
+)
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -23,17 +27,33 @@ def admin_required(f):
 @admin_bp.route('/')
 @admin_required
 def admin_root():
-
     # Check if user is admin
     user_id = session.get('user_id')
     if not user_id:
-        return redirect(url_for('index'))
-    
+        return redirect(url_for('auth.login'))
     user = get_user(user_id)
     if not user or user.get('role') != 'admin':
         return redirect(url_for('admin.request_admin'))
 
-    return render_template('admin/admin.html')
+    # KPIs
+    total_users = get_total_users()
+    new_users = get_new_users(7)
+    active_users = get_active_users(1)
+    total_transactions = get_total_transactions()
+    total_revenue = get_total_revenue()
+    avg_order_value = get_average_order_value()
+    recent_admin_requests = get_recent_admin_requests(5)
+
+    return render_template(
+        'admin/admin.html',
+        total_users=total_users,
+        new_users=new_users,
+        active_users=active_users,
+        total_transactions=total_transactions,
+        total_revenue=total_revenue,
+        avg_order_value=avg_order_value,
+        recent_admin_requests=recent_admin_requests
+    )
 
 @admin_bp.route('/request', methods=['GET', 'POST'])
 def request_admin():
