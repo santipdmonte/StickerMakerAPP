@@ -223,18 +223,23 @@ def generate():
             )
         
         if is_logged_in:
+            details = {
+                'prompt': prompt,
+                'quality': quality,
+                'mode': mode,
+                'style': style or 'default',
+                'filename': filename,
+                'cost': actual_sticker_cost,
+                'included_image': bool(reference_image_data),
+                'image_url': s3_url if reference_image_data else '',
+                'used_style': bool(style),
+                'style_description': style if style else ''
+            }
             create_transaction(
                 user_id=user_id,
                 coins_amount=-actual_sticker_cost,
                 transaction_type='usage',
-                details={
-                    'prompt': prompt, 
-                    'quality': quality, 
-                    'mode': mode,
-                    'style': style or 'default',
-                    'filename': filename,
-                    'cost': actual_sticker_cost
-                }
+                details=details
             )
             user_after_deduction = get_user(user_id)
             if user_after_deduction:
