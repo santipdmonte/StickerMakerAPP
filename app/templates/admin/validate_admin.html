@@ -6,8 +6,12 @@
 <body>
     <h2>Validar solicitud de admin</h2>
     <p>Usuario: {{ req.email }}</p>
+    {% if success_message %}
+        <div style="color: green; font-weight: bold;">{{ success_message }}</div>
+    {% else %}
     <form method="post">
         <button type="submit">Aprobar como admin</button>
     </form>
+    {% endif %}
 </body>
 </html> 

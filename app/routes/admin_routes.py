@@ -92,6 +92,6 @@ def validate_admin(token):
         # Aprobar solicitud
         approve_admin_request(token)
         update_user_role(req['user_id'], 'admin')
-        flash("Usuario promovido a admin.", "success")
-        return redirect(url_for('admin.admin_dashboard'))
+        success_message = "Usuario promovido a admin."
+        return render_template('admin/validate_admin.html', req=req, success_message=success_message)
     return render_template('admin/validate_admin.html', req=req)
