@@ -2982,3 +2982,29 @@ body.modal-open {
         transform: rotate(360deg);
     }
 }
+
+@media (max-width: 768px) {
+  .template-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+  }
+  .template-actions .download-button {
+    grid-column: 1 / 2;
+    grid-row: 1;
+    width: 100%;
+  }
+  .template-actions .clear-button {
+    grid-column: 2 / 3;
+    grid-row: 1;
+    width: 100%;
+  }
+  .template-actions .buy-button {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    width: 100%;
+    min-width: unset;
+    margin-top: 5px;
+  }
+}
