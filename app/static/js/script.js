@@ -2034,6 +2034,29 @@ document.addEventListener('DOMContentLoaded', () => {
             packagesContainer.appendChild(packageElement);
         });
     }
+
+    function updateStickerQuantity(filename, quantity) {
+        fetch('/update-quantity', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ filename, quantity }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                templateStickers = data.template_stickers;
+                updateTemplateDisplay();
+            } else {
+                showError(data.error || 'Error updating quantity');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating sticker quantity:', error);
+            showError('Failed to update sticker quantity');
+        });
+    }
 });
 
 // Check if there's a pending coin package from a previous session
