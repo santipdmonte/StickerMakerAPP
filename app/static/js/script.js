@@ -750,7 +750,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.success) {
                     templateStickers = data.template_stickers;
                     updateTemplateDisplay();
-                    showSuccess('Sticker added to template');
+                    showSuccess('¡Sticker agregado a la plantilla!');
                     
                     // Scroll to template section
                     templateSection.scrollIntoView({ behavior: 'smooth' });
@@ -758,7 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(error => {
                 console.error('Error adding to template:', error);
-                showError('Failed to add sticker to template');
+                showError('No se pudo agregar el sticker a la plantilla.');
             });
     }
     
@@ -779,7 +779,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(error => {
                 console.error('Error removing from template:', error);
-                showError('Failed to remove sticker from template');
+                showError('No se pudo eliminar el sticker de la plantilla.');
             });
     }
     
@@ -795,18 +795,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.success) {
                     templateStickers = [];
                     updateTemplateDisplay();
-                    showSuccess('Template cleared');
+                    showSuccess('¡Plantilla vaciada!');
                 }
             })
             .catch(error => {
                 console.error('Error clearing template:', error);
-                showError('Failed to clear template');
+                showError('No se pudo vaciar la plantilla.');
             });
     }
     
     function downloadTemplateAsImage() {
         if (templateStickers.length === 0) {
-            showError('Template is empty. Add stickers first!');
+            showError('La plantilla está vacía. ¡Agregá stickers primero!');
             return;
         }
         
@@ -873,7 +873,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 downloadLink.click();
                 document.body.removeChild(downloadLink);
                 
-                showSuccess('Template downloaded');
+                showSuccess('¡Plantilla descargada!');
             }
         };
         
@@ -1753,7 +1753,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateCoinsDisplay();
                 
                 // Show a success message
-                showSuccess(`Coupon redeemed! ${data.coins_added} coins have been added to your account.`);
+                showSuccess(`¡Cupón canjeado! ${data.coins_added} monedas han sido agregadas a tu cuenta.`);
                 
                 // After a delay, close the modal
                 setTimeout(() => {
@@ -1764,7 +1764,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error validating coupon:', error);
-            showError('Error validating coupon. Please try again.');
+            showError('Error al validar el cupón. Por favor, intentá nuevamente.');
         } finally {
             // Re-enable the input and button
             coinsCouponDirectInput.disabled = false;
@@ -2060,7 +2060,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .catch(error => {
             console.error('Error updating sticker quantity:', error);
-            showError('Failed to update sticker quantity');
+            showError('No se pudo actualizar la cantidad del sticker.');
         });
     }
 
