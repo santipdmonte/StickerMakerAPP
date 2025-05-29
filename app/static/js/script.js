@@ -205,13 +205,19 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStyles();
     
     // Buy Stickers button click handler
-    buyStickersBtn.addEventListener('click', () => {
-        if (templateStickers.length === 0) {
-            showError('La plantilla está vacía. ¡Agregá stickers primero!');
-            return;
-        }
-        
-        handleBuyStickers();
+    buyStickersBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        showInfoToast('¡Envíos a toda Argentina muy pronto!');
+        // Optionally, you can also disable the button visually:
+        // buyStickersBtn.disabled = true;
+        // buyStickersBtn.classList.add('disabled');
+        return;
+        // If you want to re-enable the buy flow in the future, remove the return and the above lines.
+        // if (templateStickers.length === 0) {
+        //     showError('La plantilla está vacía. ¡Agregá stickers primero!');
+        //     return;
+        // }
+        // handleBuyStickers();
     });
     
     // Coins button click handler
@@ -2056,6 +2062,22 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error updating sticker quantity:', error);
             showError('Failed to update sticker quantity');
         });
+    }
+
+    // Utility function to show info toast
+    function showInfoToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'info-toast show';
+        toast.innerHTML = message;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (document.body.contains(toast)) {
+                    document.body.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
     }
 });
 
