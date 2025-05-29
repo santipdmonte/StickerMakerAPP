@@ -845,7 +845,8 @@ button i, .download-button i {
 }
 
 .template-actions .download-button,
-.template-actions .clear-button {
+.template-actions .clear-button,
+.template-actions .buy-button {
     height: 50px;
     min-width: 180px;
     padding: 0 22px;
@@ -862,6 +863,11 @@ button i, .download-button i {
 .template-actions .clear-button {
     background: linear-gradient(45deg, #9277ff, #b5a0ff);
     box-shadow: 0 8px 20px rgba(146, 119, 255, 0.2);
+}
+
+.template-actions .buy-button {
+    background: linear-gradient(45deg, #00b894, #00cec9);
+    box-shadow: 0 8px 20px rgba(0, 184, 148, 0.2);
 }
 
 .template-grid {
