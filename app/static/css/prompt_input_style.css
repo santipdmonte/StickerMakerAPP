@@ -15,7 +15,7 @@
 /* Nuevos estilos para la miniatura de imagen de referencia */
 .reference-image-thumbnail {
     position: absolute;
-    top: 16px;
+    bottom: 16px;
     left: 16px;
     width: 60px;
     height: 60px;
@@ -38,7 +38,7 @@
 
 /* Ajustes para el input con imagen de referencia visible */
 .reference-image-thumbnail:not(.hidden) + textarea {
-    padding-top: 90px;
+    padding-bottom: 75px;
     padding-left: 20px;
     min-height: 160px;
 }
@@ -211,14 +211,14 @@
     .reference-image-thumbnail {
         width: 48px;
         height: 48px;
-        top: 12px;
+        bottom: 12px;
         left: 12px;
     }
     
     .reference-image-thumbnail:not(.hidden) + textarea {
-        padding-top: 70px;
+        padding-bottom: 90px;
         padding-left: 16px;
-        min-height: 160px;
+        min-height: 100px;
     }
 
     .prompt-input-container::after {
