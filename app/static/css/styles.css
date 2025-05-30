@@ -2055,66 +2055,6 @@ body.modal-open {
     }
 }
 
-/* New styles for unified input interface */
-.prompt-input-container {
-    position: relative;
-    margin-top: 20px;
-}
-
-.reference-image-controls {
-    position: absolute;
-    bottom: 15px;
-    right: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
-    z-index: 10;
-}
-
-.styles-btn,
-.add-reference-btn {
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-    box-shadow: 0 4px 10px rgba(124, 93, 250, 0.25);
-    margin: 0;
-    cursor: pointer;
-    border: none;
-    transition: all 0.3s ease;
-}
-
-.styles-btn {
-    width: 40px;
-    min-width: 40px;
-    padding: 0;
-    border-radius: 50%;
-    white-space: nowrap;
-    overflow: hidden;
-    gap: 8px;
-    transition: all 0.3s ease;
-}
-
-.add-reference-btn {
-    width: 40px;
-    padding: 0;
-    border-radius: 50%;
-}
-
-.styles-btn i,
-.add-reference-btn i {
-    font-size: 1.5rem;
-    color: white;
-    margin: 0;
-}
-
-.styles-btn:hover,
-.add-reference-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 12px rgba(124, 93, 250, 0.35);
-}
 
 .reference-image-inline-preview {
     display: flex;
@@ -2145,132 +2085,6 @@ body.modal-open {
 .reference-image-inline-preview .remove-btn i {
     font-size: 1rem;
     margin: 0;
-}
-
-/* Media queries for mobile */
-@media (max-width: 768px) {
-    .reference-image-controls {
-        bottom: 10px;
-        right: 10px;
-    }
-    
-    .add-reference-btn {
-        width: 36px;
-        height: 36px;
-    }
-    
-    .add-reference-btn i {
-        font-size: 1.3rem;
-    }
-    
-    /* Fix the style button to be the same size as the add reference button */
-    .styles-btn, .styles-btn.has-style {
-        width: 36px;
-        min-width: 36px;
-        height: 36px;
-        padding: 0;
-        border-radius: 50%;
-    }
-    
-    .styles-btn.has-style .style-name {
-        display: none;
-    }
-}
-
-/* Nuevos estilos para la miniatura de imagen de referencia */
-.reference-image-thumbnail {
-    position: absolute;
-    top: 16px;
-    left: 16px;
-    width: 60px;
-    height: 60px;
-    border-radius: 6px;
-    overflow: visible;
-    z-index: 15;
-    background-color: #f0f4ff;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.reference-image-thumbnail img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 4px;
-}
-
-.remove-thumbnail-btn {
-    position: absolute;
-    top: -10px;
-    right: -10px;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background-color: #ff4757;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    margin: 0;
-    min-width: unset;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-    font-size: 0.8rem;
-    cursor: pointer;
-    z-index: 30;
-    border: 2px solid white;
-    transition: all 0.2s ease;
-}
-
-.remove-thumbnail-btn i {
-    font-size: 0.85rem;
-    margin: 0;
-    line-height: 1;
-}
-
-.remove-thumbnail-btn:hover {
-    background-color: #ff4757;
-    transform: scale(1.1);
-    color: white;
-    box-shadow: 0 2px 6px rgba(255, 71, 87, 0.4);
-}
-
-/* Estilos normales para el textarea (sin imagen) */
-.prompt-input-container textarea {
-    padding: 20px;
-    transition: all 0.3s ease;
-    min-height: 100px;
-    resize: none;
-}
-
-/* Ajustes para el input con imagen de referencia visible */
-.reference-image-thumbnail:not(.hidden) + textarea {
-    padding-top: 90px;
-    padding-left: 20px;
-    min-height: 160px;
-}
-
-@media (max-width: 768px) {
-    .prompt-input-container textarea {
-        padding: 15px;
-        min-height: 100px;
-        font-size: 0.9rem;
-    }
-    
-    .reference-image-thumbnail {
-        width: 48px;
-        height: 48px;
-        top: 12px;
-        left: 12px;
-    }
-    
-    .reference-image-thumbnail:not(.hidden) + textarea {
-        padding-top: 70px;
-        padding-left: 16px;
-        min-height: 160px;
-    }
 }
 
 /* Eliminamos los estilos anteriores que ya no necesitamos */
@@ -2313,16 +2127,6 @@ body.modal-open {
     justify-content: center;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     z-index: 30;
-}
-
-/* Hacer que la miniatura de referencia tenga un cursor de tipo pointer */
-.reference-image-thumbnail {
-    cursor: pointer;
-}
-
-.reference-image-thumbnail img:hover {
-    transform: scale(1.05);
-    transition: transform 0.2s ease;
 }
 
 /* Nuevo diseño del modal de la imagen maximizada */
@@ -2490,43 +2294,6 @@ body.modal-open {
     animation: spin 1s ease-in-out infinite;
 }
 
-/* Estilos para arrastrar y soltar */
-.prompt-input-container textarea.drag-over {
-    border-color: var(--primary-color);
-    background-color: rgba(124, 93, 250, 0.05);
-    box-shadow: 0 0 0 4px rgba(124, 93, 250, 0.15);
-}
-
-/* Mensaje de ayuda para indicar que se puede pegar o arrastrar imágenes */
-.prompt-input-container::after {
-    content: "";
-    display: none;
-}
-
-@media (max-width: 768px) {
-    .prompt-input-container::after {
-        display: none;
-    }
-}
-
-/* Estilos para el botón de estilos */
-.styles-btn {
-    margin-right: 0;
-}
-
-.styles-menu,
-.styles-menu.visible,
-.style-option,
-.style-option:last-child,
-.style-option:hover,
-.style-option.selected,
-.style-option-image,
-.style-option-info,
-.style-option-name,
-.style-option-description,
-.styles-btn i.small {
-    display: none;
-}
 
 .styles-modal-content {
     padding: 30px;
@@ -2712,29 +2479,6 @@ body.modal-open {
         padding: 6px 14px;
         font-size: 14px;
     }
-}
-
-.styles-btn .style-name {
-    color: white;
-    font-size: 14px;
-    font-weight: 500;
-    display: none;
-    opacity: 0;
-    transform: translateX(-10px);
-    transition: all 0.3s ease;
-}
-
-.styles-btn.has-style {
-    width: auto;
-    min-width: 150px;
-    padding: 0 15px;
-    border-radius: 20px;
-}
-
-.styles-btn.has-style .style-name {
-    display: block;
-    opacity: 1;
-    transform: translateX(0);
 }
 
 .styles-modal-content {
