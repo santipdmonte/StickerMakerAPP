@@ -216,10 +216,10 @@
     }
     
     .reference-image-thumbnail:not(.hidden) + textarea {
-        padding-bottom: 90px;
+        padding-bottom: 56px;
         padding-left: 16px;
-        min-height: 100px;
-    }
+        min-height: 150px;
+    } 
 
     .prompt-input-container::after {
         display: none;
@@ -251,7 +251,7 @@
     .styles-btn.has-style .style-name {
         display: none;
     }
-}
+} */
 
 /* Move reference image thumbnail to bottom left of input */
 /*
