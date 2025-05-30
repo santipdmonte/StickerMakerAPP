@@ -95,13 +95,6 @@
     line-height: 1;
 }
 
-.remove-thumbnail-btn:hover {
-    background-color: #ff4757;
-    transform: scale(1.1);
-    color: white;
-    box-shadow: 0 2px 6px rgba(255, 71, 87, 0.4);
-}
-
 .reference-image-controls {
     position: absolute;
     bottom: 15px;
