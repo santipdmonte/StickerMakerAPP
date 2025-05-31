@@ -14,6 +14,7 @@
     padding-right: 15px;
     -webkit-overflow-scrolling: touch; /* Mejora el scroll en iOS */
     scroll-snap-type: y mandatory;
+    padding-top: 25px;
 }
 
 .style-card {
