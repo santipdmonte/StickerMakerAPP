@@ -147,6 +147,20 @@
 }
 
 @media (max-width: 768px) {
+    #styles-selection-modal .modal-content,
+    .styles-modal-content {
+        max-height: 95vh;
+        overflow: hidden;
+        padding: 15px 8px 8px 8px !important;
+    }
+    #styles-selection-modal .styles-grid,
+    .styles-modal-content .styles-grid {
+        max-height: 70vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 10px;
+    }
+    
     .modal.visible {
         align-items: flex-start;
         padding-top: 15px;
