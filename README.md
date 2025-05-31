@@ -8,7 +8,7 @@
 ## ✨ Características
 
 - 🧠 Generación de stickers basada en texto (prompts)
-- 🖼️ Soporte para imágenes de entrada
+- 🖼️ Soporte para imágenes de entrada.
 - 🎨 Plantillas automáticas optimizadas para impresión
 - 📥 Exportación en formatos listos para imprimir (PNG, PDF)
 - 🛠️ Interfaz intuitiva para previsualizar y ajustar el diseño
