@@ -2854,3 +2854,8 @@ body.modal-open {
 #login-modal .form-group {
     margin-bottom: 18px;
 }
+
+.generate-btn-coins{
+    background: linear-gradient(45deg, #ffd700, #ffcc00);
+    color: #7c5c17;
+}

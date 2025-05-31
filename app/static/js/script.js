@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // UI Elements
     const promptInput = document.getElementById('prompt-input');
     const generateBtn = document.getElementById('generate-btn');
+    const buyCoinsGenerateBtn = document.getElementById('generate-btn-coins');
     const resultsSection = document.getElementById('results-section');
     const loadingSpinner = document.getElementById('loading-spinner');
     const stickerImage = document.getElementById('sticker-image');
@@ -260,6 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Coins button click handler
     buyCoinsHeaderBtn.addEventListener('click', showCoinsModal);
+    buyCoinsGenerateBtn.addEventListener('click', showCoinsModal);
     
     // Coins modal close button handler
     coinsModalCloseBtn.addEventListener('click', hideCoinsModal);
