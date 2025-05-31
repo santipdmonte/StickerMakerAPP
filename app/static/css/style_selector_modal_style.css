@@ -48,7 +48,7 @@
     object-fit: contain;
     padding: 15px 0px 10px 0px;
     background-color: transparent;
-    filter: drop-shadow(0 4px 16px rgba(80, 80, 120, 0.18));
+    filter: drop-shadow(0 6px 24px rgba(80, 80, 120, 0.28));
 }
 
 .style-card-info {
