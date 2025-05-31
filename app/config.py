@@ -20,9 +20,9 @@ STICKER_COSTS = {
         }
 
 COIN_PACKAGES_CONFIG = {
-    'small': {'name': 'Paquete Pequeño de Monedas', 'coins': 100, 'price': 1000.00, 'currency_id': 'ARS'},
-    'medium': {'name': 'Paquete Mediano de Monedas', 'coins': 300, 'price': 1699.00, 'currency_id': 'ARS'},
-    'large': {'name': 'Paquete Grande de Monedas', 'coins': 500, 'price': 1997.00, 'currency_id': 'ARS'}
+    'small': {'name': 'Paquete Pequeño de Monedas', 'coins': 100, 'price': 600.00, 'currency_id': 'ARS'},
+    'medium': {'name': 'Paquete Mediano de Monedas', 'coins': 300, 'price': 1800.00, 'currency_id': 'ARS'},
+    'large': {'name': 'Paquete Grande de Monedas', 'coins': 500, 'price': 1900.00, 'currency_id': 'ARS'}
 }
 
 STICKER_STYLE_CONFIG = {
