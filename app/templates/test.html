@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Barra de Carga - The Sticker House</title>
+    <style>
+        .loader-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .logo-loader {
+            position: relative;
+            width: 350px;
+            height: 250px;
+        }
+        .logo-base {
+            filter: grayscale(1) brightness(1.2);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .logo-color {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            clip-path: inset(0 100% 0 0);
+            transition: clip-path 0.1s linear;
+        }
+        .progress-bar {
+            width: 350px;
+            height: 10px;
+            background: #eee;
+            border-radius: 5px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        .progress-bar-inner {
+            height: 100%;
+            background: #a259d9;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+    </style>
+</head>
+<body>
+    <div class="loader-container">
+        <div class="logo-loader">
+            <canvas id="spark-canvas" width="350" height="250" style="position:absolute;top:0;left:0;z-index:3;pointer-events:none;"></canvas>
+            <img src="{{ url_for('static', filename='logo/TheStickerHouseLogo.PNG') }}" class="logo-base" alt="Logo gris">
+            <img src="{{ url_for('static', filename='logo/TheStickerHouseLogo.PNG') }}" class="logo-color" alt="Logo color">
+        </div>
+        <div class="progress-bar">
+            <div class="progress-bar-inner"></div>
+        </div>
+    </div>
+    <script>
+        // Variable de tiempo de carga en milisegundos
+        const loadingTime = 40000; // Cambia este valor para ajustar el tiempo de carga
+        const logoColor = document.querySelector('.logo-color');
+        const progressBar = document.querySelector('.progress-bar-inner');
+        let start = null;
+
+        // --- Efecto de destellos y chispas ---
+        const sparkCanvas = document.getElementById('spark-canvas');
+        const sparkCtx = sparkCanvas.getContext('2d');
+        const SPARK_COLORS = ['#fffbe6', '#ffe066', '#ffd700', '#fff', '#fffbe6'];
+        const SPARK_COUNT = 10;
+        let sparks = [];
+
+        function spawnSpark(progress) {
+            // Los destellos aparecen en el borde de avance
+            const x = 350 * progress + Math.random() * 8 - 4;
+            const y = 40 + Math.random() * 170;
+            const len = 10 + Math.random() * 15;
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 1 + Math.random() * 1.5;
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed;
+            const color = SPARK_COLORS[Math.floor(Math.random() * SPARK_COLORS.length)];
+            sparks.push({
+                x, y, len, angle, vx, vy, color,
+                alpha: 1,
+                type: Math.random() < 0.5 ? 'line' : 'dot',
+                size: 2 + Math.random() * 2
+            });
+        }
+
+        function updateSparks() {
+            for (let s of sparks) {
+                s.x += s.vx;
+                s.y += s.vy;
+                s.alpha -= 0.03 + Math.random() * 0.02;
+                s.vx *= 0.97;
+                s.vy *= 0.97;
+            }
+            sparks = sparks.filter(s => s.alpha > 0);
+        }
+
+        function drawSparks() {
+            sparkCtx.clearRect(0, 0, sparkCanvas.width, sparkCanvas.height);
+            for (let s of sparks) {
+                sparkCtx.save();
+                sparkCtx.globalAlpha = Math.max(0, s.alpha);
+                if (s.type === 'line') {
+                    sparkCtx.strokeStyle = s.color;
+                    sparkCtx.lineWidth = 2;
+                    sparkCtx.beginPath();
+                    sparkCtx.moveTo(s.x, s.y);
+                    sparkCtx.lineTo(s.x + Math.cos(s.angle) * s.len, s.y + Math.sin(s.angle) * s.len);
+                    sparkCtx.shadowColor = s.color;
+                    sparkCtx.shadowBlur = 8;
+                    sparkCtx.stroke();
+                } else {
+                    sparkCtx.fillStyle = s.color;
+                    sparkCtx.beginPath();
+                    sparkCtx.arc(s.x, s.y, s.size, 0, 2 * Math.PI);
+                    sparkCtx.shadowColor = s.color;
+                    sparkCtx.shadowBlur = 10;
+                    sparkCtx.fill();
+                }
+                sparkCtx.restore();
+            }
+        }
+
+        function animateLoading(timestamp) {
+            if (!start) start = timestamp;
+            const elapsed = timestamp - start;
+            const progress = Math.min(elapsed / loadingTime, 1);
+            // Clip-path de izquierda a derecha
+            logoColor.style.clipPath = `inset(0 ${100 - progress * 100}% 0 0)`;
+            progressBar.style.width = `${progress * 100}%`;
+
+            // Generar destellos/chispas en el borde de avance
+            if (Math.random() < 0.5 && progress < 1) {
+                spawnSpark(progress);
+            }
+            updateSparks();
+            drawSparks();
+
+            if (progress < 1 || sparks.length > 0) {
+                requestAnimationFrame(animateLoading);
+            }
+        }
+        // Iniciar animación
+        requestAnimationFrame(animateLoading);
+    </script>
+</body>
+</html>
