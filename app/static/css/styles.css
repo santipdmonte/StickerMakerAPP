@@ -148,6 +148,18 @@ button:active {
     transform: translateY(-1px);
 }
 
+button:disabled, .download-button:disabled, .template-button:disabled {
+    opacity: 0.6;
+    filter: grayscale(0.2);
+    box-shadow: none;
+    transition: opacity 0.2s, filter 0.2s;
+}
+
+button:disabled:hover, .download-button:disabled:hover, .template-button:disabled:hover {
+    box-shadow: none;
+    transform: none;
+}
+
 .results-section {
     margin-top: 0;
     text-align: center;
@@ -1947,6 +1959,19 @@ body.modal-open {
         align-items: center;
         justify-content: center;
     }
+
+    button:disabled, .download-button:disabled, .template-button:disabled {
+        opacity: 0.6;
+        filter: grayscale(0.2);
+        box-shadow: none;
+        transition: opacity 0.2s, filter 0.2s;
+    }
+    
+    button:disabled:hover, .download-button:disabled:hover, .template-button:disabled:hover {
+        box-shadow: none;
+        transform: none;
+    }
+
 }
 
 @media (max-width: 768px) {
