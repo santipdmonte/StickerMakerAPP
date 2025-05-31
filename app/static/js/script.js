@@ -1364,6 +1364,22 @@ document.addEventListener('DOMContentLoaded', () => {
         return qualityValue;
     }
 
+    // Mostrar el botón correcto según monedas y calidad
+    function updateGenerateButtonVisibility() {
+        const quality = getSelectedQuality();
+        let coinCost = 10;
+        if (quality === 'medium') coinCost = 25;
+        else if (quality === 'high') coinCost = 100;
+
+        if (currentCoins >= coinCost) {
+            generateBtn.classList.remove('hidden');
+            buyCoinsGenerateBtn.classList.add('hidden');
+        } else {
+            generateBtn.classList.add('hidden');
+            buyCoinsGenerateBtn.classList.remove('hidden');
+        }
+    }
+
     // Function to update the quality selector UI based on the selected radio
     function updateQualitySlider() {
         if (!qualityOptionsContainer) return; // Safety check
@@ -1376,6 +1392,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Add the current quality class
         qualityOptionsContainer.classList.add(`quality-${selectedValue}`);
+
+        // Actualizar visibilidad de botones al cambiar calidad
+        updateGenerateButtonVisibility();
     }
 
     // Add event listeners to quality radio buttons
@@ -1586,6 +1605,8 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(data => {
                 currentCoins = data.coins || 0;
                 updateCoinsDisplay();
+                // Actualizar visibilidad de botones al cargar monedas
+                updateGenerateButtonVisibility();
             })
             .catch(error => {
                 console.error('Error loading coins:', error);
@@ -1595,11 +1616,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     .then(data => {
                         currentCoins = data.coins || 0;
                         updateCoinsDisplay();
+                        updateGenerateButtonVisibility();
                     })
                     .catch(err => {
                         console.error('Error loading coins (fallback):', err);
                         currentCoins = 0;
                         updateCoinsDisplay();
+                        updateGenerateButtonVisibility();
                     });
             });
     }
