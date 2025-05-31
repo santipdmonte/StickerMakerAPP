@@ -208,6 +208,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         // Ajustar altura inicial si hay texto precargado
         autoResize(promptInput);
+
+        // --- Ajustar altura cuando se agrega o elimina el thumbnail ---
+        const referenceThumbnail = document.getElementById('reference-image-preview');
+        if (referenceThumbnail) {
+            // Cuando se elimina el thumbnail
+            const removeBtn = referenceThumbnail.querySelector('.remove-thumbnail-btn');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', function() {
+                    setTimeout(() => autoResize(promptInput), 10);
+                });
+            }
+            // Cuando se agrega el thumbnail (escuchar cambios de clase)
+            const observer = new MutationObserver(() => {
+                autoResize(promptInput);
+            });
+            observer.observe(referenceThumbnail, { attributes: true, attributeFilter: ['class'] });
+        }
     }
     
     // Add click event listener for generate button
