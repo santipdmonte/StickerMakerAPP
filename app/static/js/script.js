@@ -1891,10 +1891,8 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(response => response.json())
             .then(data => {
                 if (data.success && data.styles && data.styles.length > 0) {
-                    // Limpiar la cuadrícula antes de agregar los estilos
                     stylesGrid.innerHTML = '';
-                    
-                    // Agregar opción "Sin estilo"
+                    // Opción Sin estilo
                     const noStyleCard = document.createElement('div');
                     noStyleCard.className = 'style-card';
                     if (!selectedStyle) {
@@ -1910,8 +1908,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                     noStyleCard.addEventListener('click', () => selectStyle(null, noStyleCard));
                     stylesGrid.appendChild(noStyleCard);
-                    
-                    // Agregar cada estilo de la lista
+                    // Cards de estilos
                     data.styles.forEach(style => {
                         const styleCard = document.createElement('div');
                         styleCard.className = 'style-card';
@@ -1919,13 +1916,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             styleCard.classList.add('selected');
                         }
                         styleCard.dataset.styleId = style.id;
-                        
-                        // Usar la imagen específica para cada estilo
                         styleCard.innerHTML = `
                             <img src="${style.example_image}" alt="${style.name}" class="style-card-image">
                             <div class="style-card-info">
                                 <div class="style-card-name">${style.name}</div>
-                                <div class="style-card-description">${style.description}</div>
                             </div>
                             <div class="selected-badge">Seleccionado</div>
                         `;
