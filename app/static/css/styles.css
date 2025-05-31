@@ -2783,3 +2783,21 @@ body.modal-open {
 #create-account-btn:hover {
     box-shadow: 0 12px 25px rgba(255, 107, 155, 0.35);
 }
+
+/* Mejora de visibilidad de toast en mobile */
+@media (max-width: 768px) {
+  .error-toast, .success-toast, .info-toast {
+    min-width: 80vw;
+    max-width: 95vw;
+    font-size: 0.95rem;
+    padding: 14px 10px;
+    left: 50%;
+    right: auto;
+    margin: 0 auto;
+    transform: translateX(-50%) translateY(100px);
+    border-radius: 12px;
+    box-sizing: border-box;
+    text-align: center;
+    justify-content: center;
+  }
+}
