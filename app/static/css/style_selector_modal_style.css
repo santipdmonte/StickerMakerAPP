@@ -1,0 +1,203 @@
+.styles-modal-content {
+    padding: 30px;
+    max-width: 800px;
+    width: 90%;
+}
+
+.styles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 25px;
+    margin-top: 25px;
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 15px;
+    -webkit-overflow-scrolling: touch; /* Mejora el scroll en iOS */
+}
+
+.style-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+}
+
+.style-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 25px rgba(124, 93, 250, 0.2);
+}
+
+.style-card.selected {
+    border-color: var(--primary-color);
+    background-color: rgba(124, 93, 250, 0.05);
+}
+
+.style-card-image {
+    width: 100%;
+    height: 180px;
+    object-fit: contain;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #f0f4ff;
+}
+
+.style-card-info {
+    padding: 15px 18px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.style-card-name {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text-color);
+    margin-bottom: 8px;
+}
+
+.style-card-description {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.selected-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+    box-shadow: 0 3px 8px rgba(124, 93, 250, 0.3);
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.2s ease;
+}
+
+.style-card.selected .selected-badge {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Estilo para la tarjeta "Sin estilo" */
+.style-card:first-child {
+    background: linear-gradient(135deg, #f0f4ff, #f8fafc);
+    border: 1px dashed #e4e8f0;
+}
+
+.style-card:first-child .style-card-info {
+    padding-top: 30px;
+    padding-bottom: 30px;
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    .modal.visible {
+        align-items: flex-start;
+        padding-top: 15px;
+    }
+    
+    .styles-modal-content {
+        padding: 20px 15px;
+        width: 95%;
+        max-width: 600px;
+        margin-top: 20px;
+        position: relative;
+    }
+    
+    .styles-modal-content .modal-close-btn {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 36px;
+        height: 36px;
+        background-color: rgba(255,255,255,0.9);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .styles-grid {
+        grid-template-columns: 1fr;
+        max-height: 65vh;
+        gap: 20px;
+        padding-right: 5px;
+        margin-top: 20px;
+        padding-bottom: 10px;
+    }
+    
+    .style-card {
+        margin: 0 auto;
+        width: 100%;
+        max-width: 320px;
+        transform: none;
+    }
+    
+    .style-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .style-card:active {
+        transform: scale(0.98);
+        transition: transform 0.1s ease;
+    }
+    
+    .style-card-image {
+        height: 220px;
+        padding: 15px;
+    }
+    
+    .style-card-info {
+        padding: 12px 15px;
+    }
+    
+    .style-card-name {
+        font-size: 18px;
+    }
+    
+    .style-card-description {
+        font-size: 14px;
+    }
+    
+    .selected-badge {
+        top: 15px;
+        right: 15px;
+        padding: 6px 14px;
+        font-size: 14px;
+    }
+}
+
+.styles-modal-content {
+    padding: 20px 15px;
+    width: 95%;
+    max-width: 800px;
+    margin-top: 20px;
+    position: relative;
+}
+
+.styles-modal-content h2 {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.styles-modal-content p {
+    font-size: 14px;
+    margin-bottom: 20px;
+}
