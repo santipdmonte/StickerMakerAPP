@@ -1917,10 +1917,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         styleCard.dataset.styleId = style.id;
                         styleCard.innerHTML = `
-                            <img src="${style.example_image}" alt="${style.name}" class="style-card-image">
                             <div class="style-card-info">
                                 <div class="style-card-name">${style.name}</div>
                             </div>
+                            <img src="${style.example_image}" alt="${style.name}" class="style-card-image">
                             <div class="selected-badge">Seleccionado</div>
                         `;
                         styleCard.addEventListener('click', () => selectStyle(style.id, styleCard));
