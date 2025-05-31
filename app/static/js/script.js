@@ -1901,7 +1901,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     noStyleCard.dataset.styleId = '';
                     const badgeHTML = `
                         <span class="selected-badge-text">Seleccionado</span>
-                        <span class="selected-badge-tick"><i class="ri-check-line"></i></span>
+                        <span class="selected-badge-tick"><i class="ri-checkbox-circle-line"></i></span>
                     `;
                     noStyleCard.innerHTML = `
                         <div class="no-style-icon"><i class="ri-magic-line"></i></div>
