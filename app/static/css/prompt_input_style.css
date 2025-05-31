@@ -36,12 +36,6 @@
     border-radius: 4px;
 }
 
-/* Ajustes para el input con imagen de referencia visible */
-.reference-image-thumbnail:not(.hidden) + textarea {
-    padding-bottom: 75px;
-    padding-left: 20px;
-    min-height: 160px;
-}
 
 /* Hacer que la miniatura de referencia tenga un cursor de tipo pointer */
 .reference-image-thumbnail {
@@ -194,7 +188,6 @@
 
 /* Media queries for mobile */
 @media (max-width: 768px) {
-
     .prompt-input-container textarea {
         padding: 15px;
         min-height: 100px;
@@ -244,7 +237,7 @@
     .styles-btn.has-style .style-name {
         display: none;
     }
-} */
+}
 
 /* Move reference image thumbnail to bottom left of input */
 /*

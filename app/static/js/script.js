@@ -189,6 +189,27 @@ document.addEventListener('DOMContentLoaded', () => {
         promptInput.focus();
     }, 500);
     
+    // --- Auto-resize para el textarea del prompt ---
+    if (promptInput) {
+        const SAFETY_SPACE = 38; // px de espacio de seguridad para los botones
+        const SAFETY_SPACE_THUMBNAIL = 70; // px de espacio de seguridad para los botones en tablet
+        
+        // Función para ajustar la altura del textarea según el tamaño de la pantalla
+        const autoResize = (el) => {
+            el.style.height = 'auto';
+            // Detectar si el thumbnail está visible
+            const referenceThumbnail = document.getElementById('reference-image-preview');
+            const isThumbnailVisible = referenceThumbnail && !referenceThumbnail.classList.contains('hidden');
+            const extraSpace = isThumbnailVisible ? SAFETY_SPACE_THUMBNAIL : SAFETY_SPACE;
+            el.style.height = (el.scrollHeight + extraSpace) + 'px';
+        };
+        promptInput.addEventListener('input', function() {
+            autoResize(this);
+        });
+        // Ajustar altura inicial si hay texto precargado
+        autoResize(promptInput);
+    }
+    
     // Add click event listener for generate button
     generateBtn.addEventListener('click', generateSticker);
     
