@@ -278,18 +278,11 @@
                         <label for="login-email">Email:</label>
                         <input type="email" id="login-email" name="email" required placeholder="Ingresá tu dirección de email" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
                     </div>
-                    <button type="submit" id="send-pin-btn" class="login-button"><i class="ri-mail-send-line"></i> Enviar PIN</button>
-                </form>
-            </div>
-            
-            <div id="name-form-container" class="hidden">
-                <p class="new-user-message">¡Bienvenido! Por favor, proporcioná tu nombre para crear una cuenta.</p>
-                <form id="name-form">
-                    <div class="form-group">
-                        <label for="login-name">Nombre:</label>
-                        <input type="text" id="login-name" name="name" required placeholder="Ingresá tu nombre" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
+                    <div class="form-group hidden" id="login-name-group">
+                        <label for="login-name-inline">Nombre:</label>
+                        <input type="text" id="login-name-inline" name="name" placeholder="Ingresá tu nombre" style="width: 100%; padding: 14px; border: 2px solid var(--input-border); border-radius: 10px; font-size: 0.95rem; transition: var(--transition);">
                     </div>
-                    <button type="submit" id="create-account-btn" class="login-button"><i class="ri-user-add-line"></i> Crear Cuenta</button>
+                    <button type="submit" id="send-pin-btn" class="login-button"><i class="ri-mail-send-line"></i> Enviar PIN</button>
                 </form>
             </div>
             
@@ -314,6 +307,10 @@
             const loginModalCloseBtn = document.getElementById('login-modal-close-btn');
             const loginModalOverlay = document.getElementById('login-modal-overlay');
             const emailForm = document.getElementById('email-form');
+            const loginEmailInput = document.getElementById('login-email');
+            const loginNameGroup = document.getElementById('login-name-group');
+            const loginNameInline = document.getElementById('login-name-inline');
+            const sendPinBtn = document.getElementById('send-pin-btn');
             const nameForm = document.getElementById('name-form');
             const pinForm = document.getElementById('pin-form');
             const emailFormContainer = document.getElementById('email-form-container');
@@ -346,6 +343,10 @@
                 
                 // Reset forms
                 emailForm.reset();
+                loginNameGroup.classList.add('hidden');
+                loginEmailInput.disabled = false;
+                loginEmailInput.classList.remove('input-disabled');
+                sendPinBtn.innerHTML = '<i class="ri-mail-send-line"></i> Enviar PIN';
                 nameForm.reset();
                 pinForm.reset();
                 emailFormContainer.classList.remove('hidden');
@@ -530,63 +531,97 @@
                 }, 2000);
             }
             
-            // Handle email form submission (request PIN)
+            // Handle email form submission (request PIN or create account)
             emailForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                const email = document.getElementById('login-email').value;
+                const email = loginEmailInput.value;
+                const nameVisible = !loginNameGroup.classList.contains('hidden');
+                const name = loginNameInline.value;
                 
-                // Frontend validation
+                // Si el input de nombre está visible, crear cuenta
+                if (nameVisible) {
+                    if (!name) {
+                        alert('Por favor, ingresá tu nombre');
+                        return;
+                    }
+                    // Show loading state
+                    const originalBtnText = sendPinBtn.innerHTML;
+                    sendPinBtn.disabled = true;
+                    sendPinBtn.innerHTML = '<i class="ri-loader-4-line"></i> Creando...';
+                    fetch('/api/auth/create-account', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, name })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        sendPinBtn.disabled = false;
+                        sendPinBtn.innerHTML = originalBtnText;
+                        if (data.success) {
+                            // Ir al formulario de PIN
+                            emailFormContainer.classList.add('hidden');
+                            pinFormContainer.classList.remove('hidden');
+                            // Mensaje de éxito
+                            const pinMessage = document.querySelector('.pin-sent-message');
+                            pinMessage.textContent = '¡Cuenta creada! Ingresá el PIN enviado a tu email.';
+                        } else {
+                            alert(data.error || 'No se pudo crear la cuenta. Por favor, intentá nuevamente.');
+                            // Si el usuario ya existe, ir al PIN
+                            if (data.user_exists) {
+                                loginNameGroup.classList.add('hidden');
+                                loginEmailInput.disabled = false;
+                                loginEmailInput.classList.remove('input-disabled');
+                                sendPinBtn.innerHTML = '<i class="ri-mail-send-line"></i> Enviar PIN';
+                                emailFormContainer.classList.add('hidden');
+                                pinFormContainer.classList.remove('hidden');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        sendPinBtn.disabled = false;
+                        sendPinBtn.innerHTML = originalBtnText;
+                        alert('Error de red. Por favor, intentá nuevamente.');
+                    });
+                    return;
+                }
+                // Si solo está el email, pedir PIN
                 if (!email) {
                     alert('Por favor, ingresá tu dirección de email');
                     return;
                 }
-                
                 // Show loading state
-                const sendPinBtn = document.getElementById('send-pin-btn');
                 const originalBtnText = sendPinBtn.innerHTML;
                 sendPinBtn.disabled = true;
                 sendPinBtn.innerHTML = '<i class="ri-loader-4-line"></i> Enviando...';
-                
-                // Call API to request PIN
                 fetch('/api/auth/request-login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })
                 })
                 .then(response => response.json())
                 .then(data => {
-                    // Reset button state
                     sendPinBtn.disabled = false;
                     sendPinBtn.innerHTML = originalBtnText;
-                    
                     if (data.success) {
-                        // Store email for PIN verification
                         sessionStorage.setItem('auth_email', email);
-                        
-                        // Check if user exists or needs registration
                         if (data.user_exists) {
-                            // Existing user - show PIN entry form
+                            // Usuario existente: mostrar PIN
                             emailFormContainer.classList.add('hidden');
                             pinFormContainer.classList.remove('hidden');
                         } else {
-                            // New user - show name form
-                            emailFormContainer.classList.add('hidden');
-                            nameFormContainer.classList.remove('hidden');
+                            // Usuario nuevo: mostrar input de nombre en el mismo form
+                            loginNameGroup.classList.remove('hidden');
+                            loginEmailInput.disabled = true;
+                            loginEmailInput.classList.add('input-disabled');
+                            sendPinBtn.innerHTML = '<i class="ri-user-add-line"></i> Crear Cuenta';
                         }
                     } else {
-                        // Show error
                         alert(data.error || 'No se pudo enviar el PIN. Por favor, intentá nuevamente.');
                     }
                 })
                 .catch(error => {
-                    // Reset button state
                     sendPinBtn.disabled = false;
                     sendPinBtn.innerHTML = originalBtnText;
-                    
-                    // Show error
-                    console.error('Error sending PIN:', error);
                     alert('Error de red. Por favor, intentá nuevamente.');
                 });
             });
@@ -821,6 +856,14 @@
             });
         });
     </script>
+
+    <style>
+        .input-disabled {
+            background: #f5f5f5 !important;
+            color: #aaa !important;
+            cursor: not-allowed !important;
+        }
+    </style>
 
 </body>
 </html> 
