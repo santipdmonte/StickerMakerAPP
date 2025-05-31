@@ -437,7 +437,7 @@ def get_styles():
             "id": "Parche de hilo",
             "name": "Parche de hilo",
             "description": "Stickers con apariencia de parche bordado con hilo",
-            "example_image": "/static/img/styles/sticker_leon_bordado.png"
+            "example_image": "/static/img/styles/parche_hilo_ejemplo.webp"
         },
         {
             "id": "Origami",
