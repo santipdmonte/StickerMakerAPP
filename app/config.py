@@ -28,6 +28,10 @@ COIN_PACKAGES_CONFIG = {
 STICKER_STYLE_CONFIG = {
     'Parche de hilo': 'Diseño estilo parche de hilo bordado con textura de bordado, relieve, y aspecto artesanal.',
     'Origami': 'Diseño estilo origami con pliegues de papel visibles, aspecto geométrico y texturas de papel doblado.',
+    'Estudio Ghibli': 'Diseño estilo Ghibli con aspecto de animación japonesa, personajes de dibujos animados, y texturas de papel.',
+    'Pixel Art': 'Diseño estilo pixel art con resolución baja, píxeles visibles y estética retro de videojuegos de los 80.',
+    'Estilo Lego': 'Diseño estilo bloques de construcción con textura plástica, formas modulares y estética tipo Lego.',
+    'Caricatura': 'Stickers con estilo caricatura dibujada a mano. Exagera rasgos caraterisicos de la imagen.',
     'Metalico': 'Diseño estilo metálico con acabado brillante, reflejos metálicos, aspecto de acero o aluminio pulido.',
     'Papel': 'Diseño estilo recorte de papel con textura de papel, sombras sutiles y aspecto artesanal de papel.'
 }

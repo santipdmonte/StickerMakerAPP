@@ -446,6 +446,30 @@ def get_styles():
             "example_image": "/static/img/styles/sticker_cohete_origami.png"
         },
         {
+            "id": "Estudio Ghibli",
+            "name": "Estudio Ghibli",
+            "description": "Stickers con estética inspirada en animaciones japonesas estilo Ghibli",
+            "example_image": "/static/img/styles/sticker_ghibli.png"
+        },
+        {
+            "id": "Pixel Art",
+            "name": "Pixel Art",
+            "description": "Stickers con estilo pixelado retro de videojuegos de los 80",
+            "example_image": "/static/img/styles/sticker_pixel_art.png"
+        },
+        {
+            "id": "Estilo Lego",
+            "name": "Estilo Lego",
+            "description": "Stickers con apariencia de bloques de construcción tipo Lego",
+            "example_image": "/static/img/styles/sticker_lego.png"
+        },
+        {
+            "id": "Caricatura",
+            "name": "Caricatura",
+            "description": "Stickers con estilo caricatura dibujada a mano. Exagera rasgos caraterisicos de la imagen",
+            "example_image": "/static/img/styles/sticker_caricatura.png"
+        },
+        {
             "id": "Metalico",
             "name": "Metálico",
             "description": "Stickers con apariencia metálica brillante",
