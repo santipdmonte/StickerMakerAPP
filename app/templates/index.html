@@ -765,6 +765,9 @@
                         
                         // Clear stored email
                         sessionStorage.removeItem('auth_email');
+                        
+                        if (typeof loadCoins === 'function') loadCoins();
+                        if (typeof updateGenerateButtonVisibility === 'function') updateGenerateButtonVisibility();
                     } else {
                         // Show error
                         alert(data.error || 'PIN inválido. Por favor, intentá nuevamente.');

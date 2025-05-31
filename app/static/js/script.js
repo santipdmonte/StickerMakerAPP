@@ -2168,6 +2168,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 300);
         }, 3000);
     }
+
+    window.loadCoins = loadCoins;
+    window.updateGenerateButtonVisibility = updateGenerateButtonVisibility;
 });
 
 // Check if there's a pending coin package from a previous session
