@@ -1894,16 +1894,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     stylesGrid.innerHTML = '';
                     // Opción Sin estilo
                     const noStyleCard = document.createElement('div');
-                    noStyleCard.className = 'style-card';
+                    noStyleCard.className = 'style-card no-style';
                     if (!selectedStyle) {
                         noStyleCard.classList.add('selected');
                     }
                     noStyleCard.dataset.styleId = '';
                     noStyleCard.innerHTML = `
-                        <div class="style-card-info">
-                            <div class="style-card-name">Sin estilo</div>
-                            <div class="style-card-description">Generación estándar sin estilo específico</div>
-                        </div>
+                        <div class="no-style-icon"><i class="ri-magic-line"></i></div>
+                        <div class="no-style-title">Sin estilo</div>
+                        <div class="no-style-desc">Generación estándar sin estilo específico</div>
                         <div class="selected-badge">Seleccionado</div>
                     `;
                     noStyleCard.addEventListener('click', () => selectStyle(null, noStyleCard));

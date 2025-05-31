@@ -108,15 +108,40 @@
 }
 
 /* Estilo para la tarjeta "Sin estilo" */
-.style-card:first-child {
-    background: linear-gradient(135deg, #f0f4ff, #f8fafc);
-    border: 1px dashed #e4e8f0;
+.style-card.no-style {
+    background: linear-gradient(135deg, #f0f4ff 60%, #f8fafc 100%);
+    border: 2px dashed #bfc8e6;
+    box-shadow: 0 4px 18px rgba(124, 93, 250, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 340px;
+    position: relative;
 }
 
-.style-card:first-child .style-card-info {
-    padding-top: 30px;
-    padding-bottom: 30px;
+.no-style-icon {
+    font-size: 64px;
+    color: #b3b8d0;
+    margin-bottom: 18px;
+    margin-top: 10px;
+}
+
+.no-style-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--primary-color);
     text-align: center;
+    margin-bottom: 8px;
+    margin-top: 0;
+}
+
+.no-style-desc {
+    font-size: 1rem;
+    color: #64748b;
+    text-align: center;
+    margin: 0 18px 0 18px;
+    line-height: 1.4;
 }
 
 @media (max-width: 768px) {
@@ -194,6 +219,19 @@
         right: 15px;
         padding: 6px 14px;
         font-size: 14px;
+    }
+    
+    .style-card.no-style {
+        min-height: 220px;
+    }
+    .no-style-icon {
+        font-size: 44px;
+    }
+    .no-style-title {
+        font-size: 1.1rem;
+    }
+    .no-style-desc {
+        font-size: 0.95rem;
     }
 }
 
