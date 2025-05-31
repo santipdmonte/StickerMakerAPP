@@ -189,6 +189,44 @@ document.addEventListener('DOMContentLoaded', () => {
         promptInput.focus();
     }, 500);
     
+    // --- Auto-resize para el textarea del prompt ---
+    if (promptInput) {
+        const SAFETY_SPACE = 38; // px de espacio de seguridad para los botones
+        const SAFETY_SPACE_THUMBNAIL = 70; // px de espacio de seguridad para los botones en tablet
+        
+        // Función para ajustar la altura del textarea según el tamaño de la pantalla
+        const autoResize = (el) => {
+            el.style.height = 'auto';
+            // Detectar si el thumbnail está visible
+            const referenceThumbnail = document.getElementById('reference-image-preview');
+            const isThumbnailVisible = referenceThumbnail && !referenceThumbnail.classList.contains('hidden');
+            const extraSpace = isThumbnailVisible ? SAFETY_SPACE_THUMBNAIL : SAFETY_SPACE;
+            el.style.height = (el.scrollHeight + extraSpace) + 'px';
+        };
+        promptInput.addEventListener('input', function() {
+            autoResize(this);
+        });
+        // Ajustar altura inicial si hay texto precargado
+        autoResize(promptInput);
+
+        // --- Ajustar altura cuando se agrega o elimina el thumbnail ---
+        const referenceThumbnail = document.getElementById('reference-image-preview');
+        if (referenceThumbnail) {
+            // Cuando se elimina el thumbnail
+            const removeBtn = referenceThumbnail.querySelector('.remove-thumbnail-btn');
+            if (removeBtn) {
+                removeBtn.addEventListener('click', function() {
+                    setTimeout(() => autoResize(promptInput), 10);
+                });
+            }
+            // Cuando se agrega el thumbnail (escuchar cambios de clase)
+            const observer = new MutationObserver(() => {
+                autoResize(promptInput);
+            });
+            observer.observe(referenceThumbnail, { attributes: true, attributeFilter: ['class'] });
+        }
+    }
+    
     // Add click event listener for generate button
     generateBtn.addEventListener('click', generateSticker);
     
