@@ -221,17 +221,26 @@
         font-size: 1.3rem;
     }
     
-    /* Fix the style button to be the same size as the add reference button */
-    .styles-btn, .styles-btn.has-style {
+    /* Fix: solo el botón normal es circular, el expandido se comporta igual que en desktop */
+    .styles-btn {
         width: 36px;
         min-width: 36px;
         height: 36px;
         padding: 0;
         border-radius: 50%;
     }
-    
+    .styles-btn.has-style {
+        width: auto;
+        min-width: 120px;
+        height: 36px;
+        padding: 0 12px;
+        border-radius: 20px;
+        transition: all 0.3s ease;
+    }
     .styles-btn.has-style .style-name {
-        display: none;
+        display: block;
+        opacity: 1;
+        transform: translateX(0);
     }
 }
 
