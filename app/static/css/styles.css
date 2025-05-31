@@ -2850,3 +2850,7 @@ body.modal-open {
     justify-content: center;
   }
 }
+
+#login-modal .form-group {
+    margin-bottom: 18px;
+}
