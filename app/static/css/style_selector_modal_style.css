@@ -13,6 +13,7 @@
     overflow-y: auto;
     padding-right: 15px;
     -webkit-overflow-scrolling: touch; /* Mejora el scroll en iOS */
+    scroll-snap-type: y mandatory;
 }
 
 .style-card {
@@ -26,6 +27,7 @@
     border: 2px solid transparent;
     display: flex;
     flex-direction: column;
+    scroll-snap-align: center;
 }
 
 .style-card:hover {
