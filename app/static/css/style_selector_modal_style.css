@@ -31,7 +31,7 @@
 }
 
 .style-card:hover {
-    box-shadow: 0 8px 25px rgba(124, 93, 250, 0.18), 0 0 0 2px var(--primary-color);
+    box-shadow: 0 8px 25px rgba(124, 93, 250, 0.18), 0 0 0 1px var(--primary-color);
     border-color: var(--primary-color);
     background-color: rgba(124, 93, 250, 0.04);
 }
