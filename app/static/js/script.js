@@ -1899,11 +1899,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         noStyleCard.classList.add('selected');
                     }
                     noStyleCard.dataset.styleId = '';
+                    const badgeHTML = `
+                        <span class="selected-badge-text">Seleccionado</span>
+                        <span class="selected-badge-tick"><i class="ri-check-line"></i></span>
+                    `;
                     noStyleCard.innerHTML = `
                         <div class="no-style-icon"><i class="ri-magic-line"></i></div>
                         <div class="no-style-title">Sin estilo</div>
                         <div class="no-style-desc">Generación estándar sin estilo específico</div>
-                        <div class="selected-badge">Seleccionado</div>
+                        <div class="selected-badge">${badgeHTML}</div>
                     `;
                     noStyleCard.addEventListener('click', () => selectStyle(null, noStyleCard));
                     stylesGrid.appendChild(noStyleCard);
@@ -1916,11 +1920,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         styleCard.dataset.styleId = style.id;
                         styleCard.innerHTML = `
+                            <img src="${style.example_image}" alt="${style.name}" class="style-card-image">
                             <div class="style-card-info">
                                 <div class="style-card-name">${style.name}</div>
                             </div>
-                            <img src="${style.example_image}" alt="${style.name}" class="style-card-image">
-                            <div class="selected-badge">Seleccionado</div>
+                            <div class="selected-badge">${badgeHTML}</div>
                         `;
                         styleCard.addEventListener('click', () => selectStyle(style.id, styleCard));
                         stylesGrid.appendChild(styleCard);

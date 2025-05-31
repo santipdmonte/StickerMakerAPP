@@ -102,6 +102,10 @@
     opacity: 0;
     transform: scale(0.8);
     transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
 .style-card.selected .selected-badge {
@@ -214,9 +218,9 @@
         transform: none;
     }
     
-    .style-card:hover {
+    /* .style-card:hover {
         transform: translateY(-5px);
-    }
+    } */
     
     .style-card:active {
         transform: scale(0.98);
@@ -241,10 +245,30 @@
     }
     
     .selected-badge {
-        top: 15px;
-        right: 15px;
-        padding: 6px 14px;
-        font-size: 14px;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border-radius: 50%;
+        font-size: 0;
+        background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        box-shadow: 0 3px 8px rgba(124, 93, 250, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        right: 10px;
+        top: 10px;
+    }
+    
+    .selected-badge .selected-badge-text {
+        display: none;
+    }
+    
+    .selected-badge .selected-badge-tick {
+        display: flex !important;
+        font-size: 1.2rem;
+        color: #fff;
+        align-items: center;
+        justify-content: center;
     }
     
     .style-card.no-style {
@@ -258,6 +282,16 @@
     }
     .no-style-desc {
         font-size: 0.95rem;
+    }
+}
+
+/* Desktop: solo texto, tick oculto */
+.selected-badge .selected-badge-tick {
+    display: none;
+}
+@media (min-width: 769px) {
+    .selected-badge .selected-badge-text {
+        display: inline;
     }
 }
 
