@@ -975,6 +975,24 @@ button i, .download-button i {
     font-size: 0.95rem;
     max-width: 70%;
     color: #94a3b8;
+    word-break: break-word;
+}
+
+@media (max-width: 600px) {
+  .empty-template-message {
+    padding: 10px 4vw;
+    box-sizing: border-box;
+  }
+  .empty-template-message span {
+    max-width: 100%;
+    font-size: 0.85rem;
+    word-break: break-word;
+    display: block;
+  }
+  .empty-template-message p {
+    font-size: 1rem;
+    word-break: break-word;
+  }
 }
 
 /* Quantity controls for template items */
