@@ -721,22 +721,48 @@ document.addEventListener('DOMContentLoaded', () => {
             // Create quantity controls
             const quantityControl = document.createElement('div');
             quantityControl.className = 'quantity-control';
-            
+
             const decreaseBtn = document.createElement('button');
             decreaseBtn.className = 'quantity-btn decrease';
             decreaseBtn.innerHTML = '<i class="ri-subtract-fill"></i>';
             decreaseBtn.disabled = quantity <= 1;
             decreaseBtn.type = 'button'; // Prevent form submission
-            
-            const quantityValue = document.createElement('span');
-            quantityValue.className = 'quantity-value';
-            quantityValue.textContent = quantity;
-            
+
+            // Cambiar span por input numérico
+            const quantityInput = document.createElement('input');
+            quantityInput.className = 'quantity-value';
+            quantityInput.type = 'number';
+            quantityInput.min = 1;
+            quantityInput.value = quantity;
+            quantityInput.inputMode = 'numeric';
+            quantityInput.pattern = '[0-9]*';
+            quantityInput.style.width = '40px';
+            quantityInput.style.textAlign = 'center';
+            quantityInput.title = 'Cambiar cantidad';
+
+            // Al hacer click, seleccionar todo el valor para facilitar edición
+            quantityInput.addEventListener('focus', function() {
+                this.select();
+            });
+
+            // Validar y actualizar cantidad al cambiar
+            quantityInput.addEventListener('change', function(e) {
+                let newValue = parseInt(quantityInput.value, 10);
+                if (isNaN(newValue) || newValue < 1 || newValue > 999) {
+                    quantityInput.value = quantity; // Restaurar valor anterior
+                    showError('La cantidad debe ser un número entre 1 y 999');
+                    return;
+                }
+                if (newValue !== quantity) {
+                    updateStickerQuantity(filename, newValue);
+                }
+            });
+
             const increaseBtn = document.createElement('button');
             increaseBtn.className = 'quantity-btn increase';
             increaseBtn.innerHTML = '<i class="ri-add-fill"></i>';
             increaseBtn.type = 'button'; // Prevent form submission
-            
+
             // Add event listeners to quantity buttons
             decreaseBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -745,16 +771,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateStickerQuantity(filename, quantity - 1);
                 }
             });
-            
+
             increaseBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 updateStickerQuantity(filename, quantity + 1);
             });
-            
+
             // Add quantity controls to the UI
             quantityControl.appendChild(decreaseBtn);
-            quantityControl.appendChild(quantityValue);
+            quantityControl.appendChild(quantityInput);
             quantityControl.appendChild(increaseBtn);
             
             // Create the remove button

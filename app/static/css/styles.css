@@ -2859,3 +2859,32 @@ body.modal-open {
     background: linear-gradient(45deg, #ffd700, #ffcc00);
     color: #7c5c17;
 }
+
+/* Mejorar input numérico de cantidad en template */
+.quantity-control input.quantity-value[type="number"] {
+    border: none;
+    background: transparent;
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 14px;
+    min-width: 30px;
+    max-width: 50px;
+    text-align: center;
+    outline: none;
+    appearance: textfield;
+    -webkit-appearance: none;
+    margin: 0 2px;
+    padding: 0;
+}
+
+/* Ocultar flechas en input number para Chrome, Safari, Edge */
+.quantity-control input.quantity-value[type="number"]::-webkit-inner-spin-button,
+.quantity-control input.quantity-value[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Ocultar flechas en Firefox */
+.quantity-control input.quantity-value[type="number"] {
+    -moz-appearance: textfield;
+}
