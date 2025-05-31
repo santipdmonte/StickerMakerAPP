@@ -7,7 +7,8 @@
 /* Estilos normales para el textarea (sin imagen) */
 .prompt-input-container textarea {
     padding: 20px;
-    transition: all 0.3s ease;
+    /* transition: all 0.3s ease; */
+    transition: height 0.3s ease, border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
     min-height: 100px;
     resize: none;
 }
@@ -15,7 +16,7 @@
 /* Nuevos estilos para la miniatura de imagen de referencia */
 .reference-image-thumbnail {
     position: absolute;
-    bottom: 16px;
+    bottom: 19px;
     left: 16px;
     width: 60px;
     height: 60px;
@@ -91,8 +92,8 @@
 
 .reference-image-controls {
     position: absolute;
-    bottom: 15px;
-    right: 15px;
+    bottom: 19px;
+    right: 19px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -195,25 +196,19 @@
     }
     
     .reference-image-thumbnail {
-        width: 48px;
-        height: 48px;
-        bottom: 12px;
-        left: 12px;
+        width: 60px;
+        height: 60px;
+        bottom: 18px;
+        left: 16px;
     }
-    
-    .reference-image-thumbnail:not(.hidden) + textarea {
-        padding-bottom: 56px;
-        padding-left: 16px;
-        min-height: 150px;
-    } 
 
     .prompt-input-container::after {
         display: none;
     }
 
     .reference-image-controls {
-        bottom: 10px;
-        right: 10px;
+        bottom: 15px;
+        right: 15px;
     }
     
     .add-reference-btn {
