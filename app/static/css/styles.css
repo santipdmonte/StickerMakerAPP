@@ -2623,6 +2623,12 @@ body.modal-open {
     box-shadow: 0 0 0 3px rgba(124, 93, 250, 0.1) !important;
 }
 
+#login-name-inline:focus {
+    outline: none;
+    border-color: var(--secondary-color) !important;
+    box-shadow: 0 0 0 3px rgba(124, 93, 250, 0.1) !important;
+}
+
 .login-button {
     background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
     color: white;
