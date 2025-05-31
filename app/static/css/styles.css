@@ -2844,3 +2844,8 @@ body.modal-open {
     justify-content: center;
   }
 }
+
+.generate-btn-coins{
+    background: linear-gradient(45deg, #ffd700, #ffcc00);
+    color: #7c5c17;
+}
