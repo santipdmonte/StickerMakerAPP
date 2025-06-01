@@ -28,7 +28,7 @@ def generate_sticker(user_prompt, img_path, quality='low', style=None):
     # Format the prompt with the sticker style wrapper
     formatted_prompt = f"""
 <style> 
-Generar una imagen estilo sticker (con borde de 10px de grosor para imprimir el sticker y evitar que al cortarlo se corte el borde del sticker generado). 
+Generar una imagen estilo sticker (con borde de seguridad de 10px de grosor para que al imprimir el sticker evitar que se corte el borde del sticker generado). 
 La imagen debe tener un fondo transparente, para que al imprimir el sticker no se imprima el fondo.
 {style_prompt}
 </style>
@@ -65,7 +65,7 @@ def generate_sticker_with_reference(user_prompt, img_path, img_base64, quality='
     # Format the prompt with the sticker style wrapper
     formatted_prompt = f"""
 <style> 
-Generar una imagen estilo sticker (con borde de 10px de grosor para imprimir el sticker y evitar que al cortarlo se corte el borde del sticker generado). 
+Generar una imagen estilo sticker (con borde de seguridad de 10px de grosor para que al imprimir el sticker evitar que se corte el borde del sticker generado). 
 La imagen debe tener un fondo transparente, para que al imprimir el sticker no se imprima el fondo.
 {style_prompt}
 </style>
