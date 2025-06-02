@@ -9,13 +9,14 @@ from datetime import datetime
 from config import (
     INITIAL_COINS, BONUS_COINS,
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
-    DYNAMODB_USER_TABLE, DYNAMODB_TRANSACTION_TABLE, DYNAMODB_REQUEST_TABLE
+    DYNAMODB_USER_TABLE, DYNAMODB_TRANSACTION_TABLE, DYNAMODB_REQUEST_TABLE, DYNAMODB_COUPONES_TABLE
 )
 
 # Define table variables from config
 USER_TABLE = DYNAMODB_USER_TABLE
 TRANSACTION_TABLE = DYNAMODB_TRANSACTION_TABLE
 ADMIN_REQUEST_TABLE = DYNAMODB_REQUEST_TABLE
+COUPON_TABLE = DYNAMODB_COUPONES_TABLE
 
 # Function to check if table is ready (not in CREATING or UPDATING state)
 def is_table_ready(table_name):
@@ -197,6 +198,7 @@ def ensure_tables_exist():
                 {'AttributeName': 'transaction_id', 'AttributeType': 'S'},
                 {'AttributeName': 'user_id', 'AttributeType': 'S'},
                 {'AttributeName': 'payment_id', 'AttributeType': 'S'},  # Nuevo atributo para payment_id
+                {'AttributeName': 'coupon_code', 'AttributeType': 'S'},  # Nuevo campo para cupones
             ],
             GlobalSecondaryIndexes=[
                 {
@@ -216,6 +218,19 @@ def ensure_tables_exist():
                     'IndexName': 'PaymentIdIndex',  # Nuevo índice para búsquedas por payment_id
                     'KeySchema': [
                         {'AttributeName': 'payment_id', 'KeyType': 'HASH'},
+                    ],
+                    'Projection': {
+                        'ProjectionType': 'ALL'
+                    },
+                    'ProvisionedThroughput': {
+                        'ReadCapacityUnits': 5,
+                        'WriteCapacityUnits': 5
+                    }
+                },
+                {
+                    'IndexName': 'CouponCodeIndex',  # Nuevo índice para búsquedas por coupon_code
+                    'KeySchema': [
+                        {'AttributeName': 'coupon_code', 'KeyType': 'HASH'},
                     ],
                     'Projection': {
                         'ProjectionType': 'ALL'
@@ -309,6 +324,42 @@ def ensure_tables_exist():
             }
         )
         print(f"Created table {ADMIN_REQUEST_TABLE}")
+
+    # Tabla de cupones
+    if COUPON_TABLE not in existing_tables:
+        dynamodb.create_table(
+            TableName=COUPON_TABLE,
+            KeySchema=[
+                {'AttributeName': 'id_coupon', 'KeyType': 'HASH'},  # Partition key
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'id_coupon', 'AttributeType': 'S'},
+                {'AttributeName': 'coupon_code', 'AttributeType': 'S'},
+                {'AttributeName': 'is_active', 'AttributeType': 'N'},
+                {'AttributeName': 'expires_at', 'AttributeType': 'N'},
+                {'AttributeName': 'coupon_type', 'AttributeType': 'S'},
+            ],
+            GlobalSecondaryIndexes=[
+                {
+                    'IndexName': 'CouponCodeIndex',
+                    'KeySchema': [
+                        {'AttributeName': 'coupon_code', 'KeyType': 'HASH'},
+                    ],
+                    'Projection': {
+                        'ProjectionType': 'ALL'
+                    },
+                    'ProvisionedThroughput': {
+                        'ReadCapacityUnits': 5,
+                        'WriteCapacityUnits': 5
+                    }
+                },
+            ],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 5,
+                'WriteCapacityUnits': 5
+            }
+        )
+        print(f"Created table {COUPON_TABLE}")
 
 # User Management Functions
 def create_user(email, initial_coins=None, name=None, role='user', referral=None):
