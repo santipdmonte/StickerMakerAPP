@@ -1350,24 +1350,6 @@ body.modal-open {
     font-weight: normal;
 }
 
-.compact-form {
-    margin-bottom: 0;
-}
-
-.compact-form .coupon-container {
-    margin-bottom: 4px;
-}
-
-.compact-form input {
-    padding: 6px 10px;
-    font-size: 0.9em;
-}
-
-.compact-form .apply-coupon-button {
-    padding: 6px 10px;
-    font-size: 0.85em;
-}
-
 .quality-cost {
     font-size: 0.75em;
     color: #777;
@@ -1380,8 +1362,6 @@ body.modal-open {
 .quality-options label:hover .quality-cost {
     opacity: 1;
 }
-
-/* End Coupon Styles */ 
 
 @media (max-width: 768px) {
     .container {

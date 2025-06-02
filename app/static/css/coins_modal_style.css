@@ -165,19 +165,28 @@
     transition: background-color 0.2s;
 }
 
-.apply-coupon-button:hover {
-    background-color: #3a5ce6;
-}
-
-.apply-coupon-button:disabled {
-    background-color: #a0a0a0;
-    cursor: not-allowed;
-}
-
 .coupon-status {
     margin-top: 6px;
     font-size: 0.85em;
     min-height: 18px;
+}
+
+.compact-form {
+    margin-bottom: 0;
+}
+
+.compact-form .coupon-container {
+    margin-bottom: 4px;
+}
+
+.compact-form input {
+    padding: 6px 10px;
+    font-size: 0.9em;
+}
+
+.compact-form .apply-coupon-button {
+    padding: 6px 10px;
+    font-size: 0.85em;
 }
 
 .coupon-status.error {
