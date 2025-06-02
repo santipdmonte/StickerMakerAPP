@@ -253,10 +253,6 @@
 
 .apply-coupon-button {
     height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    white-space: nowrap;
     background: linear-gradient(45deg, #ff6b9b, #ff9eb5);
     color: #fff;
     border: none;
@@ -267,6 +263,11 @@
     cursor: pointer;
     transition: box-shadow 0.2s, transform 0.2s;
     box-shadow: 0 5px 15px rgba(255, 107, 155, 0.15);
+}
+
+.apply-coupon-button-container{
+    align-items: center;
+    justify-content: center;
 }
 
 .apply-coupon-button:hover {
@@ -305,10 +306,19 @@
         padding: 8px 10px;
         height: 40px;
     }
+    .apply-coupon-button-container {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
     .apply-coupon-button {
         width: 100%;
-        padding: 8px 0;
-        font-size: 0.95rem;
+        padding: 10px 0;
+        font-size: 1rem;
         height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 }
