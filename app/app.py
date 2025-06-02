@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import time
 from io import BytesIO
 import uuid
+from openai import BadRequestError
 
 # Import configuration from config.py
 from config import (
@@ -171,8 +172,8 @@ def generate():
                 import base64
                 reference_image_data = f"data:image/{ref_file.content_type.split('/')[-1]};base64,{base64.b64encode(ref_file_data).decode('utf-8')}"
     
-    if not prompt:
-        return jsonify({"error": "No prompt provided"}), 400
+    if not prompt and not (reference_image_data and style):
+        return jsonify({"error": "No prompt provided. You must enter a description, or upload a reference image and select a style."}), 400
     
     user_id = session.get('user_id')
     is_logged_in = bool(user_id)
@@ -268,10 +269,30 @@ def generate():
         })
 
     except ValueError as e:
-        if f"Insufficient coins" in str(e) or f"Payment failed" in str(e):
-            return jsonify({"error": str(e)}), 402
-        app.logger.error(f"ValueError during sticker generation for user {user_id or 'anonymous'}: {str(e)}", exc_info=True)
-        return jsonify({"error": f"Invalid image format or input: {str(e)}"}), 400
+        error_str = str(e)
+        if "Insufficient coins" in error_str or "Payment failed" in error_str:
+            return jsonify({"error": error_str}), 402
+        if "moderation_blocked" in error_str:
+            return jsonify({"error": "No se pudo generar el sticker. El contenido ingresado no está permitido por nuestro sistema de seguridad. Por favor, intenta con una descripción diferente."}), 400
+        if "billing_hard_limit_reached" in error_str:
+            return jsonify({"error": "No se pudo generar el sticker. Ha ocurrido un problema interno. Por favor, ponte en contacto con el administrador para resolverlo."}), 400
+        app.logger.error(f"ValueError during sticker generation for user {user_id or 'anonymous'}: {error_str}", exc_info=True)
+        return jsonify({"error": f"Invalid image format or input: {error_str}"}), 400
+    except BadRequestError as e:
+        # Manejo específico para errores de OpenAI
+        error_code = ''
+        try:
+            if hasattr(e, 'response') and hasattr(e.response, 'json'):
+                error_json = e.response.json()
+                error_code = error_json.get('error', {}).get('code', '')
+        except Exception:
+            error_code = ''
+        error_str = str(e)
+        if "moderation_blocked" in error_str or error_code == "moderation_blocked":
+            return jsonify({"error": "No se pudo generar el sticker. El contenido ingresado no está permitido por nuestro sistema de seguridad. Por favor, intenta con una descripción diferente."}), 400
+        if "billing_hard_limit_reached" in error_str or error_code == "billing_hard_limit_reached":
+            return jsonify({"error": "No se pudo generar el sticker. Ha ocurrido un problema interno. Por favor, ponte en contacto con el administrador para resolverlo."}), 400
+        return jsonify({"error": f"Error al generar el sticker: {error_str}"}), 400
     except Exception as e:
         app.logger.error(f"Error during sticker generation for user {user_id}: {str(e)}", exc_info=True)
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
@@ -440,16 +461,22 @@ def get_styles():
             "example_image": "/static/img/styles/parche_hilo_ejemplo.webp"
         },
         {
-            "id": "Origami",
-            "name": "Origami",
-            "description": "Stickers con forma y textura de papel doblado estilo origami",
-            "example_image": "/static/img/styles/sticker_cohete_origami.png"
-        },
-        {
             "id": "Estudio Ghibli",
             "name": "Estudio Ghibli",
             "description": "Stickers con estética inspirada en animaciones japonesas estilo Ghibli",
             "example_image": "/static/img/styles/sticker_ghibli.png"
+        },
+        {
+            "id": "Caricatura",
+            "name": "Caricatura",
+            "description": "Stickers con estilo caricatura dibujada a mano. Exagera rasgos caraterisicos de la imagen",
+            "example_image": "/static/img/styles/sticker_caricatura.png"
+        },
+        {
+            "id": "Origami",
+            "name": "Origami",
+            "description": "Stickers con forma y textura de papel doblado estilo origami",
+            "example_image": "/static/img/styles/sticker_cohete_origami.png"
         },
         {
             "id": "Pixel Art",
@@ -462,12 +489,6 @@ def get_styles():
             "name": "Estilo Lego",
             "description": "Stickers con apariencia de bloques de construcción tipo Lego",
             "example_image": "/static/img/styles/sticker_lego.png"
-        },
-        {
-            "id": "Caricatura",
-            "name": "Caricatura",
-            "description": "Stickers con estilo caricatura dibujada a mano. Exagera rasgos caraterisicos de la imagen",
-            "example_image": "/static/img/styles/sticker_caricatura.png"
         },
         {
             "id": "Metalico",

@@ -1435,9 +1435,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function generateSticker() {
         const prompt = promptInput.value.trim();
         const hasReferenceImage = referenceImageData !== null;
+        const hasStyle = !!selectedStyle;
         
-        if (!prompt) {
-            showError('Por favor, ingresá una descripción para tu sticker');
+        if (!prompt && !(hasReferenceImage && hasStyle)) {
+            showError('Por favor, ingresá una descripción para tu sticker o subí una imagen y seleccioná un estilo.');
             shakElement(promptInput);
             return;
         }
@@ -1662,7 +1663,6 @@ document.addEventListener('DOMContentLoaded', () => {
         coinsCouponDirectInput.value = '';
         coinsCouponDirectInput.disabled = false;
         applyCouponDirectBtn.disabled = false;
-        applyCouponDirectBtn.innerHTML = 'Apply';
         couponDirectStatus.textContent = '';
         couponDirectStatus.className = 'coupon-status';
         

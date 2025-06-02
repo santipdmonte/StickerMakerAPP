@@ -22,16 +22,16 @@ STICKER_COSTS = {
 COIN_PACKAGES_CONFIG = {
     'small': {'name': 'Paquete Pequeño de Monedas', 'coins': 100, 'price': 600.00, 'currency_id': 'ARS'},
     'medium': {'name': 'Paquete Mediano de Monedas', 'coins': 300, 'price': 1800.00, 'currency_id': 'ARS'},
-    'large': {'name': 'Paquete Grande de Monedas', 'coins': 500, 'price': 1900.00, 'currency_id': 'ARS'}
+    'large': {'name': 'Paquete Grande de Monedas', 'coins': 500, 'price': 1999.00, 'currency_id': 'ARS'}
 }
 
 STICKER_STYLE_CONFIG = {
     'Parche de hilo': 'Diseño estilo parche de hilo bordado con textura de bordado, relieve, y aspecto artesanal.',
-    'Origami': 'Diseño estilo origami con pliegues de papel visibles, aspecto geométrico y texturas de papel doblado.',
     'Estudio Ghibli': 'Diseño estilo Ghibli con aspecto de animación japonesa, personajes de dibujos animados, y texturas de papel.',
+    'Caricatura': 'Stickers con estilo caricatura dibujada a mano. Exagera rasgos caraterisicos de la imagen.',
+    'Origami': 'Diseño estilo origami con pliegues de papel visibles, aspecto geométrico y texturas de papel doblado.',
     'Pixel Art': 'Diseño estilo pixel art con resolución baja, píxeles visibles y estética retro de videojuegos de los 80.',
     'Estilo Lego': 'Diseño estilo bloques de construcción con textura plástica, formas modulares y estética tipo Lego.',
-    'Caricatura': 'Stickers con estilo caricatura dibujada a mano. Exagera rasgos caraterisicos de la imagen.',
     'Metalico': 'Diseño estilo metálico con acabado brillante, reflejos metálicos, aspecto de acero o aluminio pulido.',
     'Papel': 'Diseño estilo recorte de papel con textura de papel, sombras sutiles y aspecto artesanal de papel.'
 }
