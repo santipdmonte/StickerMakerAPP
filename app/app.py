@@ -171,8 +171,8 @@ def generate():
                 import base64
                 reference_image_data = f"data:image/{ref_file.content_type.split('/')[-1]};base64,{base64.b64encode(ref_file_data).decode('utf-8')}"
     
-    if not prompt:
-        return jsonify({"error": "No prompt provided"}), 400
+    if not prompt and not (reference_image_data and style):
+        return jsonify({"error": "No prompt provided. You must enter a description, or upload a reference image and select a style."}), 400
     
     user_id = session.get('user_id')
     is_logged_in = bool(user_id)
