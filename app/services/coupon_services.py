@@ -1,0 +1,130 @@
+# Servicios para la gestión de cupones
+from utils.dynamodb_utils import get_dynamodb_resource, COUPON_TABLE, TRANSACTION_TABLE
+import uuid
+import time
+from datetime import datetime
+from boto3.dynamodb.conditions import Key, Attr
+
+# Crear cupón
+def create_coupon(data):
+    dynamodb = get_dynamodb_resource()
+    table = dynamodb.Table(COUPON_TABLE)
+    now = int(time.time())
+    item = {
+        'id_coupon': str(uuid.uuid4()),
+        'coupon_code': data['coupon_code'],
+        'coupons_left': int(data.get('coupons_left', 1)),
+        'coupon_initial_number': int(data.get('coupon_initial_number', 1)),
+        'is_active': int(data.get('is_active', 1)),
+        'expires_at': int(data.get('expires_at', 0)),
+        'coupon_type': data.get('coupon_type', 'coins'),
+        'coins_value': int(data.get('coins_value', 0)),
+        'discount_percent': float(data.get('discount_percent', 0)),
+        'created_at': now,
+        'modified_at': now
+    }
+    table.put_item(Item=item)
+    return item
+
+# Obtener cupón por código
+def get_coupon_by_code(coupon_code):
+    dynamodb = get_dynamodb_resource()
+    table = dynamodb.Table(COUPON_TABLE)
+    resp = table.query(
+        IndexName='CouponCodeIndex',
+        KeyConditionExpression=Key('coupon_code').eq(coupon_code)
+    )
+    items = resp.get('Items', [])
+    return items[0] if items else None
+
+# Listar cupones (con filtros opcionales)
+def list_coupons(filters=None):
+    dynamodb = get_dynamodb_resource()
+    table = dynamodb.Table(COUPON_TABLE)
+    scan_kwargs = {}
+    if filters:
+        filter_expr = None
+        for k, v in filters.items():
+            cond = Attr(k).eq(v)
+            filter_expr = cond if filter_expr is None else filter_expr & cond
+        if filter_expr is not None:
+            scan_kwargs['FilterExpression'] = filter_expr
+    resp = table.scan(**scan_kwargs)
+    return resp.get('Items', [])
+
+# Redimir cupón
+def redeem_coupon(user_id, coupon_code):
+    dynamodb = get_dynamodb_resource()
+    coupon_table = dynamodb.Table(COUPON_TABLE)
+    transaction_table = dynamodb.Table(TRANSACTION_TABLE)
+    # 1. Buscar cupón
+    coupon = get_coupon_by_code(coupon_code)
+    if not coupon:
+        return {'error': 'Cupón no encontrado'}, 404
+    if not coupon.get('is_active', 1):
+        return {'error': 'Cupón inactivo'}, 400
+    if coupon.get('expires_at', 0) and int(time.time()) > int(coupon['expires_at']):
+        return {'error': 'Cupón expirado'}, 400
+    if int(coupon.get('coupons_left', 0)) <= 0:
+        return {'error': 'No quedan usos disponibles'}, 400
+    # 2. Verificar si el usuario ya usó el cupón
+    resp = transaction_table.query(
+        IndexName='CouponCodeIndex',
+        KeyConditionExpression=Key('coupon_code').eq(coupon_code),
+        FilterExpression=Attr('user_id').eq(user_id)
+    )
+    if resp.get('Items'):
+        return {'error': 'Ya has usado este cupón'}, 400
+    # 3. Aplicar beneficio (solo lógica de monedas por ahora)
+    coins_value = int(coupon.get('coins_value', 0))
+    discount_percent = float(coupon.get('discount_percent', 0))
+    if coins_value <= 0 and discount_percent <= 0:
+        return {'error': 'Cupón sin beneficio'}, 400
+    # 4. Registrar transacción
+    transaction_id = str(uuid.uuid4())
+    now = int(time.time())
+    transaction_data = {
+        'transaction_id': transaction_id,
+        'user_id': user_id,
+        'coins_amount': coins_value,
+        'transaction_type': 'coupon',
+        'timestamp': now,
+        'date': datetime.fromtimestamp(now).strftime('%Y-%m-%d'),
+        'coupon_code': coupon_code,
+        'details': {
+            'id_coupon': coupon['id_coupon'],
+            'discount_percent': discount_percent
+        }
+    }
+    transaction_table.put_item(Item=transaction_data)
+    # 5. Restar usos al cupón
+    coupon_table.update_item(
+        Key={'id_coupon': coupon['id_coupon']},
+        UpdateExpression='SET coupons_left = coupons_left - :dec, modified_at = :now',
+        ExpressionAttributeValues={':dec': 1, ':now': now}
+    )
+    return {'success': True, 'coins_added': coins_value, 'discount_percent': discount_percent}
+
+# Activar/desactivar cupón
+def set_coupon_active(coupon_code, is_active):
+    dynamodb = get_dynamodb_resource()
+    table = dynamodb.Table(COUPON_TABLE)
+    coupon = get_coupon_by_code(coupon_code)
+    if not coupon:
+        return {'error': 'Cupón no encontrado'}, 404
+    table.update_item(
+        Key={'id_coupon': coupon['id_coupon']},
+        UpdateExpression='SET is_active = :active, modified_at = :now',
+        ExpressionAttributeValues={':active': int(is_active), ':now': int(time.time())}
+    )
+    return {'success': True}
+
+# Eliminar cupón
+def delete_coupon(coupon_code):
+    dynamodb = get_dynamodb_resource()
+    table = dynamodb.Table(COUPON_TABLE)
+    coupon = get_coupon_by_code(coupon_code)
+    if not coupon:
+        return {'error': 'Cupón no encontrado'}, 404
+    table.delete_item(Key={'id_coupon': coupon['id_coupon']})
+    return {'success': True}
