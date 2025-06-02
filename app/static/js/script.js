@@ -1663,7 +1663,6 @@ document.addEventListener('DOMContentLoaded', () => {
         coinsCouponDirectInput.value = '';
         coinsCouponDirectInput.disabled = false;
         applyCouponDirectBtn.disabled = false;
-        applyCouponDirectBtn.innerHTML = 'Apply';
         couponDirectStatus.textContent = '';
         couponDirectStatus.className = 'coupon-status';
         
