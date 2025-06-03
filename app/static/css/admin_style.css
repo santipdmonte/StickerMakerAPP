@@ -106,7 +106,7 @@ body {
 .admin-requests-table th, .admin-requests-table td {
     padding: 14px 18px;
     border-bottom: 1px solid var(--input-border);
-    text-align: left;
+    text-align: center;
 }
 
 .admin-requests-table th {
