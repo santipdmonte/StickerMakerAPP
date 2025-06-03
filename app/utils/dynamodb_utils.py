@@ -788,3 +788,28 @@ def update_user_role(user_id, new_role):
         ReturnValues='ALL_NEW'
     )
     return response.get('Attributes') 
+
+
+def update_user_name(user_id, new_name):
+    """
+    Actualiza el nombre de un usuario en DynamoDB y devuelve el usuario actualizado.
+    Args:
+        user_id (str): ID del usuario
+        new_name (str): Nuevo nombre
+    Returns:
+        dict: Usuario actualizado
+    """
+    dynamodb = get_dynamodb_resource()
+    table = dynamodb.Table(USER_TABLE)
+    timestamp = int(time.time())
+    response = table.update_item(
+        Key={'user_id': user_id},
+        UpdateExpression='SET #n = :name, updated_at = :timestamp',
+        ExpressionAttributeNames={'#n': 'name'},
+        ExpressionAttributeValues={
+            ':name': new_name,
+            ':timestamp': timestamp
+        },
+        ReturnValues='ALL_NEW'
+    )
+    return response.get('Attributes') 
