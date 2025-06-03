@@ -321,6 +321,8 @@ def get_my_transactions():
     try:
         transactions = get_user_transactions(user_id)
         transactions = sanitize_dynamodb_response(transactions)
+        # Ordenar por timestamp descendente si existe, sino por date
+        transactions.sort(key=lambda tx: tx.get('timestamp', 0), reverse=True)
         return jsonify({"success": True, "transactions": transactions})
     except Exception as e:
         return jsonify({"error": f"Failed to fetch transactions: {str(e)}"}), 500 
