@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Administrar Cupones</title>
+    <link rel="stylesheet" href="/static/css/admin_style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.4.0/fonts/remixicon.css">
+    
+</head>
+<body>
+    <div class="admin-dashboard-container">
+        <h1 class="admin-title">Administrar Cupones</h1>
+        <a href="/admin" class="admin-action-btn">Volver al dashboard</a>
+
+        <div class="admin-coupon-form-container">
+            <div id="coupon-message"></div>
+            <form id="coupon-form" action="/coupons" method="post" class="admin-coupon-form">
+                <div class="form-group">
+                    <label for="coupon_code">Código del cupón</label>
+                    <input type="text" id="coupon_code" name="coupon_code" required>
+                </div>
+                <div class="form-group">
+                    <label for="coupons_left">Cantidad disponible</label>
+                    <input type="number" id="coupons_left" name="coupons_left" min="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="is_active">Activo</label>
+                    <select id="is_active" name="is_active">
+                        <option value="1">Sí</option>
+                        <option value="0">No</option>
+                </select>
+                </div>
+                <div class="form-group">
+                    <label for="expires_at">Fecha de expiración (opcional)</label>
+                    <input type="number" id="expires_at" name="expires_at" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="coupon_type">Tipo de cupón</label>
+                    <select id="coupon_type" name="coupon_type" onchange="toggleCouponInputs()">
+                        <option value="coins">Coins</option>
+                        <option value="discount">Descuento (%)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="coins_value">Valor en coins</label>
+                    <input type="number" id="coins_value" name="coins_value" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="discount_percent">Descuento (%)</label>
+                    <input type="number" id="discount_percent" name="discount_percent" min="0" max="100">
+                </div>
+                <button type="submit" class="admin-action-btn" id="create-coupon-btn">Crear cupón</button>
+            </form>
+        </div>
+
+        <div class="admin-requests-section">
+            <h2>Cupones actuales</h2>
+            <table class="admin-requests-table" id="coupons-table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Tipo</th>
+                        <th>Valor</th>
+                        <th>Cantidad disponible</th>
+                        <th>Activo</th>
+                        <th>Expira</th>
+                        <th>Acción</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="coupons-table-body">
+                    <tr><td colspan="7">Cargando cupones...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+    <!-- Modal para acciones de cupón -->
+    <div id="coupon-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content" id="coupon-modal-content">
+            <button class="modal-close-btn" id="coupon-modal-close-btn"><i class="ri-close-line"></i></button>
+            <h2>Acciones del Cupón</h2>
+            <div id="coupon-modal-body">
+                <!-- Aquí se cargará el contenido dinámico -->
+            </div>
+        </div>
+    </div>
+
+
+
+            <script>
+            // --- ADMIN: Formulario de cupones ---
+            const couponForm = document.getElementById('coupon-form');
+            const couponMessage = document.getElementById('coupon-message');
+            const createCouponBtn = document.getElementById('create-coupon-btn');
+            if (couponForm && couponMessage && createCouponBtn) {
+                couponForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    couponMessage.innerHTML = '';
+                    createCouponBtn.disabled = true;
+                    const originalBtnText = createCouponBtn.textContent;
+                    createCouponBtn.textContent = 'Creando...';
+                    const formData = new FormData(couponForm);
+                    const data = {};
+                    formData.forEach((value, key) => {
+                        data[key] = value;
+                    });
+                    try {
+                        const response = await fetch('/coupons', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify(data)
+                        });
+                        const contentType = response.headers.get('Content-Type');
+                        let result = {};
+                        if (contentType && contentType.includes('application/json')) {
+                            result = await response.json();
+                        } else {
+                            result = { error: 'Respuesta inesperada del servidor.' };
+                        }
+                        if (response.ok && result.coupon_code) {
+                            couponMessage.innerHTML = `<div class='admin-success-message'>¡Cupón creado exitosamente! Código: <strong>${result.coupon_code}</strong></div>`;
+                            couponForm.reset();
+                            toggleCouponInputs();
+                        } else {
+                            couponMessage.innerHTML = `<div class='admin-error-message'>${result.error || 'Error al crear el cupón.'}</div>`;
+                        }
+                    } catch (err) {
+                        couponMessage.innerHTML = `<div class='admin-error-message'>${err.message || 'Error de red.'}</div>`;
+                    } finally {
+                        createCouponBtn.disabled = false;
+                        createCouponBtn.textContent = originalBtnText;
+                    }
+                });
+            }
+
+
+            function toggleCouponInputs() {
+                var type = document.getElementById('coupon_type').value;
+                var coinsInput = document.getElementById('coins_value');
+                var discountInput = document.getElementById('discount_percent');
+                if (type === 'coins') {
+                    coinsInput.disabled = false;
+                    discountInput.disabled = true;
+                    discountInput.value = '';
+                } else {
+                    coinsInput.disabled = true;
+                    coinsInput.value = '';
+                    discountInput.disabled = false;
+                }
+            }
+            // Inicializar al cargar la página
+            document.addEventListener('DOMContentLoaded', function() {
+                toggleCouponInputs();
+            });
+
+            // --- ADMIN: Listar y activar/desactivar cupones ---
+            async function loadCouponsTable() {
+                const tableBody = document.getElementById('coupons-table-body');
+                tableBody.innerHTML = '<tr><td colspan="7">Cargando cupones...</td></tr>';
+                try {
+                    const resp = await fetch('/coupons');
+                    const coupons = await resp.json();
+                    if (!Array.isArray(coupons) || coupons.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="7">No hay cupones registrados.</td></tr>';
+                        return;
+                    }
+                    // Ordenar: activos primero, luego inactivos
+                    coupons.sort((a, b) => {
+                        const aActive = a.is_active == 1 || a.is_active === true;
+                        const bActive = b.is_active == 1 || b.is_active === true;
+                        if (aActive === bActive) return 0;
+                        return aActive ? -1 : 1;
+                    });
+                    tableBody.innerHTML = '';
+                    coupons.forEach(coupon => {
+                        const isActive = coupon.is_active == 1 || coupon.is_active === true;
+                        const expires = coupon.expires_at && Number(coupon.expires_at) > 0
+                            ? new Date(Number(coupon.expires_at) * 1000).toLocaleString()
+                            : '-';
+                        const valor = coupon.coupon_type === 'coins' ? `${coupon.coins_value} coins` : `${coupon.discount_percent} %`;
+                        const btnText = isActive ? 'Desactivar' : 'Activar';
+                        const btnClass = isActive ? 'deactivate-btn' : 'activate-btn';
+                        tableBody.innerHTML += `
+                            <tr class="${isActive ? '' : 'coupon-row-inactive'}">
+                                <td>${coupon.coupon_code}</td>
+                                <td>${coupon.coupon_type}</td>
+                                <td>${valor}</td>
+                                <td>${coupon.coupons_left}</td>
+                                <td>${isActive ? 'Sí' : 'No'}</td>
+                                <td>${expires}</td>
+                                <td><button class="coupon-action-btn ${btnClass}" data-code="${coupon.coupon_code}" data-active="${isActive ? 1 : 0}">${btnText}</button></td>
+                                <td>
+                                    <button class="coupon-more-btn" data-code="${coupon.coupon_code}" title="Más acciones">
+                                        <i class="ri-more-2-fill"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                } catch (err) {
+                    tableBody.innerHTML = `<tr><td colspan="7">Error al cargar cupones.</td></tr>`;
+                }
+            }
+            // Manejar click en activar/desactivar
+            document.addEventListener('click', async function(e) {
+                if (e.target.matches('.activate-btn, .deactivate-btn')) {
+                    const btn = e.target;
+                    const code = btn.getAttribute('data-code');
+                    const isActive = btn.getAttribute('data-active') === '1';
+                    // Confirmar solo si se va a desactivar
+                    if (isActive) {
+                        const confirmed = confirm('¿Estás seguro que quieres desactivar este cupón?');
+                        if (!confirmed) return;
+                    }
+                    btn.disabled = true;
+                    btn.textContent = 'Procesando...';
+                    try {
+                        const resp = await fetch(`/coupons/${code}/activate`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ is_active: isActive ? 0 : 1 })
+                        });
+                        const result = await resp.json();
+                        if (resp.ok && result.success) {
+                            loadCouponsTable();
+                        } else {
+                            alert(result.error || 'Error al cambiar el estado del cupón.');
+                            btn.disabled = false;
+                            btn.textContent = isActive ? 'Desactivar' : 'Activar';
+                        }
+                    } catch (err) {
+                        alert('Error de red.');
+                        btn.disabled = false;
+                        btn.textContent = isActive ? 'Desactivar' : 'Activar';
+                    }
+                }
+            });
+            // Cargar cupones al cargar la página y tras crear uno
+            document.addEventListener('DOMContentLoaded', loadCouponsTable);
+            if (couponForm) {
+                couponForm.addEventListener('submit', function() {
+                    setTimeout(loadCouponsTable, 800);
+                });
+            }
+
+            // --- MODAL DE ACCIONES DE CUPÓN ---
+            const couponModal = document.getElementById('coupon-modal');
+            const couponModalContent = document.getElementById('coupon-modal-content');
+            const couponModalBody = document.getElementById('coupon-modal-body');
+            const couponModalCloseBtn = document.getElementById('coupon-modal-close-btn');
+
+            // Abrir modal al hacer click en el botón de 3 puntos
+            // Usamos event delegation para soportar recarga dinámica de la tabla
+
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.coupon-more-btn')) {
+                    const btn = e.target.closest('.coupon-more-btn');
+                    const code = btn.getAttribute('data-code');
+                    openCouponModal(code);
+                }
+            });
+
+            function openCouponModal(couponCode) {
+                couponModal.classList.remove('hidden');
+                setTimeout(() => couponModal.classList.add('visible'), 10);
+                document.body.classList.add('modal-open');
+                // Mostrar loading
+                couponModalBody.innerHTML = `<div style='text-align:center; padding: 18px 0;'>Cargando redenciones...</div>`;
+                // Llamar al endpoint de redenciones
+                fetch(`/coupons/${couponCode}/redemptions`)
+                    .then(resp => resp.json())
+                    .then(data => {
+                        if (Array.isArray(data) && data.length > 0) {
+                            let html = `<table style='width:100%; border-collapse:collapse; margin-top:10px;'>`;
+                            html += `<thead><tr><th style='text-align:left;'>Nombre</th><th style='text-align:left;'>Email</th><th style='text-align:left;'>Fecha</th></tr></thead><tbody>`;
+                            data.forEach(r => {
+                                html += `<tr><td>${r.nombre || '-'}</td><td>${r.email || '-'}</td><td>${r.fecha || '-'}</td></tr>`;
+                            });
+                            html += `</tbody></table>`;
+                            couponModalBody.innerHTML = html;
+                        } else if (Array.isArray(data) && data.length === 0) {
+                            couponModalBody.innerHTML = `<div style='text-align:center; padding: 18px 0;'>Nadie ha usado este cupón aún.</div>`;
+                        } else if (data.error) {
+                            couponModalBody.innerHTML = `<div style='color:#b91c1c; text-align:center; padding: 18px 0;'>${data.error}</div>`;
+                        } else {
+                            couponModalBody.innerHTML = `<div style='text-align:center; padding: 18px 0;'>No se pudo cargar la información.</div>`;
+                        }
+                    })
+                    .catch(err => {
+                        couponModalBody.innerHTML = `<div style='color:#b91c1c; text-align:center; padding: 18px 0;'>Error de red al cargar redenciones.</div>`;
+                    });
+            }
+
+            function closeCouponModal() {
+                couponModal.classList.remove('visible');
+                document.body.classList.remove('modal-open');
+                setTimeout(() => {
+                    couponModal.classList.add('hidden');
+                }, 300);
+            }
+
+            couponModalCloseBtn.addEventListener('click', closeCouponModal);
+            // Cerrar modal al hacer click fuera del contenido
+            couponModal.addEventListener('click', function(e) {
+                if (e.target === couponModal || e.target.classList.contains('modal-backdrop')) {
+                    closeCouponModal();
+                }
+            });
+            // Prevenir cierre al hacer click dentro del contenido
+            couponModalContent.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        </script>
+</body>
+</html>

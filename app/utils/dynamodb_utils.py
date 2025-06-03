@@ -9,13 +9,14 @@ from datetime import datetime
 from config import (
     INITIAL_COINS, BONUS_COINS,
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
-    DYNAMODB_USER_TABLE, DYNAMODB_TRANSACTION_TABLE, DYNAMODB_REQUEST_TABLE
+    DYNAMODB_USER_TABLE, DYNAMODB_TRANSACTION_TABLE, DYNAMODB_REQUEST_TABLE, DYNAMODB_COUPONES_TABLE
 )
 
 # Define table variables from config
 USER_TABLE = DYNAMODB_USER_TABLE
 TRANSACTION_TABLE = DYNAMODB_TRANSACTION_TABLE
 ADMIN_REQUEST_TABLE = DYNAMODB_REQUEST_TABLE
+COUPON_TABLE = DYNAMODB_COUPONES_TABLE
 
 # Function to check if table is ready (not in CREATING or UPDATING state)
 def is_table_ready(table_name):
@@ -197,6 +198,7 @@ def ensure_tables_exist():
                 {'AttributeName': 'transaction_id', 'AttributeType': 'S'},
                 {'AttributeName': 'user_id', 'AttributeType': 'S'},
                 {'AttributeName': 'payment_id', 'AttributeType': 'S'},  # Nuevo atributo para payment_id
+                {'AttributeName': 'coupon_code', 'AttributeType': 'S'},  # Nuevo campo para cupones
             ],
             GlobalSecondaryIndexes=[
                 {
@@ -216,6 +218,19 @@ def ensure_tables_exist():
                     'IndexName': 'PaymentIdIndex',  # Nuevo índice para búsquedas por payment_id
                     'KeySchema': [
                         {'AttributeName': 'payment_id', 'KeyType': 'HASH'},
+                    ],
+                    'Projection': {
+                        'ProjectionType': 'ALL'
+                    },
+                    'ProvisionedThroughput': {
+                        'ReadCapacityUnits': 5,
+                        'WriteCapacityUnits': 5
+                    }
+                },
+                {
+                    'IndexName': 'CouponCodeIndex',  # Nuevo índice para búsquedas por coupon_code
+                    'KeySchema': [
+                        {'AttributeName': 'coupon_code', 'KeyType': 'HASH'},
                     ],
                     'Projection': {
                         'ProjectionType': 'ALL'
@@ -309,6 +324,39 @@ def ensure_tables_exist():
             }
         )
         print(f"Created table {ADMIN_REQUEST_TABLE}")
+
+    # Tabla de cupones
+    if COUPON_TABLE not in existing_tables:
+        dynamodb.create_table(
+            TableName=COUPON_TABLE,
+            KeySchema=[
+                {'AttributeName': 'id_coupon', 'KeyType': 'HASH'},  # Partition key
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'id_coupon', 'AttributeType': 'S'},
+                {'AttributeName': 'coupon_code', 'AttributeType': 'S'},
+            ],
+            GlobalSecondaryIndexes=[
+                {
+                    'IndexName': 'CouponCodeIndex',
+                    'KeySchema': [
+                        {'AttributeName': 'coupon_code', 'KeyType': 'HASH'},
+                    ],
+                    'Projection': {
+                        'ProjectionType': 'ALL'
+                    },
+                    'ProvisionedThroughput': {
+                        'ReadCapacityUnits': 5,
+                        'WriteCapacityUnits': 5
+                    }
+                },
+            ],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 5,
+                'WriteCapacityUnits': 5
+            }
+        )
+        print(f"Created table {COUPON_TABLE}")
 
 # User Management Functions
 def create_user(email, initial_coins=None, name=None, role='user', referral=None):
@@ -558,7 +606,7 @@ def verify_login_pin(email, pin):
     return None
 
 # Transaction Management Functions
-def create_transaction(user_id, coins_amount, transaction_type, details=None, payment_id=None):
+def create_transaction(user_id, coins_amount, transaction_type, details=None, payment_id=None, coupon_code=None):
     """
     Record a transaction in the transaction table and update user's coin balance
     
@@ -568,6 +616,7 @@ def create_transaction(user_id, coins_amount, transaction_type, details=None, pa
         transaction_type (str): Type of transaction (e.g., 'purchase', 'usage', 'bonus', 'coin_purchase_mp')
         details (dict): Any additional details about the transaction
         payment_id (str, optional): ID de pago externo para transacciones de compra, usado para idempotencia
+        coupon_code (str, optional): Código de cupón si aplica
         
     Returns:
         dict: Transaction data with additional 'is_existing' field if transaction already existed
@@ -589,7 +638,7 @@ def create_transaction(user_id, coins_amount, transaction_type, details=None, pa
     timestamp = int(time.time())
     date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
 
-    valid_transaction_types = ['purchase', 'usage', 'bonus', 'coin_purchase_mp', 'sticker_generation_authenticated']
+    valid_transaction_types = ['purchase', 'usage', 'bonus', 'coin_purchase_mp', 'sticker_generation_authenticated', 'coupon']
     if transaction_type not in valid_transaction_types:
         raise ValueError(f"Invalid transaction type: {transaction_type}, must be one of: {', '.join(valid_transaction_types)}")
     
@@ -606,6 +655,10 @@ def create_transaction(user_id, coins_amount, transaction_type, details=None, pa
     # Añadir payment_id si está definido
     if payment_id:
         transaction_data['payment_id'] = str(payment_id)
+    
+    # Añadir coupon_code si está definido
+    if coupon_code:
+        transaction_data['coupon_code'] = coupon_code
     
     # Record the transaction
     transaction_table.put_item(Item=transaction_data)

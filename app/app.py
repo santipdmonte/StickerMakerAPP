@@ -41,6 +41,7 @@ from routes.payment_routes import payment_bp
 from routes.template_routes import template_bp
 from routes.s3_routes import s3_bp
 from routes.admin_routes import admin_bp
+from routes.coupon_routes import coupon_bp
 
 app = Flask(__name__)
 # Configure Flask from configuration
@@ -64,6 +65,7 @@ app.register_blueprint(payment_bp)
 app.register_blueprint(template_bp)
 app.register_blueprint(s3_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(coupon_bp)
 
 # Set session to be permanent by default before any request
 @app.before_request

@@ -6,7 +6,7 @@
 </head>
 <body>
     <div class="admin-dashboard-container">
-        <h1 style="background: linear-gradient(45deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; background-clip: text; color: transparent; font-size: 2.5rem; margin-bottom: 32px; letter-spacing: -1px;">Admin Dashboard</h1>
+        <h1 class="admin-title">Admin Dashboard</h1>
         <div class="admin-kpi-row">
             <div class="admin-kpi-card">
                 <div class="admin-kpi-title">Total Users</div>
@@ -60,5 +60,11 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- Botón para ir a la página de administración de cupones -->
+    <a href="/admin/coupons" class="admin-action-btn">Administrar cupones</a>
+
+
+
 </body>
 </html> 
