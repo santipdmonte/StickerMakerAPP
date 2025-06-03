@@ -12,6 +12,10 @@ def create_coupon(data):
     dynamodb = get_dynamodb_resource()
     table = dynamodb.Table(COUPON_TABLE)
     now = int(time.time())
+    # Validar unicidad del código de cupón
+    existing = get_coupon_by_code(data['coupon_code'])
+    if existing:
+        raise Exception('Ya existe un cupón con ese código.')
     item = {
         'id_coupon': str(uuid.uuid4()),
         'coupon_code': data['coupon_code'],
