@@ -149,6 +149,14 @@ body {
 
 }
 
+.admin-coupon-form-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    margin-bottom: 32px;
+}
+
 .admin-coupon-form {
     margin: 36px 0 0 0;
     padding: 32px 28px;
@@ -224,6 +232,19 @@ body {
     }
     .admin-dashboard-container {
         padding: 18px 6px;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-coupon-form-container {
+        justify-content: stretch;
+        align-items: stretch;
+        margin-bottom: 18px;
+    }
+    .admin-coupon-form {
+        padding: 16px 4px;
+        max-width: 100%;
+        margin: 18px 0 0 0;
     }
 }
 

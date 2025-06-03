@@ -9,44 +9,47 @@
         <h1 class="admin-title">Administrar Cupones</h1>
         <a href="/admin" class="admin-action-btn">Volver al dashboard</a>
 
-        <div id="coupon-message"></div>
-        <form id="coupon-form" action="/coupons" method="post" class="admin-coupon-form">
-            <div class="form-group">
-                <label for="coupon_code">Código del cupón</label>
-                <input type="text" id="coupon_code" name="coupon_code" required>
-            </div>
-            <div class="form-group">
-                <label for="coupons_left">Cantidad disponible</label>
-                <input type="number" id="coupons_left" name="coupons_left" min="1" value="1" required>
-            </div>
-            <div class="form-group">
-                <label for="is_active">Activo</label>
-                <select id="is_active" name="is_active">
-                    <option value="1">Sí</option>
-                    <option value="0">No</option>
+        <div class="admin-coupon-form-container">
+            <div id="coupon-message"></div>
+            <form id="coupon-form" action="/coupons" method="post" class="admin-coupon-form">
+                <div class="form-group">
+                    <label for="coupon_code">Código del cupón</label>
+                    <input type="text" id="coupon_code" name="coupon_code" required>
+                </div>
+                <div class="form-group">
+                    <label for="coupons_left">Cantidad disponible</label>
+                    <input type="number" id="coupons_left" name="coupons_left" min="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="is_active">Activo</label>
+                    <select id="is_active" name="is_active">
+                        <option value="1">Sí</option>
+                        <option value="0">No</option>
                 </select>
-            </div>
-            <div class="form-group">
-                <label for="expires_at">Fecha de expiración (opcional)</label>
-                <input type="number" id="expires_at" name="expires_at" min="0">
-            </div>
-            <div class="form-group">
-                <label for="coupon_type">Tipo de cupón</label>
-                <select id="coupon_type" name="coupon_type" onchange="toggleCouponInputs()">
-                    <option value="coins">Coins</option>
-                    <option value="discount">Descuento (%)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="coins_value">Valor en coins</label>
-                <input type="number" id="coins_value" name="coins_value" min="0">
-            </div>
-            <div class="form-group">
-                <label for="discount_percent">Descuento (%)</label>
-                <input type="number" id="discount_percent" name="discount_percent" min="0" max="100">
-            </div>
-            <button type="submit" class="admin-action-btn" id="create-coupon-btn">Crear cupón</button>
-        </form>
+                </div>
+                <div class="form-group">
+                    <label for="expires_at">Fecha de expiración (opcional)</label>
+                    <input type="number" id="expires_at" name="expires_at" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="coupon_type">Tipo de cupón</label>
+                    <select id="coupon_type" name="coupon_type" onchange="toggleCouponInputs()">
+                        <option value="coins">Coins</option>
+                        <option value="discount">Descuento (%)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="coins_value">Valor en coins</label>
+                    <input type="number" id="coins_value" name="coins_value" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="discount_percent">Descuento (%)</label>
+                    <input type="number" id="discount_percent" name="discount_percent" min="0" max="100">
+                </div>
+                <button type="submit" class="admin-action-btn" id="create-coupon-btn">Crear cupón</button>
+            </form>
+        </div>
+
         <div class="admin-requests-section">
             <h2>Cupones actuales</h2>
             <table class="admin-requests-table" id="coupons-table">
