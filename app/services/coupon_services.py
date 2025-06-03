@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 from boto3.dynamodb.conditions import Key, Attr
 from decimal import Decimal
+from utils.utils import safe_int, safe_decimal
 
 # Crear cupón
 def create_coupon(data):
@@ -14,13 +15,13 @@ def create_coupon(data):
     item = {
         'id_coupon': str(uuid.uuid4()),
         'coupon_code': data['coupon_code'],
-        'coupons_left': int(data.get('coupons_left', 1)),
-        'coupon_initial_number': int(data.get('coupon_initial_number', 1)),
-        'is_active': int(data.get('is_active', 1)),
-        'expires_at': int(data.get('expires_at', 0)),
+        'coupons_left': safe_int(data.get('coupons_left', 1), 1),
+        'coupon_initial_number': safe_int(data.get('coupon_initial_number', data.get('coupons_left', 1)), 1),
+        'is_active': safe_int(data.get('is_active', 1), 1),
+        'expires_at': safe_int(data.get('expires_at', 0), 0),
         'coupon_type': data.get('coupon_type', 'coins'),
-        'coins_value': Decimal(str(data.get('coins_value', 0))),
-        'discount_percent': Decimal(str(data.get('discount_percent', 0))),
+        'coins_value': safe_decimal(data.get('coins_value', 0), 0),
+        'discount_percent': safe_decimal(data.get('discount_percent', 0), 0),
         'created_at': now,
         'modified_at': now
     }

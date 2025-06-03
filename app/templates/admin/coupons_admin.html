@@ -8,14 +8,14 @@
     <div class="admin-dashboard-container">
         <h1 class="admin-title">Administrar Cupones</h1>
         <a href="/admin" class="admin-action-btn">Volver al dashboard</a>
-        <form action="/admin/coupons/create" method="post" class="admin-coupon-form">
+        <form action="/coupons" method="post" class="admin-coupon-form">
             <div class="form-group">
                 <label for="coupon_code">Código del cupón</label>
                 <input type="text" id="coupon_code" name="coupon_code" required>
             </div>
             <div class="form-group">
                 <label for="coupons_left">Cantidad disponible</label>
-                <input type="number" id="coupons_left" name="coupons_left" min="1" required>
+                <input type="number" id="coupons_left" name="coupons_left" min="1" value="1" required>
             </div>
             <div class="form-group">
                 <label for="is_active">Activo</label>
@@ -25,7 +25,7 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="expires_at">Fecha de expiración (timestamp)</label>
+                <label for="expires_at">Fecha de expiración (opcional)</label>
                 <input type="number" id="expires_at" name="expires_at" min="0">
             </div>
             <div class="form-group">

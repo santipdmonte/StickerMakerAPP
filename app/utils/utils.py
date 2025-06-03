@@ -10,6 +10,7 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from utils.s3_utils import upload_file_to_s3, upload_bytes_to_s3, S3_STICKERS_FOLDER, S3_TEMPLATES_FOLDER
 from datetime import datetime
+from decimal import Decimal
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -442,3 +443,19 @@ def format_timestamp(ts):
         return datetime.fromtimestamp(int(ts)).strftime('%Y-%m-%d %H:%M')
     except Exception:
         return str(ts)
+    
+def safe_int(val, default=0):
+    try:
+        if val in [None, '']:
+            return default
+        return int(val)
+    except Exception:
+        return default
+
+def safe_decimal(val, default=0):
+    try:
+        if val in [None, '']:
+            return Decimal(str(default))
+        return Decimal(str(val))
+    except Exception:
+        return Decimal(str(default))
