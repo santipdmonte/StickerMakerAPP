@@ -606,7 +606,7 @@ def verify_login_pin(email, pin):
     return None
 
 # Transaction Management Functions
-def create_transaction(user_id, coins_amount, transaction_type, details=None, payment_id=None):
+def create_transaction(user_id, coins_amount, transaction_type, details=None, payment_id=None, coupon_code=None):
     """
     Record a transaction in the transaction table and update user's coin balance
     
@@ -616,6 +616,7 @@ def create_transaction(user_id, coins_amount, transaction_type, details=None, pa
         transaction_type (str): Type of transaction (e.g., 'purchase', 'usage', 'bonus', 'coin_purchase_mp')
         details (dict): Any additional details about the transaction
         payment_id (str, optional): ID de pago externo para transacciones de compra, usado para idempotencia
+        coupon_code (str, optional): Código de cupón si aplica
         
     Returns:
         dict: Transaction data with additional 'is_existing' field if transaction already existed
@@ -637,7 +638,7 @@ def create_transaction(user_id, coins_amount, transaction_type, details=None, pa
     timestamp = int(time.time())
     date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
 
-    valid_transaction_types = ['purchase', 'usage', 'bonus', 'coin_purchase_mp', 'sticker_generation_authenticated']
+    valid_transaction_types = ['purchase', 'usage', 'bonus', 'coin_purchase_mp', 'sticker_generation_authenticated', 'coupon']
     if transaction_type not in valid_transaction_types:
         raise ValueError(f"Invalid transaction type: {transaction_type}, must be one of: {', '.join(valid_transaction_types)}")
     
@@ -654,6 +655,10 @@ def create_transaction(user_id, coins_amount, transaction_type, details=None, pa
     # Añadir payment_id si está definido
     if payment_id:
         transaction_data['payment_id'] = str(payment_id)
+    
+    # Añadir coupon_code si está definido
+    if coupon_code:
+        transaction_data['coupon_code'] = coupon_code
     
     # Record the transaction
     transaction_table.put_item(Item=transaction_data)

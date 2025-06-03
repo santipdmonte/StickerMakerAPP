@@ -6,6 +6,7 @@ from datetime import datetime
 from boto3.dynamodb.conditions import Key, Attr
 from decimal import Decimal
 from utils.utils import safe_int, safe_decimal
+from utils.dynamodb_utils import create_transaction
 
 # Crear cupón
 def create_coupon(data):
@@ -87,27 +88,21 @@ def redeem_coupon(user_id, coupon_code):
     if coins_value <= 0 and discount_percent <= 0:
         return {'error': 'Cupón sin beneficio'}, 400
     # 4. Registrar transacción
-    transaction_id = str(uuid.uuid4())
-    now = int(time.time())
-    transaction_data = {
-        'transaction_id': transaction_id,
-        'user_id': user_id,
-        'coins_amount': coins_value,
-        'transaction_type': 'coupon',
-        'timestamp': now,
-        'date': datetime.fromtimestamp(now).strftime('%Y-%m-%d'),
-        'coupon_code': coupon_code,
-        'details': {
+    transaction = create_transaction(
+        user_id=user_id,
+        coins_amount=coins_value,
+        transaction_type='coupon',
+        details={
             'id_coupon': coupon['id_coupon'],
             'discount_percent': Decimal(str(discount_percent))
-        }
-    }
-    transaction_table.put_item(Item=transaction_data)
+        },
+        coupon_code=coupon_code
+    )
     # 5. Restar usos al cupón
     coupon_table.update_item(
         Key={'id_coupon': coupon['id_coupon']},
         UpdateExpression='SET coupons_left = coupons_left - :dec, modified_at = :now',
-        ExpressionAttributeValues={':dec': 1, ':now': now}
+        ExpressionAttributeValues={':dec': 1, ':now': int(time.time())}
     )
     return {'success': True, 'coins_added': float(coins_value), 'discount_percent': float(discount_percent)}
 
