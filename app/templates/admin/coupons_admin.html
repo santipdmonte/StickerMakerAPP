@@ -3,6 +3,8 @@
 <head>
     <title>Administrar Cupones</title>
     <link rel="stylesheet" href="/static/css/admin_style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.4.0/fonts/remixicon.css">
+    
 </head>
 <body>
     <div class="admin-dashboard-container">
@@ -62,6 +64,7 @@
                         <th>Activo</th>
                         <th>Expira</th>
                         <th>Acción</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody id="coupons-table-body">
@@ -69,7 +72,23 @@
                 </tbody>
             </table>
         </div>
-        <script>
+
+    </div>
+    <!-- Modal para acciones de cupón -->
+    <div id="coupon-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content" id="coupon-modal-content">
+            <button class="modal-close-btn" id="coupon-modal-close-btn"><i class="ri-close-line"></i></button>
+            <h2>Acciones del Cupón</h2>
+            <div id="coupon-modal-body">
+                <!-- Aquí se cargará el contenido dinámico -->
+            </div>
+        </div>
+    </div>
+
+
+
+            <script>
             // --- ADMIN: Formulario de cupones ---
             const couponForm = document.getElementById('coupon-form');
             const couponMessage = document.getElementById('coupon-message');
@@ -174,6 +193,11 @@
                                 <td>${isActive ? 'Sí' : 'No'}</td>
                                 <td>${expires}</td>
                                 <td><button class="coupon-action-btn ${btnClass}" data-code="${coupon.coupon_code}" data-active="${isActive ? 1 : 0}">${btnText}</button></td>
+                                <td>
+                                    <button class="coupon-more-btn" data-code="${coupon.coupon_code}" title="Más acciones">
+                                        <i class="ri-more-2-fill"></i>
+                                    </button>
+                                </td>
                             </tr>
                         `;
                     });
@@ -222,7 +246,52 @@
                     setTimeout(loadCouponsTable, 800);
                 });
             }
+
+            // --- MODAL DE ACCIONES DE CUPÓN ---
+            const couponModal = document.getElementById('coupon-modal');
+            const couponModalContent = document.getElementById('coupon-modal-content');
+            const couponModalBody = document.getElementById('coupon-modal-body');
+            const couponModalCloseBtn = document.getElementById('coupon-modal-close-btn');
+
+            // Abrir modal al hacer click en el botón de 3 puntos
+            // Usamos event delegation para soportar recarga dinámica de la tabla
+
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.coupon-more-btn')) {
+                    const btn = e.target.closest('.coupon-more-btn');
+                    const code = btn.getAttribute('data-code');
+                    openCouponModal(code);
+                }
+            });
+
+            function openCouponModal(couponCode) {
+                couponModal.classList.remove('hidden');
+                setTimeout(() => couponModal.classList.add('visible'), 10);
+                document.body.classList.add('modal-open');
+                // Ejemplo: mostrar el código del cupón
+                couponModalBody.innerHTML = `<p style='text-align:center;'><strong>Código:</strong> ${couponCode}</p>`;
+                // Aquí puedes cargar más info dinámica (redenciones, acciones, etc)
+            }
+
+            function closeCouponModal() {
+                couponModal.classList.remove('visible');
+                document.body.classList.remove('modal-open');
+                setTimeout(() => {
+                    couponModal.classList.add('hidden');
+                }, 300);
+            }
+
+            couponModalCloseBtn.addEventListener('click', closeCouponModal);
+            // Cerrar modal al hacer click fuera del contenido
+            couponModal.addEventListener('click', function(e) {
+                if (e.target === couponModal || e.target.classList.contains('modal-backdrop')) {
+                    closeCouponModal();
+                }
+            });
+            // Prevenir cierre al hacer click dentro del contenido
+            couponModalContent.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
         </script>
-    </div>
 </body>
 </html>
