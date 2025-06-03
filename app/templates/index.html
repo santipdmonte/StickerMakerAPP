@@ -514,25 +514,8 @@
                 if (logoutMenu) {
                     logoutMenu.classList.remove('active');
                 }
-                
-                // For now, just show a toast message
-                const infoMessage = document.createElement('div');
-                infoMessage.className = 'info-toast';
-                infoMessage.innerHTML = '<i class="ri-information-line"></i> ¡Vista de perfil próximamente!';
-                document.body.appendChild(infoMessage);
-                
-                // Show toast
-                setTimeout(() => {
-                    infoMessage.classList.add('show');
-                }, 100);
-                
-                // Hide toast
-                setTimeout(() => {
-                    infoMessage.classList.remove('show');
-                    setTimeout(() => {
-                        infoMessage.remove();
-                    }, 300);
-                }, 2000);
+                // Abrir el modal de perfil
+                openProfileModal();
             }
             
             // Handle email form submission (request PIN)
@@ -827,6 +810,109 @@
             loginModal.querySelector('.modal-content').addEventListener('click', function(e) {
                 e.stopPropagation();
             });
+        });
+    </script>
+
+    <!-- Profile Modal -->
+    <div id="profile-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="modal-close-btn" id="profile-modal-close-btn"><i class="ri-close-line"></i></button>
+            <h2>Mi Perfil</h2>
+            <form id="profile-form">
+                <div class="form-group">
+                    <label for="profile-email">Email:</label>
+                    <input type="email" id="profile-email" name="email" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="profile-username">Nombre de usuario:</label>
+                    <input type="text" id="profile-username" name="username" required>
+                </div>
+                <button type="submit" class="finalize-button" id="profile-save-btn">
+                    <i class="ri-save-line"></i> Guardar Cambios
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Perfil de usuario -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elementos del modal
+            const profileModal = document.getElementById('profile-modal');
+            const profileModalCloseBtn = document.getElementById('profile-modal-close-btn');
+            const profileForm = document.getElementById('profile-form');
+            const profileEmail = document.getElementById('profile-email');
+            const profileUsername = document.getElementById('profile-username');
+            const profileSaveBtn = document.getElementById('profile-save-btn');
+
+            // Función para abrir el modal y cargar datos
+            window.openProfileModal = function() {
+                // Cargar datos del usuario actual
+                fetch('/api/auth/me')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.user) {
+                            profileEmail.value = data.user.email;
+                            profileUsername.value = data.user.name || '';
+                            profileModal.classList.remove('hidden');
+                            setTimeout(() => profileModal.classList.add('visible'), 10);
+                        } else {
+                            alert('No se pudo cargar el perfil.');
+                        }
+                    });
+            };
+
+            // Cerrar modal
+            function closeProfileModal() {
+                profileModal.classList.remove('visible');
+                setTimeout(() => profileModal.classList.add('hidden'), 300);
+            }
+            if (profileModalCloseBtn) profileModalCloseBtn.addEventListener('click', closeProfileModal);
+            if (profileModal) profileModal.addEventListener('click', (e) => {
+                if (e.target === profileModal) closeProfileModal();
+            });
+
+            // Guardar cambios de nombre
+            if (profileForm) profileForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const newName = profileUsername.value.trim();
+                if (!newName) {
+                    alert('El nombre no puede estar vacío.');
+                    return;
+                }
+                profileSaveBtn.disabled = true;
+                profileSaveBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Guardando...';
+                fetch('/api/auth/update-name', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    profileSaveBtn.disabled = false;
+                    profileSaveBtn.innerHTML = '<i class="ri-save-line"></i> Guardar Cambios';
+                    if (data.success) {
+                        // Actualizar nombre en el botón de login
+                        const loginBtn = document.getElementById('login-btn');
+                        if (loginBtn) {
+                            loginBtn.innerHTML = '<i class="ri-user-fill"></i> <span>' + newName + '</span>';
+                        }
+                        closeProfileModal();
+                        // Mostrar toast de éxito
+                        if (typeof showSuccess === 'function') showSuccess('Nombre actualizado');
+                    } else {
+                        alert(data.error || 'No se pudo actualizar el nombre.');
+                    }
+                })
+                .catch(() => {
+                    profileSaveBtn.disabled = false;
+                    profileSaveBtn.innerHTML = '<i class="ri-save-line"></i> Guardar Cambios';
+                    alert('Error de red.');
+                });
+            });
+
+            // Hacer accesible desde el menú
+            window.viewProfile = window.openProfileModal;
         });
     </script>
 
