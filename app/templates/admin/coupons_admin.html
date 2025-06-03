@@ -45,16 +45,20 @@
                 <label for="discount_percent">Descuento (%)</label>
                 <input type="number" id="discount_percent" name="discount_percent" min="0" max="100">
             </div>
-            <button type="submit" class="admin-action-btn">Crear cupón</button>
+            <button type="submit" class="admin-action-btn" id="create-coupon-btn">Crear cupón</button>
         </form>
         <script>
             // --- ADMIN: Formulario de cupones ---
             const couponForm = document.getElementById('coupon-form');
             const couponMessage = document.getElementById('coupon-message');
-            if (couponForm && couponMessage) {
+            const createCouponBtn = document.getElementById('create-coupon-btn');
+            if (couponForm && couponMessage && createCouponBtn) {
                 couponForm.addEventListener('submit', async function(e) {
                     e.preventDefault();
                     couponMessage.innerHTML = '';
+                    createCouponBtn.disabled = true;
+                    const originalBtnText = createCouponBtn.textContent;
+                    createCouponBtn.textContent = 'Creando...';
                     const formData = new FormData(couponForm);
                     const data = {};
                     formData.forEach((value, key) => {
@@ -85,6 +89,9 @@
                         }
                     } catch (err) {
                         couponMessage.innerHTML = `<div class='admin-error-message'>${err.message || 'Error de red.'}</div>`;
+                    } finally {
+                        createCouponBtn.disabled = false;
+                        createCouponBtn.textContent = originalBtnText;
                     }
                 });
             }
