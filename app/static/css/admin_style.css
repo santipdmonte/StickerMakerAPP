@@ -124,6 +124,21 @@ body {
     font-weight: 600;
 }
 
+.admin-action-btn{
+    margin: 32px 0 0 0; 
+    padding: 12px 28px; 
+    font-size: 1.1rem; 
+    background: linear-gradient(45deg, #ff6b9b, #ff9eb5); 
+    color: #fff; 
+    border: none; 
+    border-radius: 30px; 
+    cursor: pointer; 
+    font-weight: 600; 
+    text-decoration: none; 
+    display: inline-block;
+
+}
+
 @media (max-width: 900px) {
     .admin-kpi-row {
         flex-direction: column;
