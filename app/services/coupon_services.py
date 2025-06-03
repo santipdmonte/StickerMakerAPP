@@ -99,7 +99,7 @@ def redeem_coupon(user_id, coupon_code):
         'coupon_code': coupon_code,
         'details': {
             'id_coupon': coupon['id_coupon'],
-            'discount_percent': float(discount_percent)
+            'discount_percent': Decimal(str(discount_percent))
         }
     }
     transaction_table.put_item(Item=transaction_data)
