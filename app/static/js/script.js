@@ -1794,6 +1794,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     async function validateDirectCoupon() {
+        // Verificar si el usuario está logueado
+        const isUserLoggedIn = document.getElementById('login-btn').innerHTML.includes('ri-user-fill');
+        if (!isUserLoggedIn) {
+            if (typeof openLoginModal === 'function') {
+                openLoginModal();
+                // Guardar en sessionStorage que el usuario quería canjear un cupón
+                sessionStorage.setItem('pendingCouponRedemption', 'true');
+            }
+            return;
+        }
+        
         const couponCode = coinsCouponDirectInput.value.trim();
         
         if (!couponCode) {
@@ -2161,6 +2172,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.loadCoins = loadCoins;
     window.updateGenerateButtonVisibility = updateGenerateButtonVisibility;
+
+    // Check for pending coin package from previous session
+    checkPendingCoinPurchase();
+
+    // Check for pending checkout from previous session
+    checkPendingCheckout();
+
+    // Nuevo: Check for pending coupon redemption after login
+    if (sessionStorage.getItem('pendingCouponRedemption') === 'true') {
+        const isUserLoggedIn = document.getElementById('login-btn').innerHTML.includes('ri-user-fill');
+        if (isUserLoggedIn && typeof validateDirectCoupon === 'function') {
+            // Limpiar el flag antes de ejecutar para evitar loops
+            sessionStorage.removeItem('pendingCouponRedemption');
+            // Mostrar el modal de monedas (pantalla de cupones)
+            if (typeof showCoinsModal === 'function') {
+                showCoinsModal();
+            }
+            // No ejecutar validateDirectCoupon automáticamente, solo mostrar el modal
+        }
+    }
 });
 
 // Check if there's a pending coin package from a previous session
