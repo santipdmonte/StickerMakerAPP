@@ -1808,57 +1808,50 @@ document.addEventListener('DOMContentLoaded', () => {
         applyCouponDirectBtn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i>';
         
         try {
-            // Call the backend to validate and apply the coupon directly
-            const response = await fetch('/purchase-coins', {
+            // Call the backend para validar y redimir el cupón
+            const response = await fetch('/coupons/redeem', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    coupon: couponCode,
-                    direct_apply: true  // Indicate this is a direct coupon application
+                    coupon_code: couponCode
                 })
             });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Invalid coupon code.');
-            }
-            
             const data = await response.json();
-            
-            if (data.success && data.coins_added) {
-                // Update the UI to show success
-                couponDirectStatus.textContent = `Success! ${data.coins_added} coins have been added to your account.`;
+            if (!response.ok) {
+                throw new Error(data.error || 'Cupón inválido.');
+            }
+            // Si el cupón otorga monedas o descuento, mostrar mensaje
+            if (data.success || data.coins_added || data.discount_percent) {
+                let msg = '¡Cupón canjeado correctamente!';
+                if (data.coins_added) {
+                    msg += ` ${data.coins_added} monedas han sido agregadas a tu cuenta.`;
+                }
+                if (data.discount_percent) {
+                    msg += ` Descuento: ${data.discount_percent}%`;
+                }
+                couponDirectStatus.textContent = msg;
                 couponDirectStatus.className = 'coupon-status success';
-                
-                applyCouponDirectBtn.innerHTML = '<i class="ri-check-line"></i> Applied';
-                
-                // Hide the packages section
-                document.querySelector('.coins-packages').classList.add('hidden');
-                
-                // Update the current coins
-                currentCoins = data.current_coins;
-                updateCoinsDisplay();
-                
-                // Show a success message
-                showSuccess(`¡Cupón canjeado! ${data.coins_added} monedas han sido agregadas a tu cuenta.`);
-                
-                // After a delay, close the modal
+                applyCouponDirectBtn.innerHTML = '<i class="ri-check-line"></i> Aplicado';
+                // Actualizar monedas si corresponde
+                if (typeof data.coins_added !== 'undefined' && typeof updateCoinsDisplay === 'function') {
+                    currentCoins += Number(data.coins_added);
+                    updateCoinsDisplay();
+                }
                 setTimeout(() => {
                     hideCoinsModal();
                 }, 3000);
             } else {
-                throw new Error('Failed to apply coupon.');
+                throw new Error('El cupón no tiene beneficio.');
             }
         } catch (error) {
-            console.error('Error validating coupon:', error);
-            showError('Error al validar el cupón. Por favor, intentá nuevamente.');
+            couponDirectStatus.textContent = error.message || 'Error al validar el cupón. Por favor, intentá nuevamente.';
+            couponDirectStatus.className = 'coupon-status error';
+            applyCouponDirectBtn.innerHTML = 'Aplicar';
         } finally {
-            // Re-enable the input and button
             coinsCouponDirectInput.disabled = false;
             applyCouponDirectBtn.disabled = false;
-            applyCouponDirectBtn.innerHTML = 'Apply';
         }
     }
 

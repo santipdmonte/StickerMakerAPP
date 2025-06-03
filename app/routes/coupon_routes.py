@@ -1,4 +1,5 @@
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify, render_template, session
+
 from services.coupon_services import (
     create_coupon, get_coupon_by_code, list_coupons, redeem_coupon, set_coupon_active, delete_coupon
 )
@@ -41,7 +42,7 @@ def get_coupon_by_code_route(coupon_code):
 @coupon_bp.route('/coupons/redeem', methods=['POST'])
 def redeem_coupon_route():
     data = request.json
-    user_id = data.get('user_id')
+    user_id = session.get('user_id')
     coupon_code = data.get('coupon_code')
     if not user_id or not coupon_code:
         return jsonify({'error': 'Faltan parámetros'}), 400
