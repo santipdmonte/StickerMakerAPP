@@ -335,9 +335,6 @@ def ensure_tables_exist():
             AttributeDefinitions=[
                 {'AttributeName': 'id_coupon', 'AttributeType': 'S'},
                 {'AttributeName': 'coupon_code', 'AttributeType': 'S'},
-                {'AttributeName': 'is_active', 'AttributeType': 'N'},
-                {'AttributeName': 'expires_at', 'AttributeType': 'N'},
-                {'AttributeName': 'coupon_type', 'AttributeType': 'S'},
             ],
             GlobalSecondaryIndexes=[
                 {

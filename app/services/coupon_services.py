@@ -4,6 +4,7 @@ import uuid
 import time
 from datetime import datetime
 from boto3.dynamodb.conditions import Key, Attr
+from decimal import Decimal
 
 # Crear cupón
 def create_coupon(data):
@@ -18,8 +19,8 @@ def create_coupon(data):
         'is_active': int(data.get('is_active', 1)),
         'expires_at': int(data.get('expires_at', 0)),
         'coupon_type': data.get('coupon_type', 'coins'),
-        'coins_value': int(data.get('coins_value', 0)),
-        'discount_percent': float(data.get('discount_percent', 0)),
+        'coins_value': Decimal(str(data.get('coins_value', 0))),
+        'discount_percent': Decimal(str(data.get('discount_percent', 0))),
         'created_at': now,
         'modified_at': now
     }
@@ -76,8 +77,8 @@ def redeem_coupon(user_id, coupon_code):
     if resp.get('Items'):
         return {'error': 'Ya has usado este cupón'}, 400
     # 3. Aplicar beneficio (solo lógica de monedas por ahora)
-    coins_value = int(coupon.get('coins_value', 0))
-    discount_percent = float(coupon.get('discount_percent', 0))
+    coins_value = Decimal(str(coupon.get('coins_value', 0)))
+    discount_percent = Decimal(str(coupon.get('discount_percent', 0)))
     if coins_value <= 0 and discount_percent <= 0:
         return {'error': 'Cupón sin beneficio'}, 400
     # 4. Registrar transacción
@@ -93,7 +94,7 @@ def redeem_coupon(user_id, coupon_code):
         'coupon_code': coupon_code,
         'details': {
             'id_coupon': coupon['id_coupon'],
-            'discount_percent': discount_percent
+            'discount_percent': float(discount_percent)
         }
     }
     transaction_table.put_item(Item=transaction_data)
@@ -103,7 +104,7 @@ def redeem_coupon(user_id, coupon_code):
         UpdateExpression='SET coupons_left = coupons_left - :dec, modified_at = :now',
         ExpressionAttributeValues={':dec': 1, ':now': now}
     )
-    return {'success': True, 'coins_added': coins_value, 'discount_percent': discount_percent}
+    return {'success': True, 'coins_added': float(coins_value), 'discount_percent': float(discount_percent)}
 
 # Activar/desactivar cupón
 def set_coupon_active(coupon_code, is_active):
