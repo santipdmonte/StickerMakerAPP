@@ -268,9 +268,31 @@
                 couponModal.classList.remove('hidden');
                 setTimeout(() => couponModal.classList.add('visible'), 10);
                 document.body.classList.add('modal-open');
-                // Ejemplo: mostrar el código del cupón
-                couponModalBody.innerHTML = `<p style='text-align:center;'><strong>Código:</strong> ${couponCode}</p>`;
-                // Aquí puedes cargar más info dinámica (redenciones, acciones, etc)
+                // Mostrar loading
+                couponModalBody.innerHTML = `<div style='text-align:center; padding: 18px 0;'>Cargando redenciones...</div>`;
+                // Llamar al endpoint de redenciones
+                fetch(`/coupons/${couponCode}/redemptions`)
+                    .then(resp => resp.json())
+                    .then(data => {
+                        if (Array.isArray(data) && data.length > 0) {
+                            let html = `<table style='width:100%; border-collapse:collapse; margin-top:10px;'>`;
+                            html += `<thead><tr><th style='text-align:left;'>Nombre</th><th style='text-align:left;'>Email</th><th style='text-align:left;'>Fecha</th></tr></thead><tbody>`;
+                            data.forEach(r => {
+                                html += `<tr><td>${r.nombre || '-'}</td><td>${r.email || '-'}</td><td>${r.fecha || '-'}</td></tr>`;
+                            });
+                            html += `</tbody></table>`;
+                            couponModalBody.innerHTML = html;
+                        } else if (Array.isArray(data) && data.length === 0) {
+                            couponModalBody.innerHTML = `<div style='text-align:center; padding: 18px 0;'>Nadie ha usado este cupón aún.</div>`;
+                        } else if (data.error) {
+                            couponModalBody.innerHTML = `<div style='color:#b91c1c; text-align:center; padding: 18px 0;'>${data.error}</div>`;
+                        } else {
+                            couponModalBody.innerHTML = `<div style='text-align:center; padding: 18px 0;'>No se pudo cargar la información.</div>`;
+                        }
+                    })
+                    .catch(err => {
+                        couponModalBody.innerHTML = `<div style='color:#b91c1c; text-align:center; padding: 18px 0;'>Error de red al cargar redenciones.</div>`;
+                    });
             }
 
             function closeCouponModal() {
