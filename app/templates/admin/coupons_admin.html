@@ -8,7 +8,9 @@
     <div class="admin-dashboard-container">
         <h1 class="admin-title">Administrar Cupones</h1>
         <a href="/admin" class="admin-action-btn">Volver al dashboard</a>
-        <form action="/coupons" method="post" class="admin-coupon-form">
+
+        <div id="coupon-message"></div>
+        <form id="coupon-form" action="/coupons" method="post" class="admin-coupon-form">
             <div class="form-group">
                 <label for="coupon_code">Código del cupón</label>
                 <input type="text" id="coupon_code" name="coupon_code" required>
@@ -46,6 +48,48 @@
             <button type="submit" class="admin-action-btn">Crear cupón</button>
         </form>
         <script>
+            // --- ADMIN: Formulario de cupones ---
+            const couponForm = document.getElementById('coupon-form');
+            const couponMessage = document.getElementById('coupon-message');
+            if (couponForm && couponMessage) {
+                couponForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    couponMessage.innerHTML = '';
+                    const formData = new FormData(couponForm);
+                    const data = {};
+                    formData.forEach((value, key) => {
+                        data[key] = value;
+                    });
+                    try {
+                        const response = await fetch('/coupons', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify(data)
+                        });
+                        const contentType = response.headers.get('Content-Type');
+                        let result = {};
+                        if (contentType && contentType.includes('application/json')) {
+                            result = await response.json();
+                        } else {
+                            result = { error: 'Respuesta inesperada del servidor.' };
+                        }
+                        if (response.ok && result.coupon_code) {
+                            couponMessage.innerHTML = `<div class='admin-success-message'>¡Cupón creado exitosamente! Código: <strong>${result.coupon_code}</strong></div>`;
+                            couponForm.reset();
+                            toggleCouponInputs();
+                        } else {
+                            couponMessage.innerHTML = `<div class='admin-error-message'>${result.error || 'Error al crear el cupón.'}</div>`;
+                        }
+                    } catch (err) {
+                        couponMessage.innerHTML = `<div class='admin-error-message'>${err.message || 'Error de red.'}</div>`;
+                    }
+                });
+            }
+
+
             function toggleCouponInputs() {
                 var type = document.getElementById('coupon_type').value;
                 var coinsInput = document.getElementById('coins_value');

@@ -10,13 +10,11 @@ coupon_bp = Blueprint('coupon', __name__)
 @coupon_bp.route('/coupons', methods=['POST'])
 @admin_required
 def create_coupon_route():
-    if request.is_json:
-        data = request.get_json()
-    else:
-        data = request.form.to_dict()
+    data = request.get_json()
+
     try:
         coupon = create_coupon(data)
-        return render_template('admin/coupons_admin.html', coupon=coupon)
+        return jsonify(coupon), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
