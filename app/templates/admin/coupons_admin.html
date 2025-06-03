@@ -152,7 +152,9 @@
                     tableBody.innerHTML = '';
                     coupons.forEach(coupon => {
                         const isActive = coupon.is_active == 1 || coupon.is_active === true;
-                        const expires = coupon.expires_at ? new Date(coupon.expires_at * 1000).toLocaleString() : '-';
+                        const expires = coupon.expires_at && Number(coupon.expires_at) > 0
+                            ? new Date(Number(coupon.expires_at) * 1000).toLocaleString()
+                            : '-';
                         const valor = coupon.coupon_type === 'coins' ? `${coupon.coins_value} coins` : `${coupon.discount_percent} %`;
                         const btnText = isActive ? 'Desactivar' : 'Activar';
                         const btnClass = isActive ? 'deactivate-btn' : 'activate-btn';
