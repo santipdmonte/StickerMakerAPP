@@ -72,8 +72,7 @@ def redeem_coupon(user_id, coupon_code):
         return {'error': 'Cupón inactivo'}, 400
     if coupon.get('expires_at', 0) and int(time.time()) > int(coupon['expires_at']):
         return {'error': 'Cupón expirado'}, 400
-    if int(coupon.get('coupons_left', 0)) <= 0:
-        return {'error': 'No quedan usos disponibles'}, 400
+
     # 2. Verificar si el usuario ya usó el cupón
     resp = transaction_table.query(
         IndexName='CouponCodeIndex',
@@ -104,6 +103,14 @@ def redeem_coupon(user_id, coupon_code):
         UpdateExpression='SET coupons_left = coupons_left - :dec, modified_at = :now',
         ExpressionAttributeValues={':dec': 1, ':now': int(time.time())}
     )
+    # 6. Si los usos llegan a 0, desactivar el cupón
+    updated_coupon = get_coupon_by_code(coupon_code)
+    if int(updated_coupon.get('coupons_left', 0)) <= 0 and int(updated_coupon.get('is_active', 1)) == 1:
+        coupon_table.update_item(
+            Key={'id_coupon': coupon['id_coupon']},
+            UpdateExpression='SET is_active = :inactive, modified_at = :now',
+            ExpressionAttributeValues={':inactive': 0, ':now': int(time.time())}
+        )
     return {'success': True, 'coins_added': float(coins_value), 'discount_percent': float(discount_percent)}
 
 # Activar/desactivar cupón
