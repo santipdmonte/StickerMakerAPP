@@ -10,7 +10,8 @@ from utils.dynamodb_utils import (
     store_login_pin,
     verify_login_pin,
     create_transaction,
-    get_user_transactions
+    get_user_transactions,
+    update_user_name
 )
 from utils.utils import send_login_email
 from config import INITIAL_COINS, BONUS_COINS
@@ -280,4 +281,48 @@ def create_account():
             }
         })
     except Exception as e:
-        return jsonify({"error": f"Failed to send email: {str(e)}"}), 500 
+        return jsonify({"error": f"Failed to send email: {str(e)}"}), 500
+
+@auth_bp.route('/api/auth/update-name', methods=['POST'])
+def update_name():
+    """
+    Update the name of the currently logged-in user
+    """
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    if not request.is_json:
+        return jsonify({"error": "Request must be JSON"}), 400
+    data = request.json
+    new_name = data.get('name', '').strip()
+    if not new_name:
+        return jsonify({"error": "Name is required"}), 400
+    # Get user
+    user = get_user(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    # Update name in DynamoDB
+    try:
+        updated_user = update_user_name(user_id, new_name)
+        updated_user = sanitize_dynamodb_response(updated_user)
+        session['name'] = updated_user.get('name', new_name)
+        return jsonify({"success": True, "name": updated_user.get('name', new_name)})
+    except Exception as e:
+        return jsonify({"error": f"Failed to update name: {str(e)}"}), 500
+
+@auth_bp.route('/api/auth/transactions', methods=['GET'])
+def get_my_transactions():
+    """
+    List transactions for the currently logged-in user
+    """
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    try:
+        transactions = get_user_transactions(user_id)
+        transactions = sanitize_dynamodb_response(transactions)
+        # Ordenar por timestamp descendente si existe, sino por date
+        transactions.sort(key=lambda tx: tx.get('timestamp', 0), reverse=True)
+        return jsonify({"success": True, "transactions": transactions})
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch transactions: {str(e)}"}), 500 
