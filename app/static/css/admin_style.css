@@ -212,8 +212,7 @@ body {
 }
 
 .coupon-action-btn {
-    margin-top: 18px;
-    width: 100%;
+    width: 75%;
     font-size: 1.15em;
     background: #7c5dfa;
     color: #fff;
