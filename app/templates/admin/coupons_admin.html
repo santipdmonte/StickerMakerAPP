@@ -149,6 +149,13 @@
                         tableBody.innerHTML = '<tr><td colspan="7">No hay cupones registrados.</td></tr>';
                         return;
                     }
+                    // Ordenar: activos primero, luego inactivos
+                    coupons.sort((a, b) => {
+                        const aActive = a.is_active == 1 || a.is_active === true;
+                        const bActive = b.is_active == 1 || b.is_active === true;
+                        if (aActive === bActive) return 0;
+                        return aActive ? -1 : 1;
+                    });
                     tableBody.innerHTML = '';
                     coupons.forEach(coupon => {
                         const isActive = coupon.is_active == 1 || coupon.is_active === true;
