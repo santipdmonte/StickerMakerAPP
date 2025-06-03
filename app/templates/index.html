@@ -385,6 +385,9 @@
                         <div class="logout-menu-item" id="view-profile-btn">
                             <i class="ri-user-settings-line"></i> Ver Perfil
                         </div>
+                        <div class="logout-menu-item" id="view-transactions-btn">
+                            <i class="ri-history-line"></i>Transacciones
+                        </div>
                         <style>
                             .logout-menu {
                                 position: absolute;
@@ -431,6 +434,7 @@
                     // Add event listeners for logout menu items
                     document.getElementById('logout-btn').addEventListener('click', handleLogout);
                     document.getElementById('view-profile-btn').addEventListener('click', viewProfile);
+                    document.getElementById('view-transactions-btn').addEventListener('click', viewTransactions);
             
                     // Close menu when clicking outside
                     document.addEventListener('click', function(e) {
@@ -916,6 +920,141 @@
             // Hacer accesible desde el menú
             window.viewProfile = window.openProfileModal;
         });
+    </script>
+
+    <!-- Transactions Modal -->
+    <div id="transactions-modal" class="modal hidden">
+        <div class="modal-content transactions-modal-content">
+            <button class="modal-close-btn" id="transactions-modal-close-btn"><i class="ri-close-line"></i></button>
+            <h2>Historial de Transacciones</h2>
+            <div id="transactions-loading" style="text-align:center; margin: 30px 0; display:none;">
+                <i class="ri-loader-4-line ri-spin" style="font-size:2rem;"></i>
+                <div style="margin-top:10px; color:#888;">Cargando transacciones...</div>
+            </div>
+            <div id="transactions-table-container">
+                <!-- Aquí se cargará la tabla de transacciones -->
+            </div>
+        </div>
+    </div>
+
+    <style>
+    .transactions-modal-content {
+        max-width: 500px !important;
+        min-width: 0 !important;
+        padding: 32px 18px 24px 18px !important;
+        border-radius: 18px !important;
+        box-shadow: 0 8px 32px rgba(124,93,250,0.10);
+    }
+    .transactions-modal-content h2 {
+        font-size: 1.35rem;
+        margin-bottom: 18px;
+    }
+    #transactions-table-container {
+        max-height: 340px;
+        overflow-y: auto;
+        margin-top: 10px;
+    }
+    .transactions-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.97rem;
+        background: #fafbff;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    .transactions-table th, .transactions-table td {
+        padding: 8px 10px;
+        text-align: center;
+    }
+    .transactions-table th {
+        background: #f5f6fa;
+        color: #7c5dfa;
+        font-weight: 600;
+        border-bottom: 1.5px solid #ececec;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+    .transactions-table tr:nth-child(even) {
+        background: #f8fafc;
+    }
+    .transactions-table tr:hover {
+        background: #edeaff;
+    }
+    .transactions-table td.amount-pos { color: #00b894; font-weight: 600; }
+    .transactions-table td.amount-neg { color: #ff4757; font-weight: 600; }
+    .transactions-table td.amount-zero { color: #888; font-weight: 500; }
+    .transactions-table td.type { font-size: 0.93em; color: #888; }
+    .transactions-table td.date { font-size: 0.93em; color: #888; }
+    @media (max-width: 600px) {
+        .transactions-modal-content {
+            max-width: 98vw !important;
+            padding: 12px 2vw 12px 2vw !important;
+        }
+        .transactions-table th, .transactions-table td {
+            padding: 7px 4px;
+            font-size: 0.93rem;
+        }
+    }
+    </style>
+
+    <script>
+    // Lógica para abrir/cerrar el modal y cargar transacciones
+    function viewTransactions() {
+        // Cerrar el menú
+        const logoutMenu = document.getElementById('logout-menu');
+        if (logoutMenu) logoutMenu.classList.remove('active');
+        // Mostrar modal
+        const modal = document.getElementById('transactions-modal');
+        const loading = document.getElementById('transactions-loading');
+        const tableContainer = document.getElementById('transactions-table-container');
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.add('visible'), 10);
+        // Mostrar loading
+        loading.style.display = '';
+        tableContainer.innerHTML = '';
+        // Fetch transacciones
+        fetch('/api/auth/transactions')
+            .then(res => res.json())
+            .then(data => {
+                loading.style.display = 'none';
+                if (data.success && data.transactions && data.transactions.length > 0) {
+                    let html = `<table class="transactions-table">
+                        <thead><tr><th>Fecha</th><th>Tipo</th><th>Monto</th></tr></thead><tbody>`;
+                    data.transactions.forEach(tx => {
+                        let amountClass = 'amount-zero';
+                        if (tx.coins_amount > 0) amountClass = 'amount-pos';
+                        else if (tx.coins_amount < 0) amountClass = 'amount-neg';
+                        let date = tx.date || (tx.timestamp ? new Date(tx.timestamp*1000).toLocaleDateString() : '');
+                        html += `<tr>
+                            <td class="date">${date}</td>
+                            <td class="type">${tx.transaction_type}</td>
+                            <td class="${amountClass}">${tx.coins_amount > 0 ? '+' : ''}${tx.coins_amount}</td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+                    tableContainer.innerHTML = html;
+                } else {
+                    tableContainer.innerHTML = '<div style="text-align:center; color:#888; margin:30px 0;">No hay transacciones recientes.</div>';
+                }
+            })
+            .catch(() => {
+                loading.style.display = 'none';
+                tableContainer.innerHTML = '<div style="text-align:center; color:#ff4757; margin:30px 0;">Error al cargar transacciones.</div>';
+            });
+    }
+    // Cerrar modal
+    const transactionsModal = document.getElementById('transactions-modal');
+    const transactionsModalCloseBtn = document.getElementById('transactions-modal-close-btn');
+    if (transactionsModalCloseBtn) transactionsModalCloseBtn.addEventListener('click', closeTransactionsModal);
+    if (transactionsModal) transactionsModal.addEventListener('click', (e) => {
+        if (e.target === transactionsModal) closeTransactionsModal();
+    });
+    function closeTransactionsModal() {
+        const modal = document.getElementById('transactions-modal');
+        modal.classList.remove('visible');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+    }
     </script>
 
 </body>
