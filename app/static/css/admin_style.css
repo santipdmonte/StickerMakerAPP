@@ -203,6 +203,20 @@ body {
     font-size: 1.15em;
 }
 
+.coupon-action-btn {
+    margin-top: 18px;
+    width: 100%;
+    font-size: 1.15em;
+    background: #7c5dfa;
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 5px;
+}
+
 @media (max-width: 900px) {
     .admin-kpi-row {
         flex-direction: column;
@@ -233,4 +247,12 @@ body {
     margin-bottom: 18px;
     font-weight: 600;
     font-size: 1.08em;
+}
+
+.coupon-row-inactive {
+    background: #f3f4f6 !important;
+    color: #a1a1aa;
+}
+.coupon-row-inactive td {
+    color: #a1a1aa !important;
 }

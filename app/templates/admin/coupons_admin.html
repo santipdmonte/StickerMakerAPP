@@ -47,6 +47,25 @@
             </div>
             <button type="submit" class="admin-action-btn" id="create-coupon-btn">Crear cupón</button>
         </form>
+        <div class="admin-requests-section">
+            <h2>Cupones actuales</h2>
+            <table class="admin-requests-table" id="coupons-table">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Tipo</th>
+                        <th>Valor</th>
+                        <th>Cantidad disponible</th>
+                        <th>Activo</th>
+                        <th>Expira</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="coupons-table-body">
+                    <tr><td colspan="7">Cargando cupones...</td></tr>
+                </tbody>
+            </table>
+        </div>
         <script>
             // --- ADMIN: Formulario de cupones ---
             const couponForm = document.getElementById('coupon-form');
@@ -115,6 +134,82 @@
             document.addEventListener('DOMContentLoaded', function() {
                 toggleCouponInputs();
             });
+
+            // --- ADMIN: Listar y activar/desactivar cupones ---
+            async function loadCouponsTable() {
+                const tableBody = document.getElementById('coupons-table-body');
+                tableBody.innerHTML = '<tr><td colspan="7">Cargando cupones...</td></tr>';
+                try {
+                    const resp = await fetch('/coupons');
+                    const coupons = await resp.json();
+                    if (!Array.isArray(coupons) || coupons.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="7">No hay cupones registrados.</td></tr>';
+                        return;
+                    }
+                    tableBody.innerHTML = '';
+                    coupons.forEach(coupon => {
+                        const isActive = coupon.is_active == 1 || coupon.is_active === true;
+                        const expires = coupon.expires_at ? new Date(coupon.expires_at * 1000).toLocaleString() : '-';
+                        const valor = coupon.coupon_type === 'coins' ? `${coupon.coins_value} coins` : `${coupon.discount_percent} %`;
+                        const btnText = isActive ? 'Desactivar' : 'Activar';
+                        const btnClass = isActive ? 'deactivate-btn' : 'activate-btn';
+                        tableBody.innerHTML += `
+                            <tr class="${isActive ? '' : 'coupon-row-inactive'}">
+                                <td>${coupon.coupon_code}</td>
+                                <td>${coupon.coupon_type}</td>
+                                <td>${valor}</td>
+                                <td>${coupon.coupons_left}</td>
+                                <td>${isActive ? 'Sí' : 'No'}</td>
+                                <td>${expires}</td>
+                                <td><button class="coupon-action-btn ${btnClass}" data-code="${coupon.coupon_code}" data-active="${isActive ? 1 : 0}">${btnText}</button></td>
+                            </tr>
+                        `;
+                    });
+                } catch (err) {
+                    tableBody.innerHTML = `<tr><td colspan="7">Error al cargar cupones.</td></tr>`;
+                }
+            }
+            // Manejar click en activar/desactivar
+            document.addEventListener('click', async function(e) {
+                if (e.target.matches('.activate-btn, .deactivate-btn')) {
+                    const btn = e.target;
+                    const code = btn.getAttribute('data-code');
+                    const isActive = btn.getAttribute('data-active') === '1';
+                    // Confirmar solo si se va a desactivar
+                    if (isActive) {
+                        const confirmed = confirm('¿Estás seguro que quieres desactivar este cupón?');
+                        if (!confirmed) return;
+                    }
+                    btn.disabled = true;
+                    btn.textContent = 'Procesando...';
+                    try {
+                        const resp = await fetch(`/coupons/${code}/activate`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ is_active: isActive ? 0 : 1 })
+                        });
+                        const result = await resp.json();
+                        if (resp.ok && result.success) {
+                            loadCouponsTable();
+                        } else {
+                            alert(result.error || 'Error al cambiar el estado del cupón.');
+                            btn.disabled = false;
+                            btn.textContent = isActive ? 'Desactivar' : 'Activar';
+                        }
+                    } catch (err) {
+                        alert('Error de red.');
+                        btn.disabled = false;
+                        btn.textContent = isActive ? 'Desactivar' : 'Activar';
+                    }
+                }
+            });
+            // Cargar cupones al cargar la página y tras crear uno
+            document.addEventListener('DOMContentLoaded', loadCouponsTable);
+            if (couponForm) {
+                couponForm.addEventListener('submit', function() {
+                    setTimeout(loadCouponsTable, 800);
+                });
+            }
         </script>
     </div>
 </body>
