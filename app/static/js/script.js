@@ -1849,6 +1849,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof data.coins_added !== 'undefined' && typeof updateCoinsDisplay === 'function') {
                     currentCoins += Number(data.coins_added);
                     updateCoinsDisplay();
+                    if (typeof updateGenerateButtonVisibility === 'function') {
+                        updateGenerateButtonVisibility();
+                    }
                 }
                 setTimeout(() => {
                     hideCoinsModal();
