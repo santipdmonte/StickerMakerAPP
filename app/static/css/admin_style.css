@@ -29,6 +29,16 @@ body {
     padding: 48px 36px 36px 36px;
 }
 
+.admin-title{
+    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color)); 
+    -webkit-background-clip: text; 
+    background-clip: text; 
+    color: transparent; 
+    font-size: 2.5rem; 
+    margin-bottom: 32px; 
+    letter-spacing: -1px;
+}
+
 .admin-kpi-row {
     display: flex;
     flex-wrap: wrap;
@@ -139,6 +149,60 @@ body {
 
 }
 
+.admin-coupon-form {
+    margin: 36px 0 0 0;
+    padding: 32px 28px;
+    background: var(--bg-color);
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 12px rgba(124, 93, 250, 0.08);
+    max-width: 520px;
+    width: 100%;
+}
+
+.form-group {
+    margin-bottom: 22px;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 7px;
+    font-size: 1.05em;
+}
+
+.form-group input,
+.form-group select {
+    padding: 10px 14px;
+    border: 1.5px solid var(--input-border);
+    border-radius: 8px;
+    font-size: 1em;
+    background: #fff;
+    color: var(--text-color);
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+.form-group input:disabled, .form-group select:disabled {
+    background: #f0f0f0;
+    color: #b0b0b0;
+    border-color: #e0e0e0;
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+.admin-coupon-form .admin-action-btn {
+    margin-top: 18px;
+    width: 100%;
+    font-size: 1.15em;
+}
+
 @media (max-width: 900px) {
     .admin-kpi-row {
         flex-direction: column;
@@ -147,4 +211,4 @@ body {
     .admin-dashboard-container {
         padding: 18px 6px;
     }
-} 
+}

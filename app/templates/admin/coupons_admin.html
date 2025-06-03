@@ -6,100 +6,65 @@
 </head>
 <body>
     <div class="admin-dashboard-container">
-        <h1 style="background: linear-gradient(45deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; background-clip: text; color: transparent; font-size: 2.2rem; margin-bottom: 32px; letter-spacing: -1px;">Administrar Cupones</h1>
-        <a href="/admin" class="admin-action-btn" style="margin-bottom: 24px; padding: 10px 22px; font-size: 1rem; background: linear-gradient(45deg, #ff6b9b, #ff9eb5); color: #fff; border: none; border-radius: 30px; cursor: pointer; font-weight: 600; text-decoration: none; display: inline-block;">Volver al dashboard</a>
-
-        <!-- Modal para crear cupón (ahora como sección principal) -->
-        <div class="modal-content" style="background: #fff; border-radius: 18px; padding: 32px 28px; min-width: 340px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,0.18); position: relative; margin: 0 auto;">
-            <h2 style="margin-bottom: 18px;">Crear nuevo cupón</h2>
-            <form id="create-coupon-form">
-                <div style="margin-bottom: 12px;">
-                    <label for="coupon_code">Código del cupón:</label>
-                    <input type="text" id="coupon_code" name="coupon_code" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
-                </div>
-                <div style="margin-bottom: 12px;">
-                    <label for="coupons_left">Usos disponibles:</label>
-                    <input type="number" id="coupons_left" name="coupons_left" min="1" value="1" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
-                </div>
-                <div style="margin-bottom: 12px;">
-                    <label for="coupon_type">Tipo de cupón:</label>
-                    <select id="coupon_type" name="coupon_type" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
-                        <option value="coins">Monedas</option>
-                        <option value="discount">Descuento (%)</option>
-                    </select>
-                </div>
-                <div style="margin-bottom: 12px;" id="coins_value_group">
-                    <label for="coins_value">Monedas a otorgar:</label>
-                    <input type="number" id="coins_value" name="coins_value" min="0" value="0" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
-                </div>
-                <div style="margin-bottom: 12px; display: none;" id="discount_percent_group">
-                    <label for="discount_percent">Descuento (%):</label>
-                    <input type="number" id="discount_percent" name="discount_percent" min="0" max="100" value="0" step="0.01" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
-                </div>
-                <div style="margin-bottom: 12px;">
-                    <label for="expires_at">Expira (timestamp, opcional):</label>
-                    <input type="number" id="expires_at" name="expires_at" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
-                </div>
-                <div style="margin-bottom: 18px;">
-                    <label for="is_active">Activo:</label>
-                    <input type="checkbox" id="is_active" name="is_active" checked>
-                </div>
-                <button type="submit" style="background: linear-gradient(45deg, #ff6b9b, #ff9eb5); color: #fff; border: none; border-radius: 30px; padding: 10px 22px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%;">Crear cupón</button>
-                <p id="create-coupon-status" style="margin-top: 10px; font-size: 0.98rem;"></p>
-            </form>
-        </div>
-    </div>
-
-    <script>
-    // Mostrar/ocultar campos según tipo de cupón
-    const couponType = document.getElementById('coupon_type');
-    const coinsGroup = document.getElementById('coins_value_group');
-    const discountGroup = document.getElementById('discount_percent_group');
-    couponType.onchange = function() {
-        if (this.value === 'coins') {
-            coinsGroup.style.display = '';
-            discountGroup.style.display = 'none';
-        } else {
-            coinsGroup.style.display = 'none';
-            discountGroup.style.display = '';
-        }
-    };
-
-    // Enviar formulario vía fetch
-    document.getElementById('create-coupon-form').onsubmit = async function(e) {
-        e.preventDefault();
-        const status = document.getElementById('create-coupon-status');
-        status.textContent = '';
-        const data = {
-            coupon_code: this.coupon_code.value,
-            coupons_left: this.coupons_left.value,
-            coupon_initial_number: this.coupons_left.value,
-            coupon_type: this.coupon_type.value,
-            coins_value: this.coupon_type.value === 'coins' ? this.coins_value.value : 0,
-            discount_percent: this.coupon_type.value === 'discount' ? this.discount_percent.value : 0,
-            expires_at: this.expires_at.value || 0,
-            is_active: this.is_active.checked ? 1 : 0
-        };
-        try {
-            const resp = await fetch('/coupons', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-            const result = await resp.json();
-            if (resp.ok) {
-                status.textContent = 'Cupón creado correctamente';
-                status.style.color = '#22c55e';
-                this.reset();
-            } else {
-                status.textContent = result.error || 'Error al crear cupón';
-                status.style.color = '#ef4444';
+        <h1 class="admin-title">Administrar Cupones</h1>
+        <a href="/admin" class="admin-action-btn">Volver al dashboard</a>
+        <form action="/admin/coupons/create" method="post" class="admin-coupon-form">
+            <div class="form-group">
+                <label for="coupon_code">Código del cupón</label>
+                <input type="text" id="coupon_code" name="coupon_code" required>
+            </div>
+            <div class="form-group">
+                <label for="coupons_left">Cantidad disponible</label>
+                <input type="number" id="coupons_left" name="coupons_left" min="1" required>
+            </div>
+            <div class="form-group">
+                <label for="is_active">Activo</label>
+                <select id="is_active" name="is_active">
+                    <option value="1">Sí</option>
+                    <option value="0">No</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="expires_at">Fecha de expiración (timestamp)</label>
+                <input type="number" id="expires_at" name="expires_at" min="0">
+            </div>
+            <div class="form-group">
+                <label for="coupon_type">Tipo de cupón</label>
+                <select id="coupon_type" name="coupon_type" onchange="toggleCouponInputs()">
+                    <option value="coins">Coins</option>
+                    <option value="discount">Descuento (%)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="coins_value">Valor en coins</label>
+                <input type="number" id="coins_value" name="coins_value" min="0">
+            </div>
+            <div class="form-group">
+                <label for="discount_percent">Descuento (%)</label>
+                <input type="number" id="discount_percent" name="discount_percent" min="0" max="100">
+            </div>
+            <button type="submit" class="admin-action-btn">Crear cupón</button>
+        </form>
+        <script>
+            function toggleCouponInputs() {
+                var type = document.getElementById('coupon_type').value;
+                var coinsInput = document.getElementById('coins_value');
+                var discountInput = document.getElementById('discount_percent');
+                if (type === 'coins') {
+                    coinsInput.disabled = false;
+                    discountInput.disabled = true;
+                    discountInput.value = '';
+                } else {
+                    coinsInput.disabled = true;
+                    coinsInput.value = '';
+                    discountInput.disabled = false;
+                }
             }
-        } catch (err) {
-            status.textContent = 'Error de red o servidor';
-            status.style.color = '#ef4444';
-        }
-    };
-    </script>
+            // Inicializar al cargar la página
+            document.addEventListener('DOMContentLoaded', function() {
+                toggleCouponInputs();
+            });
+        </script>
+    </div>
 </body>
 </html>
