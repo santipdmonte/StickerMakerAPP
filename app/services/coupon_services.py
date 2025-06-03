@@ -1,5 +1,5 @@
 # Servicios para la gestión de cupones
-from utils.dynamodb_utils import get_dynamodb_resource, COUPON_TABLE, TRANSACTION_TABLE
+from utils.dynamodb_utils import get_dynamodb_resource, COUPON_TABLE, TRANSACTION_TABLE, get_user
 import uuid
 import time
 from datetime import datetime
@@ -136,3 +136,31 @@ def delete_coupon(coupon_code):
         return {'error': 'Cupón no encontrado'}, 404
     table.delete_item(Key={'id_coupon': coupon['id_coupon']})
     return {'success': True}
+
+def get_coupon_redemptions(coupon_code):
+    """
+    Devuelve una lista de usuarios que usaron el cupón, con nombre, email y fecha de redención.
+    """
+    dynamodb = get_dynamodb_resource()
+    transaction_table = dynamodb.Table(TRANSACTION_TABLE)
+    # Buscar todas las transacciones con ese coupon_code
+    resp = transaction_table.query(
+        IndexName='CouponCodeIndex',
+        KeyConditionExpression=Key('coupon_code').eq(coupon_code)
+    )
+    items = resp.get('Items', [])
+    redemptions = []
+    for tx in items:
+        user_id = tx.get('user_id')
+        timestamp = tx.get('timestamp')
+        fecha = datetime.fromtimestamp(int(timestamp)).strftime('%Y-%m-%d %H:%M:%S') if timestamp else None
+        user = get_user(user_id) if user_id else None
+        nombre = user.get('name') if user else None
+        email = user.get('email') if user else None
+        redemptions.append({
+            'user_id': user_id,
+            'nombre': nombre,
+            'email': email,
+            'fecha': fecha
+        })
+    return redemptions

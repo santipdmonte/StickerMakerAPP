@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, render_template, session
 
 from services.coupon_services import (
-    create_coupon, get_coupon_by_code, list_coupons, redeem_coupon, set_coupon_active, delete_coupon
+    create_coupon, get_coupon_by_code, list_coupons, redeem_coupon, set_coupon_active, delete_coupon, get_coupon_redemptions
 )
 from routes.admin_routes import admin_required
 
@@ -72,6 +72,16 @@ def delete_coupon_route(coupon_code):
     if isinstance(result, tuple):
         return jsonify(result[0]), result[1]
     return jsonify(result)
+
+# Obtener redenciones de un cupón
+@coupon_bp.route('/coupons/<coupon_code>/redemptions', methods=['GET'])
+@admin_required
+def coupon_redemptions_route(coupon_code):
+    try:
+        redemptions = get_coupon_redemptions(coupon_code)
+        return jsonify(redemptions)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 # Página de administración de cupones
 @coupon_bp.route('/admin/coupons', methods=['GET'])
