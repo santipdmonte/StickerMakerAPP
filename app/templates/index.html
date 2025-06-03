@@ -815,26 +815,25 @@
 
     <!-- Profile Modal -->
     <div id="profile-modal" class="modal hidden">
-        <div class="modal-content">
+        <div class="modal-content profile-modal-content">
             <button class="modal-close-btn" id="profile-modal-close-btn"><i class="ri-close-line"></i></button>
             <h2>Mi Perfil</h2>
             <form id="profile-form">
                 <div class="form-group">
                     <label for="profile-email">Email:</label>
-                    <input type="email" id="profile-email" name="email" readonly>
+                    <div id="profile-email" class="profile-email-text" style="padding: 10px 0 8px 0; font-size: 1rem; color: #555; word-break: break-all;"></div>
                 </div>
                 <div class="form-group">
                     <label for="profile-username">Nombre de usuario:</label>
-                    <input type="text" id="profile-username" name="username" required>
+                    <input type="text" id="profile-username" name="username" required style="max-width: 300px;">
                 </div>
-                <button type="submit" class="finalize-button" id="profile-save-btn">
-                    <i class="ri-save-line"></i> Guardar Cambios
+                <button type="submit" class="finalize-button profile-save-btn" id="profile-save-btn" style="max-width: 180px; margin: 18px auto 0 auto; font-size: 1rem; padding: 12px 0; display: block;">
+                    <i class="ri-save-line"></i> Guardar
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- Perfil de usuario -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Elementos del modal
@@ -847,13 +846,16 @@
 
             // Función para abrir el modal y cargar datos
             window.openProfileModal = function() {
-                // Cargar datos del usuario actual
                 fetch('/api/auth/me')
                     .then(res => res.json())
                     .then(data => {
                         if (data.user) {
-                            profileEmail.value = data.user.email;
-                            profileUsername.value = data.user.name || '';
+                            // Mostrar email como texto
+                            const emailDiv = document.getElementById('profile-email');
+                            if (emailDiv) emailDiv.textContent = data.user.email;
+                            const profileUsername = document.getElementById('profile-username');
+                            if (profileUsername) profileUsername.value = data.user.name || '';
+                            const profileModal = document.getElementById('profile-modal');
                             profileModal.classList.remove('hidden');
                             setTimeout(() => profileModal.classList.add('visible'), 10);
                         } else {
