@@ -1,53 +1,48 @@
-from sticker_maker_utils import StickerMaker
+from app.utils.template_generation.sticker_maker_utils import StickerMaker
 from PIL import Image, ImageDraw
 
 stickers = {
     "sticker_1": {
         "path": "image1.png",
-        "quantity": 10
+        "quantity": 10,
+        "border": True
     },
     "sticker_2": {
         "path": "image5.png",
-        "quantity": 5
+        "quantity": 5,
+        "border": True
     },
     "sticker_3": {
         "path": "PedeSimon_Caricatura.png",
-        "quantity": 20
+        "quantity": 20,
+        "border": False
     },
 }
 
-base_template_path = "plantilla-imagenes-1.png"
-base_siluette_path = "plantilla-silutesa-de-corte-1.png"
-save_template_path = "sticker_template.png"
-save_siluette_path = "siluette_tempalte.png"
-save_tempalte_with_cells_path = "template_with_cells.png"
-save_template_preview_path = "template_preview.png"
+base_template_path = "plantilla-imagenes.png"
+base_siluette_path = "plantilla-silutesa-de-corte.png"
+save_template_path = "01-sticker_template.png"
+save_siluette_path = "02-siluette_tempalte.png"
+save_template_preview_path = "03-template_preview.png"
+save_tempalte_with_cells_path = "04-template_with_cells.png"
 
 class TemplateMaker:
     def __init__(self, 
-        # base_template_path,
-        # base_siluette_path,
-        # save_template_path,
-        # save_siluette_path,
         stickers,
-        printing_sheet_size = 1448  * 2048 , # 17400088
+        printing_sheet_size = (2828 , 4000), # A3 300 DPI
         columns = 5,
         rows = 7,
-        printing_sheet_security_margin = [
-            (1550, 310),  # top-right
-            (130, 310),  # top-left
-            (130, 2220),  # bottom-left
-            (1550, 2220)  # bottom-right
-        ]
+        printing_sheet_security_margin = {
+            'min_x': 230,
+            'max_x': 2650,
+            'min_y': 560,
+            'max_y': 3800
+        }
 
 
     ):
         """
         Initializes the TemplateMaker with parameters for border and shadow. \n
-        * `base_template_path`: The path to the base template image.
-        * `base_siluette_path`: The path to the base siluette image.
-        * `save_template_path`: The path to save the template image.
-        * `save_siluette_path`: The path to save the siluette image.
         * `sticker`: The sticker image.
         * `printing_sheet_size`: The size of the printing sheet.
         * `columns`: The number of columns in the template.
@@ -55,10 +50,6 @@ class TemplateMaker:
         * `printing_sheet_security_margin`: The security margin of the printing sheet.
         """
 
-        # self.base_template_path = base_template_path
-        # self.base_siluette_path = base_siluette_path
-        # self.save_template_path = save_template_path
-        # self.save_siluette_path = save_siluette_path
         self.stickers = stickers
         self.printing_sheet_size = printing_sheet_size
         self.columns = columns
@@ -73,10 +64,10 @@ class TemplateMaker:
         base_template_width, base_template_height = base_template.size
 
         # Calculate bounding box from security margin
-        margin_xs = [pt[0] for pt in self.printing_sheet_security_margin]
-        margin_ys = [pt[1] for pt in self.printing_sheet_security_margin]
-        min_x, max_x = min(margin_xs), max(margin_xs)
-        min_y, max_y = min(margin_ys), max(margin_ys)
+        min_x = self.printing_sheet_security_margin['min_x']
+        max_x = self.printing_sheet_security_margin['max_x']
+        min_y = self.printing_sheet_security_margin['min_y']
+        max_y = self.printing_sheet_security_margin['max_y']
 
         grid_width = max_x - min_x
         grid_height = max_y - min_y
@@ -101,9 +92,14 @@ class TemplateMaker:
             )
             
             if siluette:
-                sticker_img = sticker_maker.make_siluette_with_border(self.stickers[sticker_key]["path"]).convert("RGBA")
+                sticker_img = sticker_maker.make_siluette(self.stickers[sticker_key]["path"], self.stickers[sticker_key]["border"]).convert("RGBA")
             else:
-                sticker_img = sticker_maker.make_sticker(self.stickers[sticker_key]["path"]).convert("RGBA")
+                if self.stickers[sticker_key]["border"]:
+                    sticker_img = sticker_maker.make_sticker(self.stickers[sticker_key]["path"]).convert("RGBA")
+                else:
+                    # Orginal image
+                    sticker_img = Image.open(self.stickers[sticker_key]["path"]).convert("RGBA")
+                    sticker_img = sticker_maker._center_on_square(sticker_img, sticker_maker.final_size)
 
             # Resize sticker to fit inside the new cell size
             sticker_img.thumbnail((int(cell_width), int(cell_height)), Image.LANCZOS)
@@ -120,11 +116,11 @@ class TemplateMaker:
                 base_template.paste(sticker_img, (x, y), sticker_img)
                 current_cell += 1
 
-        base_template.save(save_template_path)
+        base_template.save(save_template_path, optimize=False, compress_level=1)
 
 
-    def preview_cells_in_template(self):
-        base_template = Image.open(self.base_template_path).convert("RGBA")
+    def preview_cells_in_template(self, base_template_path=None, save_template_path=None):
+        base_template = Image.open(base_template_path).convert("RGBA")
         base_template_width, base_template_height = base_template.size
 
         # Calculate bounding box from security margin
@@ -148,7 +144,7 @@ class TemplateMaker:
                 y1 = y0 + cell_height
                 draw.rectangle([x0, y0, x1, y1], outline=(0, 0, 0, 255), width=3)
 
-        base_template.save("template_with_cells.png")
+        base_template.save(save_template_path)
 
 if __name__ == "__main__":
 
@@ -156,17 +152,17 @@ if __name__ == "__main__":
         stickers=stickers
     )
     
-    # template_maker.make_template(
-    #     base_template_path=base_template_path, 
-    #     save_template_path=save_template_path,
-    #     siluette=False
-    # )
+    template_maker.make_template(
+        base_template_path=base_template_path, 
+        save_template_path=save_template_path,
+        siluette=False
+    )
     
-    # template_maker.make_template(
-    #     base_template_path=base_siluette_path, 
-    #     save_template_path=save_siluette_path, 
-    #     siluette=True
-    # )
+    template_maker.make_template(
+        base_template_path=base_siluette_path, 
+        save_template_path=save_siluette_path, 
+        siluette=True
+    )
 
     template_maker.make_template(
         base_template_path=save_template_path, 
@@ -174,5 +170,8 @@ if __name__ == "__main__":
         siluette=True
     )
 
-    # template_maker.print_cells_in_template()
+    # template_maker.preview_cells_in_template(
+    #     base_template_path=base_template_path,
+    #     save_template_path=save_tempalte_with_cells_path
+    # )
 

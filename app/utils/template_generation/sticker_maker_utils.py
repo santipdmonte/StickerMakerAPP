@@ -138,18 +138,35 @@ class StickerMaker:
 
         return final
     
-    
-    def make_siluette(self, image_path):
+    def make_siluette(self, image_path, border = True):
         """
-        Creates a sticker from the image at `image_path` by adding a border and shadow.\n
+        Creates a sticker siluette to cut the sticker.
         Returns the final image.
         """
 
         img = Image.open(image_path).convert("RGBA")
         img = self._center_on_square(img, self.final_size)
-    
+
         if self.crop:
             img = self.crop_transparent(img)
+
+        if border:
+
+            alpha = img.getchannel("A")
+            mask = alpha.point(lambda p: 255 if p > self.alpha_threshold else 0)
+
+            dilated = mask.filter(ImageFilter.MaxFilter(self.siluette_border_distance * 2 + 1))
+            border_mask = ImageChops.subtract(dilated, mask)
+            border_mask = border_mask.filter(ImageFilter.GaussianBlur(radius=1.5))
+
+            # White border layer
+            white_border_layer = Image.new("RGBA", img.size, (255, 255, 255, 255))  # White
+            white_border_layer.putalpha(border_mask)
+
+            # Combine the layers: First white border, then shadow, then image
+            img = Image.alpha_composite(white_border_layer, img)
+
+        # ===  =====
 
         alpha = img.getchannel("A")
         mask = alpha.point(lambda p: 255 if p > self.alpha_threshold else 0)
@@ -162,76 +179,29 @@ class StickerMaker:
         red_siluette.putalpha(border_mask)
 
         return red_siluette
-    
-
-    def make_siluette_with_border(self, image_path):
-        """
-        Creates a sticker siluette to cut the sticker. \n
-        Returns the final image.
-        """
-
-        img = Image.open(image_path).convert("RGBA")
-        img = self._center_on_square(img, self.final_size)
-
-        if self.crop:
-            img = self.crop_transparent(img)
-
-        alpha = img.getchannel("A")
-        mask = alpha.point(lambda p: 255 if p > self.alpha_threshold else 0)
-
-        dilated = mask.filter(ImageFilter.MaxFilter(self.siluette_border_distance * 2 + 1))
-        border_mask = ImageChops.subtract(dilated, mask)
-        border_mask = border_mask.filter(ImageFilter.GaussianBlur(radius=1.5))
-
-       # White border layer
-        white_border_layer = Image.new("RGBA", img.size, (255, 255, 255, 255))  # White
-        white_border_layer.putalpha(border_mask)
-
-        # Combine the layers: First white border, then shadow, then image
-        img_with_border = Image.alpha_composite(white_border_layer, img)
-
-        # ===  =====
-
-        alpha = img_with_border.getchannel("A")
-        mask = alpha.point(lambda p: 255 if p > self.alpha_threshold else 0)
-
-        dilated = mask.filter(ImageFilter.MaxFilter(self.siluette_border_size * 2 + 1))
-        border_mask = ImageChops.subtract(dilated, mask)
-        border_mask = border_mask.filter(ImageFilter.GaussianBlur(radius=self.siluette_blur_strength))
-
-        red_siluette = Image.new("RGBA", img_with_border.size, self.siluette_color) 
-        red_siluette.putalpha(border_mask)
-
-        return red_siluette
 
     
     def process(self, input_path, output_path):
         """Processes the image at input_path and saves the final sticker to output_path."""
 
         final_img = self.make_sticker(input_path)
-        final_img.save(output_path, format="PNG")
+        final_img.save(output_path, format="PNG", optimize=False, compress_level=0)
 
     def process_siluette(self, input_path, output_path):
         """Processes the image at input_path and saves the final sticker to output_path."""
 
         final_img = self.make_siluette(input_path)
-        final_img.save(output_path, format="PNG")
+        final_img.save(output_path, format="PNG", optimize=False, compress_level=0)
 
-    def process_siluette_with_border(self, input_path, output_path):
-        """Processes the image at input_path and saves the final sticker to output_path."""
-
-        final_img = self.make_siluette(input_path)
-        final_img.save(output_path, format="PNG")
-
-    def composite_siluette_on_sticker(self, image_path):
+    def composite_siluette_on_sticker(self, sticker_path, siluette_path):
         """
         Composites the red silhouette on top of the sticker.
         Returns the final composited image.
         """
-        sticker = Image.open('sticker_con_borde.png').convert("RGBA")
+        sticker = Image.open(sticker_path).convert("RGBA")
         # sticker = self.crop_transparent(sticker)
 
-        siluette = Image.open('sticker_con_siluette.png').convert("RGBA")
+        siluette = Image.open(siluette_path).convert("RGBA")
         # siluette = self.crop_transparent(siluette)
 
         # # Ensure both images are the same size
@@ -252,7 +222,7 @@ class StickerMaker:
         and saves the result to output_path.
         """
         final_img = self.composite_siluette_on_sticker(input_path)
-        final_img.save(output_path, format="PNG")
+        final_img.save(output_path, format="PNG", optimize=False, compress_level=0)
 
 def process_sticker(image_path: Path):
     """
@@ -285,16 +255,15 @@ if __name__ == "__main__":
     )
 
     sticker_maker.process(
-        input_path="image1.png",
+        input_path="PedeSimon_Caricatura.png",
         output_path="sticker_con_borde.png"
     )
-
     sticker_maker.process_siluette_with_border(
-        input_path="image1.png",
+        input_path="PedeSimon_Caricatura.png",
         output_path="sticker_con_siluette.png"
     )
 
     sticker_maker.process_composite(
-        input_path="image1.png",
+        input_path="PedeSimon_Caricatura.png",
         output_path="sticker_con_siluette_y_borde.png"
     )
