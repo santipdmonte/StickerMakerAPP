@@ -1,29 +1,64 @@
-from app.utils.template_generation.sticker_maker_utils import StickerMaker
+from sticker_maker_utils import StickerMaker
 from PIL import Image, ImageDraw
 
 stickers = {
-    "sticker_1": {
-        "path": "image1.png",
+    "sticker_8": {
+        "path": "to-print/thestickerhouse-logo-textura.png",
         "quantity": 10,
-        "border": True
-    },
-    "sticker_2": {
-        "path": "image5.png",
-        "quantity": 5,
-        "border": True
-    },
-    "sticker_3": {
-        "path": "PedeSimon_Caricatura.png",
-        "quantity": 20,
         "border": False
     },
+    "sticker_9": {
+        "path": "to-print/thestickerhouse-logo.png",
+        "quantity": 9,
+        "border": False
+    },
+    "sticker_3": {
+        "path": "to-print/lala-iguazu.png",
+        "quantity": 2,
+        "border": True
+    },
+    "sticker_11": {
+        "path": "to-print/lala-franco.png",
+        "quantity": 2,
+        "border": True
+    },
+    "sticker_5": {
+        "path": "to-print/mila-ghibli.png",
+        "quantity": 2,
+        "border": False
+    },
+    "sticker_6": {
+        "path": "to-print/mila-jardin.png",
+        "quantity": 2,
+        "border": True
+    },
+    "sticker_7": {
+        "path": "to-print/mila-parche-hilo.png",
+        "quantity": 2,
+        "border": False
+    },
+    "sticker_10": {
+        "path": "to-print/tucalab-logo.png",
+        "quantity": 2,
+        "border": False
+    },
+    "sticker_4": {
+        "path": "to-print/mila-emoji.png",
+        "quantity": 2,
+        "border": False
+    },
+    "sticker_1": {
+        "path": "to-print/perros-ghibli.png",
+        "quantity": 2,
+        "border": False
+    }
 }
 
 base_template_path = "plantilla-imagenes.png"
 base_siluette_path = "plantilla-silutesa-de-corte.png"
-save_template_path = "01-sticker_template.png"
-save_siluette_path = "02-siluette_tempalte.png"
-save_template_preview_path = "03-template_preview.png"
+save_template_path = "templates-to-print/01-sticker_template.png"
+save_siluette_path = "templates-to-print/02-siluette_tempalte.png"
+save_template_preview_path = "templates-to-print/03-template_preview.png"
 save_tempalte_with_cells_path = "04-template_with_cells.png"
 
 class TemplateMaker:
@@ -80,7 +115,7 @@ class TemplateMaker:
         for sticker_key in self.stickers:
             sticker_maker = StickerMaker(
                 crop=False,
-                alpha_threshold=150,
+                alpha_threshold=120,
                 border_size=20,
                 shadow_blur_strength=0,
                 bg_transparent=True,

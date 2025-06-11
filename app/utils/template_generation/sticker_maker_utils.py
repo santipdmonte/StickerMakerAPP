@@ -88,9 +88,9 @@ class StickerMaker:
 
         # Create a new blank image (transparent or with bg_color)
         if self.bg_transparent:
-            background = Image.new("RGBA", (final_size, final_size), (0, 0, 0, 0))
+            background = Image.new("RGBA", (final_size + 20, final_size + 20), (0, 0, 0, 0))
         else:
-            background = Image.new("RGBA", (final_size, final_size), self.bg_color)
+            background = Image.new("RGBA", (final_size + 20, final_size + 20), self.bg_color)
         # Calculate top-left position to paste the image centered
         x = (final_size - img.width) // 2
         y = (final_size - img.height) // 2
@@ -137,7 +137,7 @@ class StickerMaker:
             return black_bg
 
         return final
-    
+
     def make_siluette(self, image_path, border = True):
         """
         Creates a sticker siluette to cut the sticker.
@@ -193,15 +193,21 @@ class StickerMaker:
         final_img = self.make_siluette(input_path)
         final_img.save(output_path, format="PNG", optimize=False, compress_level=0)
 
-    def composite_siluette_on_sticker(self, sticker_path, siluette_path):
+    def process_siluette_with_border(self, input_path, output_path):
+        """Processes the image at input_path and saves the final sticker to output_path."""
+
+        final_img = self.make_siluette(input_path, border=True)
+        final_img.save(output_path, format="PNG", optimize=False, compress_level=0)
+
+    def composite_siluette_on_sticker(self, image_path):
         """
         Composites the red silhouette on top of the sticker.
         Returns the final composited image.
         """
-        sticker = Image.open(sticker_path).convert("RGBA")
+        sticker = Image.open('sticker_con_borde.png').convert("RGBA")
         # sticker = self.crop_transparent(sticker)
 
-        siluette = Image.open(siluette_path).convert("RGBA")
+        siluette = Image.open('sticker_con_siluette.png').convert("RGBA")
         # siluette = self.crop_transparent(siluette)
 
         # # Ensure both images are the same size
@@ -243,7 +249,7 @@ if __name__ == "__main__":
     
     sticker_maker = StickerMaker(
         crop=False,
-        alpha_threshold=150,
+        alpha_threshold=120,
         border_size=20,
         shadow_blur_strength=0,
         bg_transparent=True,
@@ -255,15 +261,15 @@ if __name__ == "__main__":
     )
 
     sticker_maker.process(
-        input_path="PedeSimon_Caricatura.png",
-        output_path="sticker_con_borde.png"
+        input_path="to-print/lala-franco.png",
+        output_path="borders_stickers/lala-franco_borde.png"
     )
     sticker_maker.process_siluette_with_border(
-        input_path="PedeSimon_Caricatura.png",
-        output_path="sticker_con_siluette.png"
+        input_path="to-print/lala-franco.png",
+        output_path="borders_stickers/lala-franco_siluette.png"
     )
 
-    sticker_maker.process_composite(
-        input_path="PedeSimon_Caricatura.png",
-        output_path="sticker_con_siluette_y_borde.png"
-    )
+    # sticker_maker.process_composite(
+    #     input_path="to-print/sticker_con_borde.png",
+    #     output_path="border_stickers/lala-franco_siluette_y_borde.png"
+    # )
