@@ -1,65 +1,15 @@
 from sticker_maker_utils import StickerMaker
 from PIL import Image, ImageDraw
-
-stickers = {
-    "sticker_8": {
-        "path": "to-print/thestickerhouse-logo-textura.png",
-        "quantity": 10,
-        "border": False
-    },
-    "sticker_9": {
-        "path": "to-print/thestickerhouse-logo.png",
-        "quantity": 9,
-        "border": False
-    },
-    "sticker_3": {
-        "path": "to-print/lala-iguazu.png",
-        "quantity": 2,
-        "border": True
-    },
-    "sticker_11": {
-        "path": "to-print/lala-franco.png",
-        "quantity": 2,
-        "border": True
-    },
-    "sticker_5": {
-        "path": "to-print/mila-ghibli.png",
-        "quantity": 2,
-        "border": False
-    },
-    "sticker_6": {
-        "path": "to-print/mila-jardin.png",
-        "quantity": 2,
-        "border": True
-    },
-    "sticker_7": {
-        "path": "to-print/mila-parche-hilo.png",
-        "quantity": 2,
-        "border": False
-    },
-    "sticker_10": {
-        "path": "to-print/tucalab-logo.png",
-        "quantity": 2,
-        "border": False
-    },
-    "sticker_4": {
-        "path": "to-print/mila-emoji.png",
-        "quantity": 2,
-        "border": False
-    },
-    "sticker_1": {
-        "path": "to-print/perros-ghibli.png",
-        "quantity": 2,
-        "border": False
-    }
-}
+from reportlab.pdfgen import canvas
+from reportlab.graphics import renderPDF
+from stickers_config import stickers
 
 base_template_path = "plantilla-imagenes.png"
-base_siluette_path = "plantilla-silutesa-de-corte.png"
-save_template_path = "templates-to-print/01-sticker_template.png"
-save_siluette_path = "templates-to-print/02-siluette_tempalte.png"
-save_template_preview_path = "templates-to-print/03-template_preview.png"
-save_tempalte_with_cells_path = "04-template_with_cells.png"
+base_silhouette_path = "plantilla-siluetas.png"
+save_template_path = "templates/01-sticker_template.png"
+save_silhouette_path = "templates/02-silhouette_tempalte.pdf"
+save_template_preview_path = "templates/03-template_preview.pdf"
+save_tempalte_with_cells_path = "templates/04-template_with_cells.png"
 
 class TemplateMaker:
     def __init__(self, 
@@ -91,13 +41,11 @@ class TemplateMaker:
         self.rows = rows
         self.printing_sheet_security_margin = printing_sheet_security_margin
 
-
-    def make_template(self, base_template_path=None, save_template_path=None,siluette=False):
-
-        base_template = Image.open(base_template_path).convert("RGBA")
-
-        base_template_width, base_template_height = base_template.size
-
+    def _generate_grid_positions(self):
+        """
+        Common function to calculate grid positions based on security margins.
+        Returns a dictionary with grid parameters.
+        """
         # Calculate bounding box from security margin
         min_x = self.printing_sheet_security_margin['min_x']
         max_x = self.printing_sheet_security_margin['max_x']
@@ -110,6 +58,28 @@ class TemplateMaker:
         cell_width = grid_width // self.columns
         cell_height = grid_height // self.rows
 
+        return {
+            'min_x': min_x,
+            'max_x': max_x,
+            'min_y': min_y,
+            'max_y': max_y,
+            'grid_width': grid_width,
+            'grid_height': grid_height,
+            'cell_width': cell_width,
+            'cell_height': cell_height
+        }
+
+    def make_sticker_template(self, base_template_path=None, save_template_path=None):
+
+        base_template = Image.open(base_template_path).convert("RGBA")
+
+        # Get grid parameters
+        grid = self._generate_grid_positions()
+        min_x = grid['min_x']
+        min_y = grid['min_y']
+        cell_width = grid['cell_width']
+        cell_height = grid['cell_height']
+
         current_cell = 0
 
         for sticker_key in self.stickers:
@@ -120,21 +90,19 @@ class TemplateMaker:
                 shadow_blur_strength=0,
                 bg_transparent=True,
                 padding=20,
-                siluette_color=(255, 0, 0, 255),
-                siluette_blur_strength=0.4,
-                siluette_border_distance=10,
-                siluette_border_size=2
+                silhouette_color=(255, 0, 0, 255),
+                silhouette_blur_strength=0.4,
+                silhouette_border_distance=10,
+                silhouette_border_size=2
             )
             
-            if siluette:
-                sticker_img = sticker_maker.make_siluette(self.stickers[sticker_key]["path"], self.stickers[sticker_key]["border"]).convert("RGBA")
+
+            if self.stickers[sticker_key]["border"]:
+                sticker_img = sticker_maker.make_sticker(self.stickers[sticker_key]["path"]).convert("RGBA")
             else:
-                if self.stickers[sticker_key]["border"]:
-                    sticker_img = sticker_maker.make_sticker(self.stickers[sticker_key]["path"]).convert("RGBA")
-                else:
-                    # Orginal image
-                    sticker_img = Image.open(self.stickers[sticker_key]["path"]).convert("RGBA")
-                    sticker_img = sticker_maker._center_on_square(sticker_img, sticker_maker.final_size)
+                # Orginal image
+                sticker_img = Image.open(self.stickers[sticker_key]["path"]).convert("RGBA")
+                sticker_img = sticker_maker._center_on_square(sticker_img, sticker_maker.final_size)
 
             # Resize sticker to fit inside the new cell size
             sticker_img.thumbnail((int(cell_width), int(cell_height)), Image.LANCZOS)
@@ -151,24 +119,102 @@ class TemplateMaker:
                 base_template.paste(sticker_img, (x, y), sticker_img)
                 current_cell += 1
 
-        base_template.save(save_template_path, optimize=False, compress_level=1)
+        if save_template_path:
+            base_template.save(save_template_path, optimize=False, compress_level=1)
+        return base_template
+
+    def make_silhouette_template(self, base_template_path=None, save_template_path=None):
+
+        # Dimensions for the final PDF (we will use the pixel dimensions directly
+        # as PDF points for simplicity)
+        sheet_width, sheet_height = self.printing_sheet_size
+
+        # 1. Create a PDF canvas 
+        c = canvas.Canvas(save_template_path, pagesize=(sheet_width, sheet_height))
+
+        if base_template_path:
+            # Draw the base template (grid or background) as a raster image
+            # so the operator has visual reference while keeping silhouettes vector.
+            c.drawImage(base_template_path, 0, 0, width=sheet_width, height=sheet_height)
+
+        # Get grid parameters
+        grid = self._generate_grid_positions()
+        min_x = grid['min_x']
+        min_y = grid['min_y']
+        cell_width = grid['cell_width']
+        cell_height = grid['cell_height']
+
+        current_cell = 0
+
+        for sticker_key in self.stickers:
+            sticker_maker = StickerMaker(
+                crop=False,
+                alpha_threshold=120,
+                border_size=20,
+                shadow_blur_strength=0,
+                bg_transparent=True,
+                padding=20,
+                silhouette_color=(255, 0, 0, 255),
+                silhouette_blur_strength=0.4,
+                silhouette_border_distance=10,
+                silhouette_border_size=2
+            )
+
+            # Generate the vector silhouette (Drawing object)
+            drawing = sticker_maker.make_vector_silhouette(
+                input_image_path=self.stickers[sticker_key]["path"], 
+                border=self.stickers[sticker_key]["border"],
+                output_pdf_path=None
+            )
+
+
+            if drawing is None:
+                # Skip any sticker that failed vectorisation
+                continue
+
+            # Scale the silhouette once to fit inside a cell
+            d_width, d_height = drawing.width, drawing.height
+            scale_factor = min(cell_width / d_width, cell_height / d_height)
+
+            for _ in range(self.stickers[sticker_key]["quantity"]):
+                col = current_cell % self.columns
+                row = current_cell // self.columns
+                if row >= self.rows:
+                    break  # No more space on the sheet
+
+                # Compute position so silhouette is centred inside the cell
+                scaled_w = d_width * scale_factor
+                scaled_h = d_height * scale_factor
+
+                # Calculate position exactly as in make_template
+                x = min_x + col * cell_width + (cell_width - scaled_w) // 2
+                # Adjust y-coordinate for PDF (origin is bottom-left in PDF)
+                y = sheet_height - (min_y + row * cell_height + (cell_height - scaled_h) // 2 + scaled_h)
+
+                # Draw the vector silhouette on the PDF canvas
+                c.saveState()
+                c.translate(x, y)
+                c.scale(scale_factor, scale_factor)
+                renderPDF.draw(drawing, c, 0, 0)
+                c.restoreState()
+
+                current_cell += 1
+
+        # Finalise the PDF
+        if save_template_path:
+            c.save()
+        return c
 
 
     def preview_cells_in_template(self, base_template_path=None, save_template_path=None):
         base_template = Image.open(base_template_path).convert("RGBA")
-        base_template_width, base_template_height = base_template.size
 
-        # Calculate bounding box from security margin
-        margin_xs = [pt[0] for pt in self.printing_sheet_security_margin]
-        margin_ys = [pt[1] for pt in self.printing_sheet_security_margin]
-        min_x, max_x = min(margin_xs), max(margin_xs)
-        min_y, max_y = min(margin_ys), max(margin_ys)
-
-        grid_width = max_x - min_x
-        grid_height = max_y - min_y
-
-        cell_width = grid_width // self.columns
-        cell_height = grid_height // self.rows
+        # Get grid parameters
+        grid = self._generate_grid_positions()
+        min_x = grid['min_x']
+        min_y = grid['min_y']
+        cell_width = grid['cell_width']
+        cell_height = grid['cell_height']
 
         draw = ImageDraw.Draw(base_template)
         for row in range(self.rows):
@@ -186,27 +232,29 @@ if __name__ == "__main__":
     template_maker = TemplateMaker(
         stickers=stickers
     )
-    
-    template_maker.make_template(
+
+
+    # Make sticker template
+    template_maker.make_sticker_template(
         base_template_path=base_template_path, 
-        save_template_path=save_template_path,
-        siluette=False
-    )
-    
-    template_maker.make_template(
-        base_template_path=base_siluette_path, 
-        save_template_path=save_siluette_path, 
-        siluette=True
+        save_template_path=save_template_path
     )
 
-    template_maker.make_template(
-        base_template_path=save_template_path, 
-        save_template_path=save_template_preview_path, 
-        siluette=True
+    # Make silhouette template
+    template_maker.make_silhouette_template(
+        base_template_path=base_silhouette_path, 
+        save_template_path=save_silhouette_path
     )
 
-    # template_maker.preview_cells_in_template(
-    #     base_template_path=base_template_path,
-    #     save_template_path=save_tempalte_with_cells_path
-    # )
+    # Make Preview of the template
+    template_maker.make_silhouette_template(
+        base_template_path=save_template_path,
+        save_template_path=save_template_preview_path,
+    )
+
+    # Make Preview of the template with cells
+    template_maker.preview_cells_in_template(
+        base_template_path=base_template_path,
+        save_template_path=save_tempalte_with_cells_path
+    )
 
