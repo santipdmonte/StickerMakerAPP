@@ -61,7 +61,7 @@ def create_sticker(title=None, description=None, image_url=None, image_url_high=
         image_url (str): URL of the sticker image (low resolution)
         image_url_high (str, optional): URL of the high resolution sticker image
         tags (list, optional): List of tags for search
-        created_by (str, optional): User ID who created the sticker
+        created_by (str, optional): User ID or Session ID who created the sticker
         is_public (bool): Whether the sticker is visible to other users
         metadata (dict, optional): Extra fields for AI (model used, configuration, etc.)
         category (str): Category of sticker ("user_generated", "library", "template", etc.)

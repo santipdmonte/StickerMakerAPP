@@ -22,12 +22,12 @@ def generate_sticker(user_prompt, img_path, quality='low', style=None):
         image_data, s3_url, high_res_s3_url = create_placeholder_image(img_path)
         
         # Create sticker record in database
-        user_id = session.get('user_id')
+        identifier = session.get('user_id') if session.get('user_id') else session.get('session_id')
         
-        if user_id:  # Only save if user is logged in
+        if identifier:  # Only save if user is logged in
             try:
                 create_user_sticker(
-                    user_id=user_id,
+                    user_id=identifier,
                     image_url=s3_url,
                     image_url_high=high_res_s3_url,
                     is_public=False,
@@ -77,12 +77,12 @@ La imagen debe tener un fondo transparente, para que al imprimir el sticker no s
     image_data, s3_url, high_res_s3_url = save_image(result, img_path)
 
     # Create sticker record in database
-    user_id = session.get('user_id')
+    identifier = session.get('user_id') if session.get('user_id') else session.get('session_id')
 
-    if user_id:  # Only save if user is logged in
+    if identifier:  # Only save if user is logged in
         try:
             create_user_sticker(
-                user_id=user_id,
+                user_id=identifier,
                 image_url=s3_url,
                 image_url_high=high_res_s3_url,
                 is_public=False,
