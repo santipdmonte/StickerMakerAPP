@@ -96,7 +96,7 @@ def validate_sticker_data(image_url: str, title: str = None, description: str = 
     
     return validated_data
 
-def create_user_sticker(user_id: str, image_url: str, title: str = None, 
+def create_user_sticker(user_id: str, image_url: str, image_url_high: str = None, title: str = None, 
                        description: str = None, tags: List[str] = None, 
                        is_public: bool = True, style: str = None, 
                        generation_cost: int = 0, prompt: str = None,
@@ -106,7 +106,8 @@ def create_user_sticker(user_id: str, image_url: str, title: str = None,
     
     Args:
         user_id (str): ID of the user creating the sticker
-        image_url (str): URL of the sticker image
+        image_url (str): URL of the sticker image (low resolution)
+        image_url_high (str, optional): URL of the high resolution sticker image
         title (str, optional): Title of the sticker
         description (str, optional): Description of the sticker
         tags (list, optional): List of tags for search
@@ -144,6 +145,7 @@ def create_user_sticker(user_id: str, image_url: str, title: str = None,
         title=validated_data.get('title'),
         description=validated_data.get('description'),
         image_url=validated_data['image_url'],
+        image_url_high=image_url_high,
         tags=validated_data.get('tags'),
         created_by=user_id,
         is_public=is_public,
@@ -157,15 +159,16 @@ def create_user_sticker(user_id: str, image_url: str, title: str = None,
     
     return sticker_data
 
-def create_library_sticker(image_url: str, title: str, description: str = None,
+def create_library_sticker(image_url: str, title: str, image_url_high: str = None, description: str = None,
                           tags: List[str] = None, style: str = None,
                           metadata: Dict = None) -> Dict:
     """
     Create a sticker for the official library.
     
     Args:
-        image_url (str): URL of the sticker image
+        image_url (str): URL of the sticker image (low resolution)
         title (str): Title of the sticker (required for library stickers)
+        image_url_high (str, optional): URL of the high resolution sticker image
         description (str, optional): Description of the sticker
         tags (list, optional): List of tags for search
         style (str, optional): Style of the sticker
@@ -188,6 +191,7 @@ def create_library_sticker(image_url: str, title: str, description: str = None,
         title=validated_data['title'],
         description=validated_data.get('description'),
         image_url=validated_data['image_url'],
+        image_url_high=image_url_high,
         tags=validated_data.get('tags'),
         created_by=None,  # No specific user for library stickers
         is_public=True,   # Library stickers are always public

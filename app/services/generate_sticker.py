@@ -19,7 +19,33 @@ def generate_sticker(user_prompt, img_path, quality='low', style=None):
     # Check if we should use placeholder instead of actual generation
     if USE_PLACEHOLDER_STICKER:
         logger.info("Using placeholder sticker instead of actual generation")
-        return create_placeholder_image(img_path)
+        image_data, s3_url, high_res_s3_url = create_placeholder_image(img_path)
+        
+        # Create sticker record in database
+        user_id = session.get('user_id')
+        
+        if user_id:  # Only save if user is logged in
+            try:
+                create_user_sticker(
+                    user_id=user_id,
+                    image_url=s3_url,
+                    image_url_high=high_res_s3_url,
+                    is_public=False,
+                    style=style,
+                    generation_cost=0,
+                    prompt=user_prompt,
+                    metadata={
+                        'quality': quality,
+                        'generation_timestamp': int(time.time()),
+                        'original_filename': os.path.basename(img_path),
+                        'is_placeholder': True
+                    }
+                )
+            except StickerValidationError as e:
+                logger.error(f"Error al guardar el placeholder en la base de datos: {str(e)}")
+                # Don't raise error for placeholder, just log it
+        
+        return image_data, s3_url, high_res_s3_url
         
     client = OpenAI()
     
@@ -48,37 +74,66 @@ La imagen debe tener un fondo transparente, para que al imprimir el sticker no s
     )
 
     # save_image now returns a tuple (image_b64, s3_url, s3_url_high_res_)
-    image_data = save_image(result, img_path)
+    image_data, s3_url, high_res_s3_url = save_image(result, img_path)
 
     # Create sticker record in database
     user_id = session.get('user_id')
 
-    try:
-        create_user_sticker(
-            user_id=user_id,
-            image_url=img_path,
-            is_public=False,
-            style=style,
-            generation_cost=0,
-            prompt=user_prompt,
-            metadata={
-                'quality': quality,
-                'generation_timestamp': int(time.time()),
-                'original_filename': os.path.basename(img_path)
-            }
-        )
-    except StickerValidationError as e:
-        logger.error(f"Error al guardar el sticker en la base de datos: {str(e)}")
-        raise ValueError(f"Error al guardar el sticker en la base de datos: {str(e)}")
+    if user_id:  # Only save if user is logged in
+        try:
+            create_user_sticker(
+                user_id=user_id,
+                image_url=s3_url,
+                image_url_high=high_res_s3_url,
+                is_public=False,
+                style=style,
+                generation_cost=0,
+                prompt=user_prompt,
+                metadata={
+                    'quality': quality,
+                    'generation_timestamp': int(time.time()),
+                    'original_filename': os.path.basename(img_path)
+                }
+            )
+        except StickerValidationError as e:
+            logger.error(f"Error al guardar el sticker en la base de datos: {str(e)}")
+            # Don't raise error, just log it to avoid breaking the image generation
 
-    return image_data
+    return image_data, s3_url, high_res_s3_url
 
 
 def generate_sticker_with_reference(user_prompt, img_path, img_base64, quality='low', style=None):
     # Check if we should use placeholder instead of actual generation
     if USE_PLACEHOLDER_STICKER:
         logger.info("Using placeholder sticker instead of actual generation with reference")
-        return create_placeholder_image(img_path)
+        image_data, s3_url, high_res_s3_url = create_placeholder_image(img_path)
+        
+        # Create sticker record in database
+        user_id = session.get('user_id')
+        
+        if user_id:  # Only save if user is logged in
+            try:
+                create_user_sticker(
+                    user_id=user_id,
+                    image_url=s3_url,
+                    image_url_high=high_res_s3_url,
+                    is_public=False,
+                    style=style,
+                    generation_cost=0,
+                    prompt=user_prompt,
+                    metadata={
+                        'quality': quality,
+                        'generation_timestamp': int(time.time()),
+                        'original_filename': os.path.basename(img_path),
+                        'is_placeholder': True,
+                        'has_reference_image': True
+                    }
+                )
+            except StickerValidationError as e:
+                logger.error(f"Error al guardar el placeholder con referencia en la base de datos: {str(e)}")
+                # Don't raise error for placeholder, just log it
+        
+        return image_data, s3_url, high_res_s3_url
         
     client = OpenAI()
     
@@ -146,31 +201,34 @@ La imagen debe tener un fondo transparente, para que al imprimir el sticker no s
                 logger.info("Respuesta de OpenAI recibida correctamente")
             
             # save_image now returns a tuple (image_b64, s3_url, high_res_s3_url)
-            image_data = save_image(result, img_path)
+            image_data, s3_url, high_res_s3_url = save_image(result, img_path)
 
             # Create sticker record in database
             user_id = session.get('user_id')
 
-            try:
-                create_user_sticker(
-                    user_id=user_id,
-                    image_url=img_path,
-                    is_public=False,
-                    style=style,
-                    generation_cost=0,
-                    prompt=user_prompt,
-                    metadata={
-                        'quality': quality,
-                        'generation_timestamp': int(time.time()),
-                        'original_filename': os.path.basename(img_path)
-                    }
-                )
-            except StickerValidationError as e:
-                logger.error(f"Error al guardar el sticker en la base de datos: {str(e)}")
-                raise ValueError(f"Error al guardar el sticker en la base de datos: {str(e)}")
+            if user_id:  # Only save if user is logged in
+                try:
+                    create_user_sticker(
+                        user_id=user_id,
+                        image_url=s3_url,
+                        image_url_high=high_res_s3_url,
+                        is_public=False,
+                        style=style,
+                        generation_cost=0,
+                        prompt=user_prompt,
+                        metadata={
+                            'quality': quality,
+                            'generation_timestamp': int(time.time()),
+                            'original_filename': os.path.basename(img_path),
+                            'has_reference_image': True
+                        }
+                    )
+                except StickerValidationError as e:
+                    logger.error(f"Error al guardar el sticker en la base de datos: {str(e)}")
+                    # Don't raise error, just log it to avoid breaking the image generation
 
             logger.info("Imagen guardada correctamente")
-            return image_data
+            return image_data, s3_url, high_res_s3_url
             
         except Exception as e:
             logger.error(f"Error procesando imagen: {str(e)}", exc_info=True)

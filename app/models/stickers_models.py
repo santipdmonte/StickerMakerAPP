@@ -49,7 +49,7 @@ def get_dynamodb_client():
     )
 
 # Sticker CRUD Functions
-def create_sticker(title=None, description=None, image_url=None, tags=None, created_by=None, 
+def create_sticker(title=None, description=None, image_url=None, image_url_high=None, tags=None, created_by=None, 
                   is_public=True, metadata=None, category="user_generated", style=None, 
                   format="PNG", generation_cost=0, prompt=None):
     """
@@ -58,7 +58,8 @@ def create_sticker(title=None, description=None, image_url=None, tags=None, crea
     Args:
         title (str, optional): Title or name of the sticker
         description (str, optional): Description of the sticker
-        image_url (str): URL of the sticker image
+        image_url (str): URL of the sticker image (low resolution)
+        image_url_high (str, optional): URL of the high resolution sticker image
         tags (list, optional): List of tags for search
         created_by (str, optional): User ID who created the sticker
         is_public (bool): Whether the sticker is visible to other users
@@ -93,6 +94,10 @@ def create_sticker(title=None, description=None, image_url=None, tags=None, crea
         'generation_cost': generation_cost,
         'usage_count': 0
     }
+    
+    # Add high resolution URL if provided
+    if image_url_high:
+        sticker_data['image_url_high'] = image_url_high
     
     # Add optional fields if provided
     if title:
