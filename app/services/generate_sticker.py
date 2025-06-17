@@ -7,7 +7,9 @@ import time
 from utils.utils import save_image, create_placeholder_image
 from openai import OpenAI
 from PIL import Image
-from config import USE_PLACEHOLDER_STICKER, STICKER_STYLE_CONFIG
+from config import USE_PLACEHOLDER_STICKER, STICKER_STYLE_CONFIG, STICKER_COSTS
+from services.sticker_services import create_user_sticker, StickerValidationError
+from flask import session
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -47,6 +49,28 @@ La imagen debe tener un fondo transparente, para que al imprimir el sticker no s
 
     # save_image now returns a tuple (image_b64, s3_url, s3_url_high_res_)
     image_data = save_image(result, img_path)
+
+    # Create sticker record in database
+    user_id = session.get('user_id')
+
+    try:
+        create_user_sticker(
+            user_id=user_id,
+            image_url=img_path,
+            is_public=False,
+            style=style,
+            generation_cost=0,
+            prompt=user_prompt,
+            metadata={
+                'quality': quality,
+                'generation_timestamp': int(time.time()),
+                'original_filename': os.path.basename(img_path)
+            }
+        )
+    except StickerValidationError as e:
+        logger.error(f"Error al guardar el sticker en la base de datos: {str(e)}")
+        raise ValueError(f"Error al guardar el sticker en la base de datos: {str(e)}")
+
     return image_data
 
 
@@ -123,6 +147,28 @@ La imagen debe tener un fondo transparente, para que al imprimir el sticker no s
             
             # save_image now returns a tuple (image_b64, s3_url, high_res_s3_url)
             image_data = save_image(result, img_path)
+
+            # Create sticker record in database
+            user_id = session.get('user_id')
+
+            try:
+                create_user_sticker(
+                    user_id=user_id,
+                    image_url=img_path,
+                    is_public=False,
+                    style=style,
+                    generation_cost=0,
+                    prompt=user_prompt,
+                    metadata={
+                        'quality': quality,
+                        'generation_timestamp': int(time.time()),
+                        'original_filename': os.path.basename(img_path)
+                    }
+                )
+            except StickerValidationError as e:
+                logger.error(f"Error al guardar el sticker en la base de datos: {str(e)}")
+                raise ValueError(f"Error al guardar el sticker en la base de datos: {str(e)}")
+
             logger.info("Imagen guardada correctamente")
             return image_data
             

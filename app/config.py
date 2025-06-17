@@ -85,6 +85,7 @@ DYNAMODB_USER_TABLE = os.getenv('DYNAMODB_USER_TABLE', 'test-thestickerhouse-use
 DYNAMODB_TRANSACTION_TABLE = os.getenv('DYNAMODB_TRANSACTION_TABLE', 'test-thestickerhouse-transactions')
 DYNAMODB_REQUEST_TABLE = os.getenv('DYNAMODB_REQUEST_TABLE', 'test-thestickerhouse-admin-requests')
 DYNAMODB_COUPONES_TABLE = os.getenv('DYNAMODB_COUPONES_TABLE', 'test-thestickerhouse-coupons')
+DYNAMODB_STICKERS_TABLE = os.getenv('DYNAMODB_STICKERS_TABLE', 'test-thestickerhouse-stickers')
 
 # Mercado Pago configuration
 MP_ACCESS_TOKEN = os.getenv("PROD_ACCESS_TOKEN")

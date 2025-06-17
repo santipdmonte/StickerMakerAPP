@@ -9,7 +9,7 @@ from datetime import datetime
 from config import (
     INITIAL_COINS, BONUS_COINS,
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
-    DYNAMODB_USER_TABLE, DYNAMODB_TRANSACTION_TABLE, DYNAMODB_REQUEST_TABLE, DYNAMODB_COUPONES_TABLE
+    DYNAMODB_USER_TABLE, DYNAMODB_TRANSACTION_TABLE, DYNAMODB_REQUEST_TABLE, DYNAMODB_COUPONES_TABLE, DYNAMODB_STICKERS_TABLE
 )
 
 # Define table variables from config
@@ -17,6 +17,7 @@ USER_TABLE = DYNAMODB_USER_TABLE
 TRANSACTION_TABLE = DYNAMODB_TRANSACTION_TABLE
 ADMIN_REQUEST_TABLE = DYNAMODB_REQUEST_TABLE
 COUPON_TABLE = DYNAMODB_COUPONES_TABLE
+STICKERS_TABLE = DYNAMODB_STICKERS_TABLE
 
 # Function to check if table is ready (not in CREATING or UPDATING state)
 def is_table_ready(table_name):
@@ -357,6 +358,68 @@ def ensure_tables_exist():
             }
         )
         print(f"Created table {COUPON_TABLE}")
+
+    # Tabla de stickers
+    if STICKERS_TABLE not in existing_tables:
+        dynamodb.create_table(
+            TableName=STICKERS_TABLE,
+            KeySchema=[
+                {'AttributeName': 'id', 'KeyType': 'HASH'},  # Partition key
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'id', 'AttributeType': 'S'},
+                {'AttributeName': 'created_by', 'AttributeType': 'S'},
+                {'AttributeName': 'category', 'AttributeType': 'S'},
+                {'AttributeName': 'created_at', 'AttributeType': 'N'},
+            ],
+            GlobalSecondaryIndexes=[
+                {
+                    'IndexName': 'CreatedByIndex',
+                    'KeySchema': [
+                        {'AttributeName': 'created_by', 'KeyType': 'HASH'},
+                    ],
+                    'Projection': {
+                        'ProjectionType': 'ALL'
+                    },
+                    'ProvisionedThroughput': {
+                        'ReadCapacityUnits': 5,
+                        'WriteCapacityUnits': 5
+                    }
+                },
+                {
+                    'IndexName': 'CategoryIndex',
+                    'KeySchema': [
+                        {'AttributeName': 'category', 'KeyType': 'HASH'},
+                    ],
+                    'Projection': {
+                        'ProjectionType': 'ALL'
+                    },
+                    'ProvisionedThroughput': {
+                        'ReadCapacityUnits': 5,
+                        'WriteCapacityUnits': 5
+                    }
+                },
+                {
+                    'IndexName': 'CreatedAtIndex',
+                    'KeySchema': [
+                        {'AttributeName': 'category', 'KeyType': 'HASH'},
+                        {'AttributeName': 'created_at', 'KeyType': 'RANGE'},
+                    ],
+                    'Projection': {
+                        'ProjectionType': 'ALL'
+                    },
+                    'ProvisionedThroughput': {
+                        'ReadCapacityUnits': 5,
+                        'WriteCapacityUnits': 5
+                    }
+                },
+            ],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 5,
+                'WriteCapacityUnits': 5
+            }
+        )
+        print(f"Created table {STICKERS_TABLE}")
 
 # User Management Functions
 def create_user(email, initial_coins=None, name=None, role='user', referral=None):
