@@ -95,3 +95,8 @@ def validate_admin(token):
         success_message = "Usuario promovido a admin."
         return render_template('admin/validate_admin.html', req=req, success_message=success_message)
     return render_template('admin/validate_admin.html', req=req)
+
+@admin_bp.route('/template-generator')
+@admin_required
+def template_generator():
+    return render_template('template-generation.html')

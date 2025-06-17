@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Generador de Plantillas - TheStickerHouse</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="icon" href="{{ url_for('static', filename='ico/TheStickerHouseLogo.ico') }}" type="image/x-icon">
+    <style>
+        /* Estilos específicos para la página de generación de plantillas */
+        .template-generation-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .upload-section {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .upload-section h2 {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-size: 2rem;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--input-border);
+            border-radius: var(--border-radius);
+            padding: 40px;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+            margin-bottom: 30px;
+        }
+
+        .upload-area:hover {
+            border-color: var(--secondary-color);
+            background-color: #f8fafc;
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary-color);
+            background-color: rgba(124, 93, 250, 0.05);
+        }
+
+        .upload-area i {
+            font-size: 3rem;
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .upload-area p {
+            color: #64748b;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+
+        .upload-area .upload-hint {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .stickers-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .sticker-item {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            transition: var(--transition);
+            border: 2px solid transparent;
+        }
+
+        .sticker-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            border-color: var(--secondary-color);
+        }
+
+        .sticker-preview {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .sticker-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .quantity-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .quantity-section label {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .quantity-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 5px;
+        }
+
+        .quantity-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 1rem;
+            margin: 0;
+        }
+
+        .quantity-btn:hover:not(:disabled) {
+            background: var(--secondary-color);
+            transform: scale(1.1);
+        }
+
+        .quantity-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .quantity-display {
+            font-weight: 600;
+            color: var(--text-color);
+            min-width: 30px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .border-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .border-section label {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #e2e8f0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .toggle-switch.active {
+            background: var(--primary-color);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: var(--transition);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(26px);
+        }
+
+        .remove-sticker-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            margin: 0;
+        }
+
+        .remove-sticker-btn:hover {
+            background: rgb(239, 68, 68);
+            transform: scale(1.1);
+        }
+
+        .generation-section {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--card-shadow);
+            padding: 30px;
+            text-align: center;
+        }
+
+        .template-type-selector {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .template-type-btn {
+            padding: 12px 24px;
+            border: 2px solid var(--input-border);
+            border-radius: var(--border-radius);
+            background: white;
+            color: var(--text-color);
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .template-type-btn:hover {
+            border-color: var(--secondary-color);
+            background: rgba(124, 93, 250, 0.05);
+        }
+
+        .template-type-btn.active {
+            border-color: var(--primary-color);
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .generate-template-btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 10px 25px rgba(124, 93, 250, 0.25);
+            margin: 20px auto 0;
+            display: block;
+        }
+
+        .generate-template-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(124, 93, 250, 0.35);
+        }
+
+        .generate-template-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 10px 25px rgba(124, 93, 250, 0.15);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: #cbd5e1;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: var(--text-color);
+        }
+
+        .empty-state p {
+            font-size: 1rem;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .loading-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loading-content {
+            background: white;
+            padding: 40px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid var(--input-border);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-color);
+            text-decoration: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            margin: 0;
+        }
+
+        .back-btn:hover {
+            background: white;
+            border-color: var(--secondary-color);
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 768px) {
+            .template-generation-container {
+                padding: 10px;
+            }
+
+            .upload-section, .generation-section {
+                padding: 20px;
+            }
+
+            .stickers-list {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .template-type-selector {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .template-type-btn {
+                width: 100%;
+                max-width: 250px;
+                justify-content: center;
+            }
+
+            .quantity-section, .border-section {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .quantity-input {
+                align-self: flex-end;
+            }
+
+            .toggle-switch {
+                align-self: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="{{ url_for('index') }}" class="back-btn" title="Volver al inicio">
+        <i class="ri-arrow-left-line"></i>
+    </a>
+
+    <div class="template-generation-container">
+        <!-- Header -->
+        <header>
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='logo/TheStickerHouseLogo.PNG') }}" alt="Logo TheStickerHouse" class="main-logo">
+            </div>
+        </header>
+
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <h2><i class="ri-upload-cloud-line"></i> Generador de Plantillas</h2>
+            <p style="text-align: center; color: #64748b; margin-bottom: 30px;">
+                Subí tus imágenes, configurá las cantidades y generá plantillas listas para imprimir
+            </p>
+            
+            <div class="upload-area" id="upload-area">
+                <i class="ri-image-add-line"></i>
+                <p>Hace clic aquí o arrastrá tus imágenes</p>
+                <span class="upload-hint">PNG, JPG, JPEG hasta 10MB por archivo</span>
+            </div>
+            
+            <input type="file" id="file-input" multiple accept="image/*" style="display: none;">
+        </div>
+
+        <!-- Stickers List -->
+        <div id="stickers-container">
+            <div class="empty-state" id="empty-state">
+                <i class="ri-image-line"></i>
+                <h3>Sin imágenes cargadas</h3>
+                <p>Subí tus imágenes para comenzar a crear tu plantilla</p>
+            </div>
+            
+            <div class="stickers-list" id="stickers-list" style="display: none;">
+                <!-- Stickers will be added here dynamically -->
+            </div>
+        </div>
+
+        <!-- Generation Section -->
+        <div class="generation-section" id="generation-section" style="display: none;">
+            <h3 style="margin-bottom: 20px; color: var(--text-color);">Opciones de Plantilla</h3>
+            
+            <div class="template-type-selector">
+                <button class="template-type-btn active" data-type="sticker">
+                    <i class="ri-image-line"></i>
+                    Plantilla de Stickers (PNG)
+                </button>
+                <button class="template-type-btn" data-type="silhouette">
+                    <i class="ri-scissors-cut-line"></i>
+                    Plantilla de Corte (PDF)
+                </button>
+                <button class="template-type-btn" data-type="both">
+                    <i class="ri-file-list-3-line"></i>
+                    Ambas (ZIP)
+                </button>
+            </div>
+
+            <div style="background: #f8fafc; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                <h4 style="margin-bottom: 10px; color: var(--text-color);">
+                    <i class="ri-information-line"></i> Resumen
+                </h4>
+                <p id="summary-text" style="color: #64748b; margin: 0;">
+                    Total de stickers: <span id="total-stickers">0</span>
+                </p>
+            </div>
+
+            <button class="generate-template-btn" id="generate-template-btn" disabled>
+                <i class="ri-download-cloud-line"></i>
+                Generar Plantilla
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h3 style="margin-bottom: 10px;">Generando plantilla...</h3>
+            <p style="color: #64748b; margin: 0;">Por favor esperá mientras procesamos tus imágenes</p>
+        </div>
+    </div>
+
+    <!-- Success/Error Toast Messages -->
+    <div class="success-toast" id="success-toast">
+        <i class="ri-checkbox-circle-line"></i>
+        <span id="success-message">¡Éxito!</span>
+    </div>
+    
+    <div class="error-toast" id="error-toast">
+        <i class="ri-error-warning-line"></i>
+        <span id="error-message">¡Error!</span>
+    </div>
+
+    <script>
+        // Estado de la aplicación
+        let uploadedStickers = [];
+        let selectedTemplateType = 'sticker';
+
+        // Elementos del DOM
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const emptyState = document.getElementById('empty-state');
+        const stickersList = document.getElementById('stickers-list');
+        const stickersContainer = document.getElementById('stickers-container');
+        const generationSection = document.getElementById('generation-section');
+        const generateBtn = document.getElementById('generate-template-btn');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const totalStickersSpan = document.getElementById('total-stickers');
+        const successToast = document.getElementById('success-toast');
+        const errorToast = document.getElementById('error-toast');
+
+        // Event listeners
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        generateBtn.addEventListener('click', generateTemplate);
+
+        // Template type selector
+        document.querySelectorAll('.template-type-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.template-type-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                selectedTemplateType = e.target.dataset.type;
+            });
+        });
+
+        // Drag and drop handlers
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            processFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            processFiles(files);
+        }
+
+        // Process uploaded files
+        function processFiles(files) {
+            const imageFiles = files.filter(file => file.type.startsWith('image/'));
+            
+            if (imageFiles.length === 0) {
+                showError('Por favor seleccioná solo archivos de imagen.');
+                return;
+            }
+
+            imageFiles.forEach(file => {
+                if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                    showError(`El archivo ${file.name} es muy grande. Máximo 10MB.`);
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const sticker = {
+                        id: Date.now() + Math.random(),
+                        name: file.name,
+                        dataUrl: e.target.result,
+                        file: file,
+                        quantity: 1,
+                        border: false
+                    };
+                    
+                    uploadedStickers.push(sticker);
+                    renderStickers();
+                    updateUI();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Render stickers list
+        function renderStickers() {
+            if (uploadedStickers.length === 0) {
+                emptyState.style.display = 'block';
+                stickersList.style.display = 'none';
+                generationSection.style.display = 'none';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            stickersList.style.display = 'grid';
+            generationSection.style.display = 'block';
+
+            // Clear existing stickers
+            while (stickersList.firstChild) {
+                stickersList.removeChild(stickersList.firstChild);
+            }
+
+            // Add stickers to list
+            uploadedStickers.forEach(sticker => {
+                // Create the sticker item container
+                const stickerItem = document.createElement('div');
+                stickerItem.className = 'sticker-item';
+                stickerItem.dataset.id = sticker.id;
+
+                // Create the remove button
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-sticker-btn';
+                removeBtn.innerHTML = '<i class="ri-close-line"></i>';
+                removeBtn.type = 'button';
+                
+                removeBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    removeSticker(sticker.id);
+                });
+
+                // Create image preview
+                const img = document.createElement('img');
+                img.src = sticker.dataUrl;
+                img.alt = sticker.name;
+                img.className = 'sticker-preview';
+
+                // Create controls container
+                const stickerControls = document.createElement('div');
+                stickerControls.className = 'sticker-controls';
+
+                // Create quantity section
+                const quantitySection = document.createElement('div');
+                quantitySection.className = 'quantity-section';
+
+                const quantityLabel = document.createElement('label');
+                quantityLabel.textContent = 'Cantidad:';
+
+                const quantityInput = document.createElement('div');
+                quantityInput.className = 'quantity-input';
+
+                const decreaseBtn = document.createElement('button');
+                decreaseBtn.className = 'quantity-btn';
+                decreaseBtn.innerHTML = '<i class="ri-subtract-line"></i>';
+                decreaseBtn.disabled = sticker.quantity <= 1;
+                decreaseBtn.type = 'button';
+
+                const quantityDisplay = document.createElement('span');
+                quantityDisplay.className = 'quantity-display';
+                quantityDisplay.textContent = sticker.quantity;
+
+                const increaseBtn = document.createElement('button');
+                increaseBtn.className = 'quantity-btn';
+                increaseBtn.innerHTML = '<i class="ri-add-line"></i>';
+                increaseBtn.type = 'button';
+
+                // Add event listeners to quantity buttons
+                decreaseBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (sticker.quantity > 1) {
+                        changeQuantity(sticker.id, -1);
+                    }
+                });
+
+                increaseBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    changeQuantity(sticker.id, 1);
+                });
+
+                // Assemble quantity section
+                quantityInput.appendChild(decreaseBtn);
+                quantityInput.appendChild(quantityDisplay);
+                quantityInput.appendChild(increaseBtn);
+                
+                quantitySection.appendChild(quantityLabel);
+                quantitySection.appendChild(quantityInput);
+
+                // Create border section
+                const borderSection = document.createElement('div');
+                borderSection.className = 'border-section';
+
+                const borderLabel = document.createElement('label');
+                borderLabel.textContent = 'Con borde:';
+
+                const toggleSwitch = document.createElement('div');
+                toggleSwitch.className = `toggle-switch ${sticker.border ? 'active' : ''}`;
+                
+                toggleSwitch.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    toggleBorder(sticker.id);
+                });
+
+                borderSection.appendChild(borderLabel);
+                borderSection.appendChild(toggleSwitch);
+
+                // Assemble controls
+                stickerControls.appendChild(quantitySection);
+                stickerControls.appendChild(borderSection);
+
+                // Assemble sticker item
+                stickerItem.appendChild(removeBtn);
+                stickerItem.appendChild(img);
+                stickerItem.appendChild(stickerControls);
+
+                // Add to list
+                stickersList.appendChild(stickerItem);
+            });
+        }
+
+        // Remove sticker
+        function removeSticker(id) {
+            const stickerIndex = uploadedStickers.findIndex(s => s.id === id);
+            if (stickerIndex !== -1) {
+                uploadedStickers.splice(stickerIndex, 1);
+                
+                // Remove the specific sticker item from DOM
+                const stickerItem = document.querySelector(`[data-id="${id}"]`);
+                if (stickerItem) {
+                    stickerItem.remove();
+                }
+                
+                // Check if we need to show empty state
+                if (uploadedStickers.length === 0) {
+                    emptyState.style.display = 'block';
+                    stickersList.style.display = 'none';
+                    generationSection.style.display = 'none';
+                }
+                
+                updateUI();
+            }
+        }
+
+        // Change quantity
+        function changeQuantity(id, delta) {
+            const stickerIndex = uploadedStickers.findIndex(s => s.id === id);
+            if (stickerIndex !== -1) {
+                const newQuantity = Math.max(1, uploadedStickers[stickerIndex].quantity + delta);
+                uploadedStickers[stickerIndex].quantity = newQuantity;
+                
+                // Update the specific sticker display without full re-render
+                const stickerItem = document.querySelector(`[data-id="${id}"]`);
+                if (stickerItem) {
+                    const quantityDisplay = stickerItem.querySelector('.quantity-display');
+                    const decreaseBtn = stickerItem.querySelector('.quantity-btn');
+                    
+                    if (quantityDisplay) {
+                        quantityDisplay.textContent = newQuantity;
+                    }
+                    if (decreaseBtn) {
+                        decreaseBtn.disabled = newQuantity <= 1;
+                    }
+                }
+                
+                updateUI();
+            }
+        }
+
+        // Toggle border
+        function toggleBorder(id) {
+            const stickerIndex = uploadedStickers.findIndex(s => s.id === id);
+            if (stickerIndex !== -1) {
+                uploadedStickers[stickerIndex].border = !uploadedStickers[stickerIndex].border;
+                
+                // Update the specific toggle switch display
+                const stickerItem = document.querySelector(`[data-id="${id}"]`);
+                if (stickerItem) {
+                    const toggleSwitch = stickerItem.querySelector('.toggle-switch');
+                    if (toggleSwitch) {
+                        if (uploadedStickers[stickerIndex].border) {
+                            toggleSwitch.classList.add('active');
+                        } else {
+                            toggleSwitch.classList.remove('active');
+                        }
+                    }
+                }
+            }
+        }
+
+        // Update UI
+        function updateUI() {
+            const totalStickers = uploadedStickers.reduce((sum, s) => sum + s.quantity, 0);
+            totalStickersSpan.textContent = totalStickers;
+            generateBtn.disabled = uploadedStickers.length === 0;
+        }
+
+        // Generate template
+        async function generateTemplate() {
+            if (uploadedStickers.length === 0) {
+                showError('No hay stickers para generar plantilla.');
+                return;
+            }
+
+            loadingOverlay.classList.add('show');
+            generateBtn.disabled = true;
+
+            try {
+                // Create FormData with files and configuration
+                const formData = new FormData();
+                
+                // Add template type
+                formData.append('template_type', selectedTemplateType);
+                
+                // Add files and their configuration
+                uploadedStickers.forEach((sticker, index) => {
+                    formData.append('files', sticker.file);
+                    formData.append(`quantity_${index}`, sticker.quantity.toString());
+                    formData.append(`border_${index}`, sticker.border.toString());
+                });
+
+                // Call the upload and generate template endpoint
+                const response = await fetch('/upload-and-generate-template', {
+                    method: 'POST',
+                    body: formData // No Content-Type header needed for FormData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Error al generar plantilla');
+                }
+
+                // Download the file
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                
+                // Get filename from response headers
+                const contentDisposition = response.headers.get('Content-Disposition');
+                const filename = contentDisposition 
+                    ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+                    : `plantilla_${selectedTemplateType}_${new Date().getTime()}.${selectedTemplateType === 'silhouette' ? 'pdf' : selectedTemplateType === 'both' ? 'zip' : 'png'}`;
+                
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                showSuccess('¡Plantilla generada y descargada exitosamente!');
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError(error.message || 'Error al generar plantilla');
+            } finally {
+                loadingOverlay.classList.remove('show');
+                generateBtn.disabled = false;
+            }
+        }
+
+        // Show success message
+        function showSuccess(message) {
+            document.getElementById('success-message').textContent = message;
+            successToast.classList.add('show');
+            setTimeout(() => {
+                successToast.classList.remove('show');
+            }, 4000);
+        }
+
+        // Show error message
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            errorToast.classList.add('show');
+            setTimeout(() => {
+                errorToast.classList.remove('show');
+            }, 4000);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updateUI();
+        });
+    </script>
+</body>
+</html>

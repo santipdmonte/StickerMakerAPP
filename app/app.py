@@ -39,6 +39,7 @@ from routes.auth_routes import auth_bp
 from routes.coin_routes import coin_bp
 from routes.payment_routes import payment_bp
 from routes.template_routes import template_bp
+from routes.template_generation_routes import template_generation_bp
 from routes.s3_routes import s3_bp
 from routes.admin_routes import admin_bp
 from routes.coupon_routes import coupon_bp
@@ -63,6 +64,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(coin_bp)
 app.register_blueprint(payment_bp)
 app.register_blueprint(template_bp)
+app.register_blueprint(template_generation_bp)
 app.register_blueprint(s3_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(coupon_bp)
