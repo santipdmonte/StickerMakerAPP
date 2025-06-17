@@ -3,6 +3,8 @@ Sticker Services - Business logic for sticker management
 """
 import os
 import re
+import time
+import logging
 from typing import List, Dict, Optional, Tuple
 from models.stickers_models import (
     create_sticker, get_sticker, get_stickers_by_user, get_public_stickers,
@@ -11,6 +13,10 @@ from models.stickers_models import (
 )
 from utils.dynamodb_utils import get_user
 from config import STICKER_STYLE_CONFIG
+
+# Set up logging
+logger = logging.getLogger(__name__)
+from flask import session
 
 class StickerValidationError(Exception):
     """Custom exception for sticker validation errors"""
@@ -124,10 +130,6 @@ def create_user_sticker(user_id: str, image_url: str, image_url_high: str = None
         StickerValidationError: If validation fails
         ValueError: If user doesn't exist
     """
-    # Verify user exists
-    user = get_user(user_id)
-    if not user:
-        raise ValueError(f"User with ID {user_id} not found")
     
     # Validate sticker data
     validated_data = validate_sticker_data(image_url, title, description, tags, style)
@@ -463,3 +465,84 @@ def search_stickers(query: str, limit: int = 50) -> List[Dict]:
     # This would require either additional GSI indexes or a more sophisticated search solution
     
     return tag_results 
+
+def transfer_session_stickers_to_user(session_id: str, user_id: str) -> Dict:
+    """
+    Transfer stickers created during anonymous session to registered user.
+    This is called when a user registers or logs in for the first time.
+    
+    Args:
+        session_id (str): ID of the anonymous session
+        user_id (str): ID of the newly registered user
+        
+    Returns:
+        dict: Statistics about the transfer (count of transferred stickers)
+    """
+    if not session_id or not user_id:
+        raise ValueError("Both session_id and user_id are required")
+    
+    # Verify user exists
+    user = get_user(user_id)
+    if not user:
+        raise ValueError("User not found")
+    
+    # Get stickers created with this session_id
+    # Note: These stickers have session_id in the 'created_by' field
+    stickers = get_stickers_by_user(session_id, limit=1000, include_inactive=False)
+    
+    if not stickers:
+        # No stickers to transfer - this is normal
+        return {
+            'transferred_count': 0,
+            'message': 'No stickers to transfer'
+        }
+    
+    transferred_count = 0
+    failed_transfers = []
+    
+    # Update each sticker to belong to the user instead of the session
+    for sticker in stickers:
+        try:
+            # Verify the sticker still exists
+            existing_sticker = get_sticker(sticker['id'])
+            if not existing_sticker:
+                logger.error(f"Sticker {sticker['id']} not found in database")
+                failed_transfers.append(sticker['id'])
+                continue
+            
+            # Prepare the update data
+            update_data = {
+                'created_by': user_id,
+                'metadata': {
+                    **sticker.get('metadata', {}),
+                    'transferred_from_session': session_id,
+                    'transfer_timestamp': int(time.time())
+                }
+            }
+            
+            # Update the created_by field from session_id to user_id
+            updated_sticker = update_sticker(sticker['id'], update_data)
+            
+            if updated_sticker:
+                transferred_count += 1
+                logger.info(f"Successfully transferred sticker {sticker['id']} from session {session_id} to user {user_id}")
+            else:
+                failed_transfers.append(sticker['id'])
+                logger.error(f"Failed to transfer sticker {sticker['id']}: update_sticker returned None")
+                
+        except Exception as e:
+            logger.error(f"Error updating sticker {sticker['id']}: {str(e)}")
+            failed_transfers.append(sticker['id'])
+    
+    result = {
+        'transferred_count': transferred_count,
+        'failed_count': len(failed_transfers),
+        'message': f'Successfully transferred {transferred_count} stickers to user account'
+    }
+    
+    if failed_transfers:
+        result['failed_stickers'] = failed_transfers
+        logger.warning(f"Failed to transfer {len(failed_transfers)} stickers for user {user_id}")
+    
+    logger.info(f"Transferred {transferred_count} stickers from session {session_id} to user {user_id}")
+    return result

@@ -267,22 +267,47 @@ def update_sticker(sticker_id, updates):
         expression_attribute_values[f":{key}"] = value
     
     if not update_expression_parts:
+        print(f"No valid update parts for sticker {sticker_id}")
         return None
     
     update_expression = "SET " + ", ".join(update_expression_parts)
     
     try:
-        response = table.update_item(
-            Key={'id': sticker_id},
-            UpdateExpression=update_expression,
-            ExpressionAttributeValues=expression_attribute_values,
-            ExpressionAttributeNames=expression_attribute_names if expression_attribute_names else None,
-            ReturnValues='ALL_NEW'
-        )
+        # First, verify the sticker exists
+        get_response = table.get_item(Key={'id': sticker_id})
+        if 'Item' not in get_response:
+            print(f"Sticker {sticker_id} does not exist in table")
+            return None
         
-        return response.get('Attributes')
+        # Prepare update_item parameters
+        update_params = {
+            'Key': {'id': sticker_id},
+            'UpdateExpression': update_expression,
+            'ExpressionAttributeValues': expression_attribute_values,
+            'ReturnValues': 'ALL_NEW'
+        }
+        
+        # Only add ExpressionAttributeNames if we have any
+        if expression_attribute_names:
+            update_params['ExpressionAttributeNames'] = expression_attribute_names
+        
+        print(f"Updating sticker {sticker_id} with expression: {update_expression}")
+        print(f"Expression values: {expression_attribute_values}")
+        
+        response = table.update_item(**update_params)
+        
+        updated_item = response.get('Attributes')
+        if updated_item:
+            print(f"Successfully updated sticker {sticker_id}")
+            return updated_item
+        else:
+            print(f"Update response did not contain Attributes for sticker {sticker_id}")
+            return None
+            
     except Exception as e:
         print(f"Error updating sticker {sticker_id}: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 def delete_sticker(sticker_id, soft_delete=True):

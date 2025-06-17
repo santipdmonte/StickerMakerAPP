@@ -15,6 +15,7 @@ from utils.dynamodb_utils import (
 )
 from utils.utils import send_login_email
 from config import INITIAL_COINS, BONUS_COINS
+from services.sticker_services import transfer_session_stickers_to_user
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -140,6 +141,17 @@ def verify_pin():
     session['coins'] = user.get('coins', 0)
     if 'name' in user:
         session['name'] = user['name']
+
+    # Transfer stickers from anonymous session to new user account
+    session_id = session.get('session_id')
+    
+    if session_id:
+        try:
+            result = transfer_session_stickers_to_user(session_id, user['user_id'])
+            print(result)
+        except Exception as e:
+            # Don't fail the account creation if sticker transfer fails, just log it
+            print(f"Warning: Failed to transfer stickers for new user {user['user_id']}: {str(e)}")
     
     # Create response with session data
     response = jsonify({
