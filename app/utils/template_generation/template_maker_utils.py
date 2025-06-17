@@ -2,7 +2,7 @@ from sticker_maker_utils import StickerMaker
 from PIL import Image, ImageDraw
 from reportlab.pdfgen import canvas
 from reportlab.graphics import renderPDF
-from stickers_config import stickers
+from app.utils.template_generation.stickers_config import stickers
 
 base_template_path = "plantilla-imagenes.png"
 base_silhouette_path = "plantilla-siluetas.png"
